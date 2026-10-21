@@ -3,26 +3,13 @@ import { ArrowRight, CalendarDays, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import { Badge, Empty, formatDate, PageHeading } from "./shared";
-import { canEditLead, isPending, leadLabels } from "./domain";
+import { canEditLead, isPending, leadLabels, calculateReport } from "./domain";
 
 export function Dashboard() {
   const { db, actor } = useWorkspace();
   const leads = db.leads.filter((l) => !l.archived);
-  const today = (v: string) =>
-    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
-      new Date(v),
-    );
-  const newToday = leads.filter(
-    (l) => today(l.receivedAt) === today(new Date().toISOString()),
-  ).length;
-  const overdueIds = new Set(
-    db.appointments
-      .filter((a) => a.status === "scheduled" && Date.parse(a.at) < Date.now())
-      .map((a) => a.leadId),
-  );
-  const converted = leads.filter(
-    (l) => l.status === "Activated" || l.status === "Onboarded",
-  ).length;
+  const summary = db.report ?? calculateReport(db, actor);
+  const converted = summary.registered;
   const tickets = db.assignments.filter(
     (t) =>
       isPending(t) && (actor.role !== "telesale" || t.assigneeId === actor.id),
@@ -37,22 +24,22 @@ export function Dashboard() {
   const stats = [
     {
       label: "Tổng hồ sơ Lead",
-      value: leads.length,
+      value: summary.total,
       detail: "Hồ sơ đang quản lý",
     },
     {
       label: "Tiếp nhận hôm nay",
-      value: newToday,
+      value: summary.newToday,
       detail: "Theo ngày tiếp nhận đầu tiên",
     },
     {
       label: "Lead quá hẹn",
-      value: leads.filter((l) => overdueIds.has(l.id)).length,
+      value: summary.overdue,
       detail: "Lịch đăng ký chưa hoàn tất",
     },
     {
       label: "Tỷ lệ đăng ký",
-      value: `${leads.length ? Math.round((converted / leads.length) * 100) : 0}%`,
+      value: `${summary.total ? Number(((converted / summary.total) * 100).toFixed(2)) : 0}%`,
       detail: `${converted} tài xế đã đăng ký hoặc chạy đơn`,
     },
   ];
@@ -94,7 +81,7 @@ export function Dashboard() {
             <div className="funnel-row">
               <div>
                 <span>Đã tiếp nhận</span>
-                <strong>{leads.length}</strong>
+                <strong>{summary.total}</strong>
               </div>
               <div className="funnel-track">
                 <span style={{ width: "100%" }} />
@@ -108,7 +95,7 @@ export function Dashboard() {
               <div className="funnel-track">
                 <span
                   style={{
-                    width: `${leads.length ? (converted / leads.length) * 100 : 0}%`,
+                    width: `${summary.total ? (converted / summary.total) * 100 : 0}%`,
                   }}
                 />
               </div>
@@ -116,14 +103,12 @@ export function Dashboard() {
             <div className="funnel-row">
               <div>
                 <span>Đã chạy đơn đầu tiên</span>
-                <strong>
-                  {leads.filter((l) => l.status === "Onboarded").length}
-                </strong>
+                <strong>{summary.onboarded}</strong>
               </div>
               <div className="funnel-track">
                 <span
                   style={{
-                    width: `${leads.length ? (leads.filter((l) => l.status === "Onboarded").length / leads.length) * 100 : 0}%`,
+                    width: `${summary.total ? (leads.filter((l) => l.status === "Onboarded").length / summary.total) * 100 : 0}%`,
                   }}
                 />
               </div>
@@ -140,15 +125,16 @@ export function Dashboard() {
           </div>
           <div className="source-breakdown">
             {db.sources.map((s, i) => {
-              const count = leads.filter((l) => l.sourceId === s.id).length;
+              const count =
+                summary.bySource.find((x) => x.id === s.id)?.total ?? 0;
               return (
                 <div key={s.id}>
                   <span className={`source-dot source-${i % 4}`} />
                   <span>{s.name}</span>
                   <strong>{count}</strong>
                   <small>
-                    {leads.length
-                      ? Math.round((count / leads.length) * 100)
+                    {summary.total
+                      ? Math.round((count / summary.total) * 100)
                       : 0}
                     %
                   </small>
@@ -204,7 +190,7 @@ export function Dashboard() {
               </tbody>
             </table>
           </div>
-          {!leads.length && <Empty />}
+          {!summary.total && <Empty />}
         </section>
         <section className="data-section">
           <div className="section-header">
@@ -273,8 +259,7 @@ export function Dashboard() {
         <span className="summary-status">
           {Object.entries(leadLabels).map(([key, label]) => (
             <span key={key}>
-              {label}:{" "}
-              <strong>{leads.filter((l) => l.status === key).length}</strong>
+              {label}: <strong>{summary.byStatus[key] ?? 0}</strong>
             </span>
           ))}
         </span>

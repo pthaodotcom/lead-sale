@@ -1,4 +1,12 @@
-# Atomic CRM
+# Lead Sale
+
+The active application is Lead Sale. Run `npm ci`, copy `.env.example` to `.env.local` and configure Supabase, then `npm run dev`. The backend used by this application is `backend/supabase/`.
+
+See [setup, API, operations and acceptance checks](../docs/06-ban-giao-va-van-hanh.md). The original Atomic CRM source and documentation below are retained for provenance and reference; its old migrations are not used by Lead Sale.
+
+---
+
+# Atomic CRM (original base)
 
 A full-featured CRM built with React, shadcn-admin-kit, and Supabase.
 

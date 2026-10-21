@@ -1,10 +1,14 @@
 # Ghi nhận yêu cầu đề tài quản lý Lead tài xế
 
-Ngày đọc: **20/10/2026**. Trạng thái: **đã đọc nguồn, chưa chốt các quy tắc còn mâu thuẫn, chưa triển khai ứng dụng**.
+> **Hiện trạng mới 21/10/2026:** đã triển khai bản dùng Supabase thật theo yêu cầu “OK triển khai” của người dùng. Các nhận định “chưa nối DB/chờ bắt đầu” dưới đây là lịch sử khảo sát/thiết kế. Xem [bản bàn giao và giới hạn thực tế](06-ban-giao-va-van-hanh.md). Các đề xuất D-02…13 được dùng làm lựa chọn mặc định cho bản đầu trong phạm vi được giao triển khai; D-01/lần 3 có xác nhận riêng. Không đổi nội dung nguồn thành yêu cầu đã có sẵn. T-04 được điều chỉnh: hiện snapshot theo quyền, chưa phân trang server.
 
-Nguồn chính: [Google Doc “Trang gửi Thảo nhen”](https://docs.google.com/document/d/1rMIJFe_yON1uunKA6UZ1Kie5wPEGddcJypAvm5wJBSI/edit). Đã đọc đủ 4 tab và xem đủ 8 ảnh. [Bản chụp nội dung và ảnh](sources/google-doc-2026-10-20.md) dùng để đối chiếu khi nguồn thay đổi.
+Ngày đọc đầu tiên: **20/10/2026**; đọc lại trực tiếp đủ 4 tab và 8 ảnh: **21/10/2026**. Trạng thái: **đã có bản xem thử Lead Sale trong `app/`, lưu dữ liệu trình duyệt; chưa nối Supabase Auth/RLS và dữ liệu nghiệp vụ thật, chưa chốt các quy tắc còn mâu thuẫn**. Trạng thái app được xác định bằng đọc code, chưa chạy kiểm chứng trong lần cập nhật này.
+
+Nguồn chính: [Google Doc “Trang gửi Thảo nhen”](https://docs.google.com/document/d/1rMIJFe_yON1uunKA6UZ1Kie5wPEGddcJypAvm5wJBSI/edit). Đã đọc đủ 4 tab và xem đủ 8 ảnh. [Bản chụp ngày 20/10](sources/google-doc-2026-10-20.md) và [bản chụp đọc lại ngày 21/10](sources/google-doc-2026-10-21.md) dùng để đối chiếu khi nguồn thay đổi. [Ghi chú triển khai trên app hiện có](03-ghi-chu-trien-khai.md) phân biệt yêu cầu nguồn, lựa chọn demo và phần còn phải làm.
 
 Các mục “Theo nguồn” là yêu cầu ghi nhận được. Các mục “Đề xuất” là hướng triển khai để trao đổi, chưa phải yêu cầu đã duyệt. Mã R và Q do mình đặt để theo dõi; FR-01…FR-06 giữ mã của ảnh nguồn.
+
+Quyết định sau khi đọc nguồn được theo dõi trong [đặc tả bước 1](05-dac-ta-buoc-1.md). **Q-01/ngưỡng đã chốt ngày 21/10/2026:** người dùng chọn lần KNM hoặc quá hẹn thứ **3 → Solved**. Cách đếm/reset và các câu hỏi khác chưa vì vậy được chốt; giữ nguyên mô tả nguồn dưới đây để đối chiếu.
 
 ## 1. Mục tiêu và phạm vi
 

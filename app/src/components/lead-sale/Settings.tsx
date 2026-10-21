@@ -2,19 +2,72 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWorkspace } from "./context";
-import { roleLabels } from "./domain";
-import { formatDate, Guard, PageHeading } from "./shared";
-import type { Member } from "./types";
+import { roleLabels, leadLabels } from "./domain";
+import { formatDate, Guard, PageHeading, Field } from "./shared";
+import { registerMember } from "./backend";
+import { toast } from "sonner";
+import type { Member, Source } from "./types";
+
+function SourceName({ source }: { source: Source }) {
+  const { run, busy } = useWorkspace();
+  const [name, setName] = useState(source.name);
+  return (
+    <form
+      className="filter-bar"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await run(
+          { type: "source", id: source.id, name, active: source.active },
+          "Đã cập nhật tên nguồn.",
+        );
+      }}
+    >
+      <Input
+        aria-label={`Tên nguồn ${source.name}`}
+        required
+        minLength={2}
+        maxLength={120}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={busy || name.trim() === source.name}
+      >
+        Lưu tên
+      </Button>
+    </form>
+  );
+}
 
 function MemberRow({ member }: { member: Member }) {
-  const { actor, run } = useWorkspace();
+  const { db, actor, run } = useWorkspace();
   const [role, setRole] = useState(member.role);
   const [active, setActive] = useState(member.active);
+  const [teamId, setTeamId] = useState(member.teamId ?? "default");
   return (
     <tr>
       <td>
         <strong>{member.name}</strong>
         <small>{member.id}</small>
+        <small>{member.email}</small>
+      </td>
+      <td>
+        <select
+          aria-label={`Nhóm của ${member.name}`}
+          disabled={member.id === actor.id}
+          value={teamId}
+          onChange={(e) => setTeamId(e.target.value)}
+        >
+          {(db.teams ?? [{ id: "default", name: "Nhóm tuyển tài xế" }]).map(
+            (t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ),
+          )}
+        </select>
       </td>
       <td>
         <select
@@ -47,12 +100,20 @@ function MemberRow({ member }: { member: Member }) {
           variant="outline"
           disabled={
             member.id === actor.id ||
-            (role === member.role && active === member.active)
+            (role === member.role &&
+              active === member.active &&
+              teamId === (member.teamId ?? "default"))
           }
-          onClick={() =>
-            run(
-              { type: "member", id: member.id, role, active },
-              "Đã cập nhật người dùng demo.",
+          onClick={async () =>
+            await run(
+              {
+                type: "member",
+                id: member.id,
+                role,
+                active,
+                ...(teamId !== (member.teamId ?? "default") ? { teamId } : {}),
+              },
+              "Đã cập nhật người dùng.",
             )
           }
         >
@@ -63,14 +124,19 @@ function MemberRow({ member }: { member: Member }) {
   );
 }
 export function Settings() {
-  const { db, actor, run } = useWorkspace();
+  const { db, actor, run, cloud, refresh } = useWorkspace();
   const [tab, setTab] = useState("sources");
   const [source, setSource] = useState("");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [team, setTeam] = useState("");
   return (
     <Guard allowed={actor.role === "admin"}>
       <PageHeading
         title="Quản trị hệ thống"
-        description="Quản lý nguồn tiếp nhận, vai trò dùng thử và nhật ký thao tác."
+        description="Quản lý danh mục, tài khoản, phạm vi nhóm và nhật ký thao tác."
       />
       <section className="data-section">
         <div className="list-tabs">
@@ -78,11 +144,13 @@ export function Settings() {
             ["sources", "Nguồn Lead"],
             ["members", "Người dùng & vai trò"],
             ["audit", "Nhật ký hệ thống"],
+            ["teams", "Nhóm"],
+            ["statuses", "Trạng thái Lead"],
           ].map(([key, label]) => (
             <button
               key={key}
               className={tab === key ? "active" : ""}
-              onClick={() => setTab(key)}
+              onClick={async () => setTab(key)}
             >
               {label}
             </button>
@@ -92,10 +160,13 @@ export function Settings() {
           <>
             <form
               className="filter-bar"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (
-                  run({ type: "source", name: source }, "Đã thêm nguồn Lead.")
+                  await run(
+                    { type: "source", name: source },
+                    "Đã thêm nguồn Lead.",
+                  )
                 )
                   setSource("");
               }}
@@ -124,7 +195,7 @@ export function Settings() {
                   {db.sources.map((s) => (
                     <tr key={s.id}>
                       <td>
-                        <strong>{s.name}</strong>
+                        <SourceName source={s} />
                       </td>
                       <td>{s.id}</td>
                       <td>
@@ -135,8 +206,8 @@ export function Settings() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
-                            run(
+                          onClick={async () =>
+                            await run(
                               {
                                 type: "source",
                                 id: s.id,
@@ -160,14 +231,69 @@ export function Settings() {
         {tab === "members" && (
           <>
             <p className="side-content muted">
-              Vai trò tại đây dùng để thử luồng trên trình duyệt. Đăng nhập và
-              phân quyền máy chủ sẽ được nối cùng Supabase.
+              {cloud
+                ? "Tài khoản mới chờ quản trị gán vai trò và kích hoạt. Nếu hệ thống yêu cầu xác nhận email, nhân viên cần xác nhận trước khi đăng nhập."
+                : "Các tài khoản trong chế độ xem thử chỉ mô phỏng vai trò."}
             </p>
+            {cloud && (
+              <form
+                className="side-content stack-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setCreating(true);
+                  try {
+                    await registerMember(email, password, name);
+                    await refresh();
+                    setEmail("");
+                    setName("");
+                    setPassword("");
+                    toast.success(
+                      "Đã tạo tài khoản. Chọn vai trò và kích hoạt bên dưới.",
+                    );
+                  } catch (error) {
+                    toast.error((error as Error).message);
+                  } finally {
+                    setCreating(false);
+                  }
+                }}
+              >
+                <h2>Tạo tài khoản nhân viên</h2>
+                <div className="form-grid">
+                  <Field label="Họ tên nhân viên">
+                    <Input
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Email nhân viên">
+                    <Input
+                      required
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Mật khẩu ban đầu">
+                    <Input
+                      required
+                      type="password"
+                      minLength={10}
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <Button disabled={creating}>Tạo tài khoản</Button>
+              </form>
+            )}
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Người dùng</th>
+                    <th>Nhóm</th>
                     <th>Vai trò</th>
                     <th>Trạng thái</th>
                     <th>Thao tác</th>
@@ -181,6 +307,45 @@ export function Settings() {
               </table>
             </div>
           </>
+        )}
+        {tab === "teams" && (
+          <div className="side-content stack-form">
+            <form
+              className="filter-bar"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (await run({ type: "team", name: team }, "Đã tạo nhóm."))
+                  setTeam("");
+              }}
+            >
+              <Input
+                aria-label="Tên nhóm mới"
+                required
+                minLength={2}
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+              />
+              <Button>Tạo nhóm</Button>
+            </form>
+            {db.teams?.map((t) => (
+              <p key={t.id}>{t.name}</p>
+            ))}
+          </div>
+        )}
+        {tab === "statuses" && (
+          <div className="side-content stack-form">
+            <p>
+              Mã trạng thái và luồng chuyển được giữ cố định. Có thể chỉnh nhãn
+              hiển thị.
+            </p>
+            {Object.entries(leadLabels).map(([code, label]) => (
+              <StatusLabel
+                key={code}
+                code={code as keyof typeof leadLabels}
+                label={label}
+              />
+            ))}
+          </div>
         )}
         {tab === "audit" && (
           <div className="table-scroll">
@@ -216,5 +381,38 @@ export function Settings() {
         )}
       </section>
     </Guard>
+  );
+}
+
+function StatusLabel({
+  code,
+  label,
+}: {
+  code: keyof typeof leadLabels;
+  label: string;
+}) {
+  const { run } = useWorkspace();
+  const [value, setValue] = useState(label);
+  return (
+    <form
+      className="filter-bar"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await run(
+          { type: "statusLabel", code, label: value },
+          "Đã cập nhật nhãn trạng thái.",
+        );
+      }}
+    >
+      <span>{code}</span>
+      <Input
+        aria-label={`Nhãn ${code}`}
+        required
+        maxLength={120}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <Button variant="outline">Lưu</Button>
+    </form>
   );
 }

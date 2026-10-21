@@ -69,6 +69,9 @@ export function makeSeed(now = new Date()): Database {
           ? ("Solved" as const)
           : ("Open" as const),
     closeReason: "",
+    teamId: "default",
+    round: 1,
+    acceptedAt: i === 1 ? undefined : ago(3, 2),
   }));
   const activities: Database["activities"] = assignments
     .slice(2)
@@ -103,6 +106,9 @@ export function makeSeed(now = new Date()): Database {
     }));
   return {
     version: 1,
+    receptions: [],
+    reviews: [],
+    notices: [],
     leads,
     assignments,
     activities,

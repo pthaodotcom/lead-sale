@@ -8,13 +8,10 @@ import {
   Plus,
   UserRound,
 } from "lucide-react";
-import Papa from "papaparse";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "./context";
-import { execute } from "./store";
 import { AssignmentDialog } from "./AssignmentDialog";
 import {
   Badge,
@@ -27,7 +24,14 @@ import {
   SearchBox,
   textMatches,
 } from "./shared";
-import { canAssign, canEditLead, leadLabels, outcomeLabels } from "./domain";
+import {
+  canAssign,
+  canEditLead,
+  canReadLead,
+  leadLabels,
+  outcomeLabels,
+  normalizePhone,
+} from "./domain";
 import type { LeadInput, LeadStatus } from "./types";
 
 export function LeadsList() {
@@ -40,6 +44,7 @@ export function LeadsList() {
   const status = params.get("status") ?? "";
   const items = db.leads.filter(
     (l) =>
+      canReadLead(db, actor, l.id) &&
       l.archived === archived &&
       (!status || l.status === status) &&
       (!source || l.sourceId === source) &&
@@ -53,7 +58,7 @@ export function LeadsList() {
     Math.max(1, Math.ceil(items.length / pageSize)),
   );
   return (
-    <>
+    <Guard allowed={actor.role !== "viewer"}>
       <PageHeading
         title="Hồ sơ Lead"
         description="Tiếp nhận, theo dõi và quản lý hồ sơ tài xế tiềm năng."
@@ -79,7 +84,7 @@ export function LeadsList() {
         <div className="list-tabs">
           <button
             className={!status ? "active" : ""}
-            onClick={() => {
+            onClick={async () => {
               setParams({});
               setPage(1);
             }}
@@ -93,7 +98,7 @@ export function LeadsList() {
             <button
               className={status === key ? "active" : ""}
               key={key}
-              onClick={() => {
+              onClick={async () => {
                 setParams({ status: key });
                 setPage(1);
               }}
@@ -149,7 +154,8 @@ export function LeadsList() {
             variant="outline"
             size="icon"
             aria-label="Xuất danh sách đang lọc"
-            onClick={() =>
+            disabled={!["admin", "intake", "leader"].includes(actor.role)}
+            onClick={async () =>
               downloadCsv("lead-sale.csv", [
                 [
                   "Mã hồ sơ",
@@ -256,7 +262,7 @@ export function LeadsList() {
               variant="outline"
               size="sm"
               disabled={safePage === 1}
-              onClick={() => setPage(safePage - 1)}
+              onClick={async () => setPage(safePage - 1)}
             >
               Trước
             </Button>
@@ -264,14 +270,14 @@ export function LeadsList() {
               variant="outline"
               size="sm"
               disabled={safePage * pageSize >= items.length}
-              onClick={() => setPage(safePage + 1)}
+              onClick={async () => setPage(safePage + 1)}
             >
               Sau
             </Button>
           </div>
         </div>
       </section>
-    </>
+    </Guard>
   );
 }
 
@@ -294,6 +300,10 @@ export function LeadForm() {
         },
   );
   const [error, setError] = useState("");
+  const duplicate = db.leads.find(
+    (l) =>
+      l.id !== id && normalizePhone(l.phone) === normalizePhone(form.phone),
+  );
   const field = <K extends keyof LeadInput>(key: K, value: LeadInput[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
   if (id && !existing) return <Empty title="Không tìm thấy hồ sơ" />;
@@ -306,11 +316,11 @@ export function LeadForm() {
       />
       <form
         className="form-surface lead-form"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setError("");
           if (
-            run(
+            await run(
               { type: "saveLead", id, input: form },
               id ? "Đã cập nhật hồ sơ." : "Đã tiếp nhận Lead mới.",
             )
@@ -349,6 +359,14 @@ export function LeadForm() {
               placeholder="Ví dụ: 0901234567"
             />
           </Field>
+          {duplicate && (
+            <p role="status" className="full-span review-notice">
+              Số điện thoại đã có trong hồ sơ.{" "}
+              <Link to={`/leads/${duplicate.id}`}>
+                Mở {duplicate.name} để bổ sung
+              </Link>
+            </p>
+          )}
           <Field label="Thành phố đăng ký *">
             <Input
               required
@@ -414,7 +432,11 @@ export function LeadForm() {
           </p>
         )}
         <div className="form-actions">
-          <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => navigate(-1)}
+          >
             Hủy
           </Button>
           <Button type="submit">
@@ -433,12 +455,14 @@ export function LeadShow() {
   const [status, setStatus] = useState<LeadStatus | "">("");
   const [reason, setReason] = useState("");
   if (!l) return <Empty title="Không tìm thấy hồ sơ" />;
+  if (!canReadLead(db, actor, l.id))
+    return <Guard allowed={false}>{null}</Guard>;
   const tickets = db.assignments.filter((t) => t.leadId === l.id);
   const activities = db.activities.filter((a) => a.leadId === l.id);
   const live = tickets.find((t) => t.status !== "Closed");
   const transitions = {
     New: ["Activated", "Closed"],
-    Activated: ["Onboarded", "Closed"],
+    Activated: ["Onboarded"],
     Onboarded: [],
     Closed: ["New"],
   }[l.status];
@@ -608,14 +632,14 @@ export function LeadShow() {
               </div>
               <form
                 className="side-content stack-form"
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (
                     status &&
-                    run(
+                    (await run(
                       { type: "leadStatus", id: l.id, status, reason },
                       "Đã cập nhật trạng thái hồ sơ.",
-                    )
+                    ))
                   ) {
                     setReason("");
                     setStatus("");
@@ -651,8 +675,8 @@ export function LeadShow() {
           {canEditLead(actor) && (
             <Button
               variant="outline"
-              onClick={() =>
-                run(
+              onClick={async () =>
+                await run(
                   { type: "archiveLead", id: l.id },
                   l.archived ? "Đã khôi phục hồ sơ." : "Đã lưu trữ hồ sơ.",
                 )
@@ -665,178 +689,5 @@ export function LeadShow() {
         </aside>
       </div>
     </>
-  );
-}
-
-export function ImportLeads() {
-  const { actor } = useWorkspace();
-  const [rows, setRows] = useState<Record<string, string>[]>([]);
-  const [filename, setFilename] = useState("");
-  const [results, setResults] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [imported, setImported] = useState(false);
-  return (
-    <Guard allowed={canEditLead(actor)}>
-      <PageHeading
-        title="Nhập danh sách Lead"
-        description="Xem trước dữ liệu và kiểm tra từng hồ sơ trước khi lưu."
-        back="/leads"
-      />
-      <section className="form-surface">
-        <h2>Nhập file CSV</h2>
-        <p className="muted">
-          Dùng file CSV UTF-8 xuất từ Excel. Chưa hỗ trợ đọc trực tiếp file
-          .xlsx.
-        </p>
-        <Button
-          variant="outline"
-          onClick={() =>
-            downloadCsv("mau-nhap-lead.csv", [
-              ["name", "phone", "city", "vehicle", "sourceId", "note"],
-              [
-                "Tài xế mẫu",
-                "0901234567",
-                "Hồ Chí Minh",
-                "Motorbike",
-                "web",
-                "Dòng minh họa, thay bằng dữ liệu cần nhập",
-              ],
-            ])
-          }
-        >
-          <Download />
-          Tải file mẫu
-        </Button>
-        <Field label="Chọn file dữ liệu">
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              if (file.size > 2 * 1024 * 1024) {
-                toast.error("Chọn file không quá 2 MB.");
-                return;
-              }
-              setResults([]);
-              setRows([]);
-              setImported(false);
-              setFilename(file.name);
-              Papa.parse<Record<string, string>>(file, {
-                header: true,
-                skipEmptyLines: "greedy",
-                transformHeader: (h) => h.trim(),
-                complete: (result) => {
-                  if (
-                    result.errors.length ||
-                    !["name", "phone", "city", "vehicle", "sourceId"].every(
-                      (k) => result.meta.fields?.includes(k),
-                    )
-                  ) {
-                    toast.error(
-                      "File sai cấu trúc. Dùng các cột trong file mẫu.",
-                    );
-                    return;
-                  }
-                  if (result.data.length > 500) {
-                    toast.error("Mỗi lần nhập tối đa 500 hồ sơ.");
-                    return;
-                  }
-                  setRows(result.data);
-                },
-                error: () => toast.error("Không đọc được file CSV."),
-              });
-            }}
-          />
-        </Field>
-        {filename && (
-          <p>
-            {filename} · {rows.length} dòng
-          </p>
-        )}
-        {rows.length > 0 && (
-          <>
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Họ tên</th>
-                    <th>SĐT</th>
-                    <th>Thành phố</th>
-                    <th>Xe / Nguồn</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.slice(0, 10).map((r, i) => (
-                    <tr key={i}>
-                      <td>{r.name}</td>
-                      <td>{r.phone}</td>
-                      <td>{r.city}</td>
-                      <td>
-                        {r.vehicle} / {r.sourceId}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="muted">
-              Hiển thị tối đa 10 dòng xem trước. Dòng trùng hoặc không hợp lệ sẽ
-              bị từ chối; các dòng hợp lệ được lưu riêng.
-            </p>
-            <Button
-              disabled={busy || imported}
-              onClick={() => {
-                setBusy(true);
-                const messages: string[] = [];
-                for (const [i, row] of rows.entries()) {
-                  try {
-                    execute(actor.id, {
-                      type: "saveLead",
-                      input: {
-                        name: row.name ?? "",
-                        phone: row.phone ?? "",
-                        city: row.city ?? "",
-                        vehicle: row.vehicle as LeadInput["vehicle"],
-                        sourceId: row.sourceId ?? "",
-                        tags: [],
-                        note: row.note ?? "",
-                      },
-                    });
-                    messages.push(`Dòng ${i + 2}: Đã lưu ${row.name}.`);
-                  } catch (error) {
-                    messages.push(
-                      `Dòng ${i + 2}: Lỗi — ${error instanceof Error ? error.message : "Không lưu được"}`,
-                    );
-                  }
-                }
-                setResults(messages);
-                setBusy(false);
-                setImported(true);
-                toast.success(
-                  "Đã xử lý danh sách. Kiểm tra kết quả từng dòng bên dưới.",
-                );
-              }}
-            >
-              {busy
-                ? "Đang nhập…"
-                : imported
-                  ? "Đã xử lý file"
-                  : `Xác nhận nhập ${rows.length} hồ sơ`}
-            </Button>
-          </>
-        )}
-        {results.length > 0 && (
-          <div className="import-results" role="status">
-            <h3>Kết quả nhập</h3>
-            {results.map((r, i) => (
-              <p key={i} className={r.includes("Lỗi —") ? "form-error" : ""}>
-                {r}
-              </p>
-            ))}
-          </div>
-        )}
-      </section>
-    </Guard>
   );
 }

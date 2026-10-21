@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import ExcelJS from "exceljs";
 
 test("tạo Lead → phân công → tư vấn và lịch hẹn → tải lại vẫn còn dữ liệu", async ({
   page,
@@ -56,7 +57,12 @@ test("cảnh báo SĐT trùng và không tạo thêm hồ sơ", async ({ page })
   await page.getByLabel("Thành phố đăng ký").fill("Hà Nội");
   await page.getByLabel("Nguồn Lead").selectOption("web");
   await page.getByRole("button", { name: "Tạo hồ sơ Lead" }).click();
-  await expect(page.getByText(/Số điện thoại đã có trong hồ sơ/)).toBeVisible();
+  await expect(page.locator(".review-notice")).toContainText(
+    "Số điện thoại đã có trong hồ sơ",
+  );
+  await expect(
+    page.getByRole("link", { name: /Mở Nguyễn Văn Minh để bổ sung/ }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => JSON.parse(localStorage.getItem("lead-sale.demo.v1")!).leads.length,
@@ -117,3 +123,50 @@ test("điện thoại mở menu và màn hình chính không tràn ngang", async
     ),
   ).toBeTruthy();
 });
+
+for (const format of ["csv", "xlsx"] as const) {
+  test(`nhập ${format}: lưu dòng hợp lệ, báo trùng và lỗi riêng từng dòng`, async ({
+    page,
+  }) => {
+    const rows = [
+      ["name", "phone", "city", "vehicle", "sourceId", "note"],
+      [
+        `Tài xế nhập ${format}`,
+        "0901888111",
+        "Hà Nội",
+        "Motorbike",
+        "web",
+        "Dữ liệu thử",
+      ],
+      ["Hồ sơ trùng", "+84901000000", "Hà Nội", "Motorbike", "web", ""],
+      ["Hồ sơ lỗi", "123", "Hà Nội", "Motorbike", "web", ""],
+    ];
+    let buffer: Buffer;
+    if (format === "xlsx") {
+      const workbook = new ExcelJS.Workbook();
+      workbook.addWorksheet("Lead").addRows(rows);
+      buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    } else buffer = Buffer.from(rows.map((row) => row.join(",")).join("\n"));
+    await page.goto("/#/import");
+    await page
+      .getByLabel("Chọn CSV hoặc XLSX")
+      .setInputFiles({
+        name: `lead.${format}`,
+        mimeType:
+          format === "csv"
+            ? "text/csv"
+            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer,
+      });
+    await expect(page.locator(".data-table")).toContainText("Hợp lệ");
+    await expect(page.locator(".data-table")).toContainText("Trùng");
+    await page
+      .getByRole("button", { name: "Nhập 3 dòng", exact: true })
+      .click();
+    await expect(page.locator(".import-results")).toContainText(
+      `Đã lưu Tài xế nhập ${format}`,
+    );
+    await expect(page.locator(".import-results")).toContainText("Dòng 3: Lỗi");
+    await expect(page.locator(".import-results")).toContainText("Dòng 4: Lỗi");
+  });
+}

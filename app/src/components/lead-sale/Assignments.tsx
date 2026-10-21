@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { ArrowUpRight, Clock3, MessageSquare, Phone, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useWorkspace } from "./context";
 import { AssignmentDialog } from "./AssignmentDialog";
+import { Evidence } from "./Evidence";
 import {
   Badge,
   Empty,
@@ -26,11 +27,13 @@ import {
   outcomeLabels,
   reasonLabels,
   ticketLabels,
+  canReadLead,
 } from "./domain";
 import type { ActivityInput, TicketStatus } from "./types";
 
 const groups = [
   { id: "pending", name: "Chưa giải quyết" },
+  { id: "unaccepted", name: "Chưa nhận việc" },
   { id: "new", name: "Chưa liên hệ" },
   { id: "agreed", name: "Đồng ý đăng ký" },
   { id: "no_answer", name: "Không nghe máy" },
@@ -51,8 +54,12 @@ export function AssignmentsList() {
   const group = params.get("group") ?? "pending";
   const [q, setQ] = useState("");
   const [member, setMember] = useState("");
+  const [deadline, setDeadline] = useState("");
   const tickets = db.assignments.filter(
-    (t) => canAssign(actor) || t.assigneeId === actor.id,
+    (t) =>
+      canReadLead(db, actor, t.leadId) &&
+      (actor.role !== "telesale" ||
+        (t.assigneeId === actor.id && t.status !== "Closed")),
   );
   const matches = (t: (typeof tickets)[number], key: string) => {
     const c = counts(db, t.id);
@@ -60,9 +67,12 @@ export function AssignmentsList() {
       .filter((a) => a.assignmentId === t.id)
       .sort((a, b) => b.at.localeCompare(a.at));
     if (key === "closed") return t.status === "Closed";
+    if (key === "unaccepted") return t.status === "New" && !t.acceptedAt;
     if (key === "solved") return t.status === "Solved";
     if (key === "recent")
       return new Date(t.updatedAt).getTime() >= Date.now() - 3 * 86400000;
+    if ((key === "no_answer_3" || key === "overdue_3") && t.status === "Solved")
+      return key === "no_answer_3" ? c.noAnswer >= 3 : c.overdue >= 3;
     if (!isPending(t)) return false;
     if (key === "new") return t.status === "New";
     if (key === "agreed") return activities[0]?.decision === "agreed";
@@ -89,6 +99,10 @@ export function AssignmentsList() {
       return (
         matches(t, selected.id) &&
         (!member || t.assigneeId === member) &&
+        (!deadline ||
+          new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Ho_Chi_Minh",
+          }).format(new Date(t.expiresAt)) <= deadline) &&
         textMatches(q, t.id, l?.name ?? "", l?.phone ?? "")
       );
     })
@@ -107,7 +121,7 @@ export function AssignmentsList() {
             <button
               key={g.id}
               className={`${selected.id === g.id ? "active" : ""} ${g.child ? "is-child" : ""}`}
-              onClick={() => setParams({ group: g.id })}
+              onClick={async () => setParams({ group: g.id })}
             >
               <span>{g.name}</span>
               <span>{tickets.filter((t) => matches(t, g.id)).length}</span>
@@ -120,6 +134,13 @@ export function AssignmentsList() {
             <span>{filtered.length} phiếu</span>
           </div>
           <div className="filter-bar">
+            <Field label="Hạn xử lý đến">
+              <input
+                type="date"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </Field>
             <SearchBox
               value={q}
               onChange={setQ}
@@ -230,7 +251,7 @@ export function AssignmentsList() {
 
 export function AssignmentShow() {
   const { id } = useParams();
-  const { db, actor, run } = useWorkspace();
+  const { db, actor, run, cloud } = useWorkspace();
   const t = db.assignments.find((t) => t.id === id);
   const [tab, setTab] = useState("activity");
   const [form, setForm] = useState<ActivityInput>({
@@ -245,10 +266,19 @@ export function AssignmentShow() {
   });
   const [target, setTarget] = useState<TicketStatus | "">("");
   const [reason, setReason] = useState("");
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, at: localDateTime() }));
+  }, [t?.id, t?.round]);
   if (!t) return <Empty title="Không tìm thấy phiếu" />;
   const l = db.leads.find((l) => l.id === t.leadId)!;
-  const permitted = canWork(actor, t);
-  const editable = permitted && isPending(t);
+  const permitted =
+    canWork(actor, t) ||
+    (actor.role === "leader" &&
+      (t.teamId ?? "default") === (actor.teamId ?? "default"));
+  const editable =
+    canWork(actor, t) &&
+    isPending(t) &&
+    (!!t.acceptedAt || actor.role === "admin");
   const activities = db.activities
     .filter((a) => a.assignmentId === t.id)
     .sort((a, b) => b.at.localeCompare(a.at));
@@ -261,6 +291,7 @@ export function AssignmentShow() {
     <Guard
       allowed={
         actor.role !== "viewer" &&
+        canReadLead(db, actor, t.leadId) &&
         (canAssign(actor) ||
           actor.role === "intake" ||
           t.assigneeId === actor.id)
@@ -297,8 +328,8 @@ export function AssignmentShow() {
       </div>
       {(c.noAnswer === 3 || c.overdue === 3) && (
         <p className="review-notice">
-          Phiếu có đúng 3 lần không nghe máy hoặc quá hẹn. Trưởng nhóm cần rà
-          soát trước khi quyết định kết thúc tư vấn.
+          Đã đạt ngưỡng 3 lần không nghe máy hoặc quá hẹn. Phiếu được giải
+          quyết; có thể mở lại trong hạn để bắt đầu đợt chăm sóc mới.
         </p>
       )}
       {t.status === "Closed" && (
@@ -308,18 +339,29 @@ export function AssignmentShow() {
         </p>
       )}
       <div className="detail-grid">
+        {t.assigneeId === actor.id &&
+          !t.acceptedAt &&
+          t.status !== "Closed" && (
+            <Button
+              onClick={async () => {
+                await run({ type: "accept", id: t.id }, "Đã nhận việc.");
+              }}
+            >
+              Nhận việc
+            </Button>
+          )}
         <div className="detail-main">
           <section className="data-section">
             <div className="list-tabs">
               <button
                 className={tab === "activity" ? "active" : ""}
-                onClick={() => setTab("activity")}
+                onClick={async () => setTab("activity")}
               >
                 Lịch sử tư vấn <span>{activities.length}</span>
               </button>
               <button
                 className={tab === "appointment" ? "active" : ""}
-                onClick={() => setTab("appointment")}
+                onClick={async () => setTab("appointment")}
               >
                 Lịch hẹn{" "}
                 <span>
@@ -363,6 +405,13 @@ export function AssignmentShow() {
                         )}
                       </div>
                       <p>{a.note}</p>
+                      {cloud && (
+                        <Evidence
+                          activity={a}
+                          ticketId={t.id}
+                          editable={permitted && t.status !== "Closed"}
+                        />
+                      )}
                     </article>
                   ))}
                 </div>
@@ -411,10 +460,10 @@ export function AssignmentShow() {
               </div>
               <form
                 className="stack-form"
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (
-                    run(
+                    await run(
                       { type: "activity", assignmentId: t.id, input: form },
                       "Đã ghi nhận tư vấn.",
                     )
@@ -446,7 +495,7 @@ export function AssignmentShow() {
                   <Field label="Thời điểm liên hệ *">
                     <Input
                       type="datetime-local"
-                      step="1"
+                      step="any"
                       required
                       value={form.at}
                       onChange={(e) => update("at", e.target.value)}
@@ -467,11 +516,13 @@ export function AssignmentShow() {
                         }
                       }}
                     >
-                      {Object.entries(outcomeLabels).map(([key, label]) => (
-                        <option value={key} key={key}>
-                          {label}
-                        </option>
-                      ))}
+                      {Object.entries(outcomeLabels)
+                        .filter(([key]) => key !== "overdue")
+                        .map(([key, label]) => (
+                          <option value={key} key={key}>
+                            {label}
+                          </option>
+                        ))}
                     </select>
                   </Field>
                   <Field label="Quyết định tài xế">
@@ -535,6 +586,7 @@ export function AssignmentShow() {
                       <Field label="Ngày và giờ hẹn">
                         <Input
                           type="datetime-local"
+                          step="any"
                           value={form.appointmentAt}
                           onChange={(e) =>
                             update("appointmentAt", e.target.value)
@@ -598,11 +650,11 @@ export function AssignmentShow() {
               </div>
               <form
                 className="side-content stack-form"
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (
                     target &&
-                    run(
+                    (await run(
                       {
                         type: "ticketStatus",
                         id: t.id,
@@ -610,7 +662,7 @@ export function AssignmentShow() {
                         reason,
                       },
                       "Đã cập nhật phiếu.",
-                    )
+                    ))
                   ) {
                     setReason("");
                     setTarget("");
@@ -628,7 +680,8 @@ export function AssignmentShow() {
                       .filter(
                         (s) =>
                           s !== t.status &&
-                          (s !== "Open" || l.status === "New"),
+                          (s !== "Open" ||
+                            (l.status === "New" && t.status === "Solved")),
                       )
                       .map((s) => (
                         <option key={s} value={s}>

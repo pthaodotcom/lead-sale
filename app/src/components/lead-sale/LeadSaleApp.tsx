@@ -5,7 +5,10 @@ import { Admin } from "@/components/admin/admin";
 import { WorkspaceProvider } from "./context";
 import { Layout } from "./Layout";
 import { Dashboard } from "./Dashboard";
-import { LeadForm, LeadsList, LeadShow, ImportLeads } from "./Leads";
+import { LeadForm, LeadsList, LeadShow } from "./Leads";
+import { ImportLeads } from "./ImportLeads";
+import { IntakeQueue, Handover } from "./Operations";
+import { Account } from "./Account";
 import { AssignmentsList, AssignmentShow } from "./Assignments";
 import { Appointments } from "./Appointments";
 import { Reports } from "./Reports";
@@ -13,8 +16,8 @@ import { Settings } from "./Settings";
 import { Empty } from "./shared";
 import "./lead-sale.css";
 
-// Reuse Atomic CRM's Admin/router/UI foundation; domain persistence is local
-// until Supabase Auth, RLS and the new schema are connected in the next step.
+// Keep Atomic CRM's Admin/router/UI foundation; domain commands use Supabase.
+// An explicit demo mode is available independently from the production session.
 const foundationProvider = fakeRestDataProvider({});
 const NotFound = () => (
   <Empty
@@ -34,6 +37,9 @@ export default function LeadSaleApp() {
         disableTelemetry
       >
         <CustomRoutes>
+          <Route path="/queue" element={<IntakeQueue />} />
+          <Route path="/handover" element={<Handover />} />
+          <Route path="/account" element={<Account />} />
           <Route path="/leads" element={<LeadsList />} />
           <Route path="/leads/create" element={<LeadForm key="create" />} />
           <Route path="/leads/:id/show" element={<LeadShow />} />

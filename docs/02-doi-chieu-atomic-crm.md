@@ -1,5 +1,7 @@
 # Đối chiếu Atomic CRM và hướng tận dụng
 
+> Lưu ý cập nhật **21/10/2026**: đây là bản đối chiếu upstream tại thời điểm 20/10, không phải trạng thái hiện tại của workspace. Repo đã có bản xem thử tại `app/src/components/lead-sale/`, lưu localStorage. Xem [ghi chú triển khai](03-ghi-chu-trien-khai.md) để biết phần đã có và khoảng thiếu; không cần clone lại upstream để bắt đầu. Các nhận định “chưa có” bên dưới nói về base upstream đã đọc.
+
 Ngày kiểm tra: **20/10/2026**. Kho nguồn: [marmelab/atomic-crm](https://github.com/marmelab/atomic-crm).
 
 Mốc đã đọc: `b8e5e20c4dd4b9e440088621283849adf1e1839d` trên nhánh `main`. Bản clone tham khảo nằm ở `.reference/atomic-crm/`, được loại khỏi Git của workspace để tránh lồng repository. Chưa cài dependencies, chưa chạy hoặc kiểm thử ứng dụng. Các nhận định dưới đây dựa trên đọc code/schema, không phải bằng chứng runtime.

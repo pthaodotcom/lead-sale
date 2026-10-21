@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { applyCommand } from "./domain";
+import { applyCommand, leadLabels } from "./domain";
 import { makeSeed } from "./seed";
 import type { Command, Database } from "./types";
 
@@ -7,6 +7,7 @@ const KEY = "lead-sale.demo.v1";
 let snapshot: Database;
 let storageError = "";
 try {
+  const enabled = import.meta.env.VITE_DEMO_MODE === "true";
   const raw = localStorage.getItem(KEY);
   const parsed = raw ? JSON.parse(raw) : null;
   if (
@@ -23,14 +24,37 @@ try {
       ].every((k) => Array.isArray(parsed[k])))
   )
     throw new Error("Định dạng dữ liệu không hợp lệ");
-  snapshot = parsed ?? makeSeed();
-  if (!raw) localStorage.setItem(KEY, JSON.stringify(snapshot));
+  snapshot = enabled
+    ? (parsed ?? makeSeed())
+    : {
+        version: 1,
+        leads: [],
+        assignments: [],
+        activities: [],
+        appointments: [],
+        members: [],
+        sources: [],
+        audit: [],
+        receptions: [],
+        reviews: [],
+        notices: [],
+      };
+  snapshot.receptions ??= [];
+  snapshot.reviews ??= [];
+  snapshot.notices ??= [];
+  if (enabled && !raw) localStorage.setItem(KEY, JSON.stringify(snapshot));
 } catch {
   snapshot = makeSeed();
   storageError =
     "Không đọc được dữ liệu đã lưu. Đang dùng dữ liệu mẫu; dữ liệu cũ chưa bị ghi đè.";
 }
 const listeners = new Set<() => void>();
+function applyLabels(db: Database) {
+  for (const s of db.statusCatalog ?? [])
+    if (s.code in leadLabels)
+      leadLabels[s.code as keyof typeof leadLabels] = s.label;
+}
+applyLabels(snapshot);
 export function getDatabase() {
   return snapshot;
 }
@@ -48,6 +72,7 @@ export function execute(actorId: string, command: Command) {
     );
   }
   snapshot = next;
+  applyLabels(snapshot);
   listeners.forEach((listener) => listener());
 }
 export function useDatabase() {

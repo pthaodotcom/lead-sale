@@ -195,7 +195,6 @@ const SaveButton = <RecordType extends RaRecord = RaRecord>(
   );
 
   const handleSubmit = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (values: any) => {
       let errors;
       if (saveContext?.save) {
@@ -278,7 +277,6 @@ export type SaveButtonProps<RecordType extends RaRecord = RaRecord> =
   Props<RecordType> & React.ComponentProps<"button">;
 
 export {
-  // eslint-disable-next-line react-refresh/only-export-components
   useFormField,
   Form,
   FormField,

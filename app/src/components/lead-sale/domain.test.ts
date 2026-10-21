@@ -141,9 +141,9 @@ describe("Phân công và hoạt động", () => {
       ),
     ).toThrow("phiếu của bạn");
   });
-  it("lần không nghe máy thứ 3 chưa tự Solved; lần 4 Solved theo ngưỡng >3 của nguồn", () => {
+  it("lần không nghe máy thứ 3 Solved theo quyết định đã chốt", () => {
     let db = makeSeed(now);
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 3; i++) {
       db = applyCommand(
         db,
         "sale-1",
@@ -155,10 +155,10 @@ describe("Phân công và hoạt động", () => {
         now,
       );
       expect(db.assignments.find((t) => t.id === "PC-0001")?.status).toBe(
-        i <= 3 ? "Open" : "Solved",
+        i < 3 ? "Open" : "Solved",
       );
     }
-    expect(counts(db, "PC-0001").noAnswer).toBe(4);
+    expect(counts(db, "PC-0001").noAnswer).toBe(3);
   });
   it("lịch hẹn không hợp lệ không lưu dở dang Activity hoặc Appointment", () => {
     const db = makeSeed(now);

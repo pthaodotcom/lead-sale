@@ -19,7 +19,7 @@ export function AssignmentDialog({
   leadId?: string;
   transfer?: boolean;
 }) {
-  const { db, run } = useWorkspace();
+  const { db, actor, run, busy } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [lead, setLead] = useState(leadId ?? "");
   const [member, setMember] = useState("");
@@ -44,10 +44,10 @@ export function AssignmentDialog({
         </DialogHeader>
         <form
           className="stack-form"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             if (
-              run(
+              await run(
                 { type: "assign", leadId: lead, assigneeId: member, transfer },
                 "Đã lưu phân công tư vấn.",
               )
@@ -88,7 +88,13 @@ export function AssignmentDialog({
             >
               <option value="">Chọn nhân viên</option>
               {db.members
-                .filter((m) => m.role === "telesale" && m.active)
+                .filter(
+                  (m) =>
+                    m.role === "telesale" &&
+                    m.active &&
+                    (actor.role === "admin" ||
+                      (m.teamId ?? "default") === (actor.teamId ?? "default")),
+                )
                 .map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -100,11 +106,11 @@ export function AssignmentDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={async () => setOpen(false)}
             >
               Hủy
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={busy}>
               {transfer ? "Xác nhận chuyển" : "Tạo phiếu"}
             </Button>
           </div>

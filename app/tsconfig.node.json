@@ -21,7 +21,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    "types": ["vitest/globals", "faker"]
+    "types": ["node"]
   },
-  "include": ["vite.config.ts", "vite.demo.config.ts"]
+  "include": ["vite.config.ts"]
 }

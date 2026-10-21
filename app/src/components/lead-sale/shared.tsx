@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { leadLabels, ticketLabels } from "./domain";
+import { serverNow } from "./dates";
 
 export const formatDate = (value?: string, time = false) =>
   value
@@ -21,10 +22,10 @@ export const formatDate = (value?: string, time = false) =>
         ...(time ? { hour: "2-digit", minute: "2-digit" } : {}),
       }).format(new Date(value))
     : "—";
-export function localDateTime(value = new Date()) {
+export function localDateTime(value = serverNow()) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
     .toISOString()
-    .slice(0, 19);
+    .slice(0, 23);
 }
 export function Badge({
   status,

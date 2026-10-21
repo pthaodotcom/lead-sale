@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Lead Sale workspace (current application)
+
+This repository now runs Lead Sale at `src/components/lead-sale/`, entered through `src/App.tsx`. Use Node 24+, `npm ci`, `npm run dev`, `npm run build`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e`. Cloud browser tests use `npm run test:e2e:cloud` and ignored local test credentials. `npm run dev:demo` is isolated from Supabase.
+
+The active backend is **`backend/supabase/`**. Its declarative `schemas/10_*` through `15_*` are the source of truth. Generate its bootstrap with `npm run db:generate`; apply to an empty project with `npm run db:apply` and server-only `LEAD_DATABASE_URL`. For an existing database, use forward migrations; never replay or overwrite an applied bootstrap.
+
+The original Atomic CRM code, `supabase/`, registry and tooling below are preserved for reference. They are outside the Lead Sale entry graph and are not its backend migrations. **Do not apply the original `supabase/migrations` to the Lead Sale project.** The active dependency manifest supports Lead Sale; restoring the standalone Atomic CRM application would require its original dependencies.
+
+Read `../docs/06-ban-giao-va-van-hanh.md` for the current architecture, API, setup and validation. Keep `LICENSE.md` and attribution. The remainder of this file describes the original base and is historical context.
+
 ## Project Overview
 
 Atomic CRM is a full-featured CRM built with React, shadcn-admin-kit, and Supabase. It provides contact management, task tracking, notes, email capture, and deal management with a Kanban board.

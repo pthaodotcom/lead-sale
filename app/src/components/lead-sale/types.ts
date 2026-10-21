@@ -9,6 +9,8 @@ export interface Member {
   name: string;
   role: Role;
   active: boolean;
+  teamId?: string;
+  email?: string;
 }
 export interface Source {
   id: string;
@@ -28,8 +30,12 @@ export interface Lead {
   tags: string[];
   note: string;
   archived: boolean;
+  activatedAt?: string;
+  onboardedAt?: string;
+  version?: number;
 }
 export interface Assignment {
+  sequence?: number;
   id: string;
   leadId: string;
   assigneeId: string;
@@ -39,6 +45,11 @@ export interface Assignment {
   expiresAt: string;
   status: TicketStatus;
   closeReason: string;
+  teamId?: string;
+  acceptedAt?: string;
+  round?: number;
+  previousId?: string;
+  version?: number;
 }
 export interface Activity {
   id: string;
@@ -51,6 +62,15 @@ export interface Activity {
   decision: Decision;
   reason: Reason;
   note: string;
+  round?: number;
+  appointmentId?: string;
+  attachments?: Attachment[];
+}
+export interface Attachment {
+  path: string;
+  name: string;
+  type: string;
+  size: number;
 }
 export interface Appointment {
   id: string;
@@ -61,6 +81,49 @@ export interface Appointment {
   at: string;
   place: string;
   status: "scheduled" | "attended" | "missed" | "cancelled";
+  previousId?: string;
+}
+export interface Reception {
+  id: string;
+  leadId: string;
+  sourceId: string;
+  at: string;
+  actorId: string;
+}
+export interface ClosureReview {
+  id: string;
+  assignmentId: string;
+  leadId: string;
+  at: string;
+  reason: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  result?: string;
+  note?: string;
+}
+export interface Notice {
+  id: string;
+  recipientId: string;
+  at: string;
+  title: string;
+  readAt?: string;
+}
+export interface ReportFilters {
+  from?: string;
+  to?: string;
+  source?: string;
+  status?: string;
+  member?: string;
+}
+export interface ReportData {
+  total: number;
+  registered: number;
+  onboarded: number;
+  overdue: number;
+  newToday: number;
+  bySource: { id: string; total: number; registered: number }[];
+  byStatus: Record<string, number>;
+  byMember: { id: string; total: number; registered: number }[];
 }
 export interface AuditLog {
   id: string;
@@ -79,6 +142,12 @@ export interface Database {
   members: Member[];
   sources: Source[];
   audit: AuditLog[];
+  receptions: Reception[];
+  reviews: ClosureReview[];
+  notices: Notice[];
+  report?: ReportData;
+  teams?: { id: string; name: string }[];
+  statusCatalog?: { code: string; label: string }[];
 }
 export type LeadInput = Pick<
   Lead,
@@ -90,12 +159,25 @@ export type ActivityInput = Pick<
 > & { appointmentAt?: string; place?: string };
 export type Command =
   | { type: "saveLead"; id?: string; input: LeadInput }
-  | { type: "leadStatus"; id: string; status: LeadStatus; reason: string }
+  | {
+      type: "leadStatus";
+      id: string;
+      status: LeadStatus;
+      reason: string;
+      occurredAt?: string;
+    }
   | { type: "archiveLead"; id: string }
   | { type: "assign"; leadId: string; assigneeId: string; transfer?: boolean }
+  | { type: "accept"; id: string }
   | { type: "ticketStatus"; id: string; status: TicketStatus; reason: string }
   | { type: "activity"; assignmentId: string; input: ActivityInput }
   | { type: "appointment"; id: string; status: Appointment["status"] }
+  | { type: "reschedule"; id: string; at: string; place: string }
+  | { type: "review"; id: string; note: string }
+  | { type: "noticeRead"; id: string }
+  | { type: "attachment"; activityId: string; attachment: Attachment }
   | { type: "source"; name: string; id?: string; active?: boolean }
-  | { type: "member"; id: string; role: Role; active: boolean }
+  | { type: "team"; name: string }
+  | { type: "statusLabel"; code: LeadStatus; label: string }
+  | { type: "member"; id: string; role: Role; active: boolean; teamId?: string }
   | { type: "expire" };

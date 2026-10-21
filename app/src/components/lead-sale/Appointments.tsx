@@ -3,7 +3,14 @@ import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import { canWork } from "./domain";
-import { Empty, formatDate, Guard, PageHeading } from "./shared";
+import {
+  Empty,
+  Field,
+  formatDate,
+  Guard,
+  PageHeading,
+  localDateTime,
+} from "./shared";
 
 const labels = {
   scheduled: "Đã lên lịch",
@@ -14,6 +21,9 @@ const labels = {
 export function Appointments() {
   const { db, actor, run } = useWorkspace();
   const [filter, setFilter] = useState("scheduled");
+  const [editing, setEditing] = useState("");
+  const [newAt, setNewAt] = useState("");
+  const [place, setPlace] = useState("");
   const items = db.appointments
     .filter(
       (a) =>
@@ -27,6 +37,49 @@ export function Appointments() {
         title="Lịch hẹn đăng ký"
         description="Theo dõi tài xế đã hẹn, lịch quá hạn và kết quả đến đăng ký."
       />
+      {editing && (
+        <form
+          className="form-surface stack-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (
+              await run(
+                { type: "reschedule", id: editing, at: newAt, place },
+                "Đã hẹn lại.",
+              )
+            )
+              setEditing("");
+          }}
+        >
+          <h2>Hẹn lại</h2>
+          <Field label="Ngày giờ mới">
+            <input
+              required
+              type="datetime-local"
+              step="any"
+              value={newAt}
+              onChange={(e) => setNewAt(e.target.value)}
+            />
+          </Field>
+          <Field label="Địa điểm mới">
+            <input
+              required
+              value={place}
+              onChange={(e) => setPlace(e.target.value)}
+            />
+          </Field>
+          <div className="row-actions">
+            <Button type="submit">Lưu lịch mới</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditing("")}
+            >
+              Hủy
+            </Button>
+          </div>
+        </form>
+      )}
       <section className="data-section">
         <div className="filter-bar">
           <select
@@ -88,8 +141,19 @@ export function Appointments() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() =>
-                              run(
+                            onClick={() => {
+                              setEditing(a.id);
+                              setNewAt(localDateTime(new Date(a.at)));
+                              setPlace(a.place);
+                            }}
+                          >
+                            Hẹn lại
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () =>
+                              await run(
                                 {
                                   type: "appointment",
                                   id: a.id,
@@ -105,8 +169,8 @@ export function Appointments() {
                             size="sm"
                             variant="ghost"
                             disabled={Date.parse(a.at) > Date.now()}
-                            onClick={() =>
-                              run(
+                            onClick={async () =>
+                              await run(
                                 {
                                   type: "appointment",
                                   id: a.id,
@@ -121,8 +185,8 @@ export function Appointments() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() =>
-                              run(
+                            onClick={async () =>
+                              await run(
                                 {
                                   type: "appointment",
                                   id: a.id,

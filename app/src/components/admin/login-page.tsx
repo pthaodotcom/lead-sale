@@ -5,7 +5,6 @@ import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/admin/text-input";
 import { Notification } from "@/components/admin/notification";
-import { useConfigurationContext } from "@/components/atomic-crm/root/ConfigurationContext.tsx";
 
 /**
  * Login page displayed when authentication is enabled and the user is not authenticated.
@@ -17,7 +16,8 @@ import { useConfigurationContext } from "@/components/atomic-crm/root/Configurat
  * @see {@link https://marmelab.com/shadcn-admin-kit/docs/security Security documentation}
  */
 export const LoginPage = (props: { redirectTo?: string }) => {
-  const { darkModeLogo, title } = useConfigurationContext();
+  const darkModeLogo = "/favicon.svg";
+  const title = "Lead Sale";
   const { redirectTo } = props;
   const [loading, setLoading] = useState(false);
   const login = useLogin();

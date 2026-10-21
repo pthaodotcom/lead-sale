@@ -1,0 +1,495 @@
+{
+  "schema": "lead-sale.report-cases.v1",
+  "description": "Projection chỉ dùng kiểm chứng công thức báo cáo; không phải seed DB đầy đủ, không chứa hồ sơ/SĐT thật.",
+  "as_of": "2026-10-21T12:00:00+07:00",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "date_filter": "first_received_at",
+  "teams": [
+    {
+      "id": "team-a",
+      "name": "Nhóm A"
+    },
+    {
+      "id": "team-b",
+      "name": "Nhóm B"
+    }
+  ],
+  "members": [
+    {
+      "id": "sale-1",
+      "team_id": "team-a"
+    },
+    {
+      "id": "sale-2",
+      "team_id": "team-a"
+    },
+    {
+      "id": "sale-3",
+      "team_id": "team-b"
+    }
+  ],
+  "sources": [
+    "web",
+    "facebook",
+    "referral",
+    "hotline"
+  ],
+  "leads": [
+    {
+      "id": "L01",
+      "source": "web",
+      "status": "New",
+      "first_received_at": "2026-10-21T09:00:00+07:00",
+      "activated_at": null,
+      "onboarded_at": null,
+      "archived_at": null
+    },
+    {
+      "id": "L02",
+      "source": "facebook",
+      "status": "Activated",
+      "first_received_at": "2026-10-21T09:10:00+07:00",
+      "activated_at": "2026-10-21T11:00:00+07:00",
+      "onboarded_at": null,
+      "archived_at": null
+    },
+    {
+      "id": "L03",
+      "source": "referral",
+      "status": "Onboarded",
+      "first_received_at": "2026-10-20T14:00:00+07:00",
+      "activated_at": "2026-10-20T16:00:00+07:00",
+      "onboarded_at": "2026-10-21T10:00:00+07:00",
+      "archived_at": null
+    },
+    {
+      "id": "L04",
+      "source": "hotline",
+      "status": "Closed",
+      "first_received_at": "2026-10-19T09:00:00+07:00",
+      "activated_at": null,
+      "onboarded_at": null,
+      "archived_at": null
+    },
+    {
+      "id": "L05",
+      "source": "web",
+      "status": "New",
+      "first_received_at": "2026-10-21T09:40:00+07:00",
+      "activated_at": null,
+      "onboarded_at": null,
+      "archived_at": null
+    },
+    {
+      "id": "L06",
+      "source": "web",
+      "status": "New",
+      "first_received_at": "2026-10-18T09:00:00+07:00",
+      "activated_at": null,
+      "onboarded_at": null,
+      "archived_at": "2026-10-20T15:00:00+07:00"
+    },
+    {
+      "id": "L07",
+      "source": "hotline",
+      "status": "New",
+      "first_received_at": "2026-10-20T10:00:00+07:00",
+      "activated_at": null,
+      "onboarded_at": null,
+      "archived_at": null
+    },
+    {
+      "id": "L08",
+      "source": "web",
+      "status": "New",
+      "first_received_at": "2026-10-21T10:00:00+07:00",
+      "activated_at": null,
+      "onboarded_at": null,
+      "archived_at": null
+    }
+  ],
+  "assignments": [
+    {
+      "id": "A01",
+      "lead_id": "L01",
+      "assignee_id": "sale-1",
+      "team_id": "team-a",
+      "created_at": "2026-10-21T09:05:00+07:00",
+      "expires_at": "2026-11-04T09:05:00+07:00",
+      "status": "Open"
+    },
+    {
+      "id": "A02",
+      "lead_id": "L02",
+      "assignee_id": "sale-2",
+      "team_id": "team-a",
+      "created_at": "2026-10-21T09:20:00+07:00",
+      "expires_at": "2026-11-04T09:20:00+07:00",
+      "status": "Solved"
+    },
+    {
+      "id": "A03",
+      "lead_id": "L03",
+      "assignee_id": "sale-1",
+      "team_id": "team-a",
+      "created_at": "2026-10-20T14:05:00+07:00",
+      "expires_at": "2026-11-03T14:05:00+07:00",
+      "status": "Closed"
+    },
+    {
+      "id": "A04",
+      "lead_id": "L04",
+      "assignee_id": "sale-2",
+      "team_id": "team-a",
+      "created_at": "2026-10-20T08:00:00+07:00",
+      "expires_at": "2026-11-03T08:00:00+07:00",
+      "status": "Closed"
+    },
+    {
+      "id": "A05",
+      "lead_id": "L05",
+      "assignee_id": "sale-1",
+      "team_id": "team-a",
+      "created_at": "2026-10-21T09:45:00+07:00",
+      "expires_at": "2026-11-04T09:45:00+07:00",
+      "status": "Closed"
+    },
+    {
+      "id": "A06",
+      "lead_id": "L05",
+      "assignee_id": "sale-3",
+      "team_id": "team-b",
+      "created_at": "2026-10-21T10:00:00+07:00",
+      "expires_at": "2026-11-04T10:00:00+07:00",
+      "status": "Open",
+      "previous_assignment_id": "A05"
+    },
+    {
+      "id": "A07",
+      "lead_id": "L06",
+      "assignee_id": "sale-1",
+      "team_id": "team-a",
+      "created_at": "2026-10-18T09:05:00+07:00",
+      "expires_at": "2026-11-01T09:05:00+07:00",
+      "status": "Closed"
+    },
+    {
+      "id": "A08",
+      "lead_id": "L08",
+      "assignee_id": "sale-3",
+      "team_id": "team-b",
+      "created_at": "2026-10-21T10:15:00+07:00",
+      "expires_at": "2026-11-04T10:15:00+07:00",
+      "status": "Open",
+      "previous_assignment_id": "A10"
+    },
+    {
+      "id": "A09",
+      "lead_id": "L04",
+      "assignee_id": "sale-1",
+      "team_id": "team-a",
+      "created_at": "2026-10-19T09:05:00+07:00",
+      "expires_at": "2026-11-02T09:05:00+07:00",
+      "status": "Closed"
+    },
+    {
+      "id": "A10",
+      "lead_id": "L08",
+      "assignee_id": "sale-1",
+      "team_id": "team-a",
+      "created_at": "2026-10-21T10:05:00+07:00",
+      "expires_at": "2026-11-04T10:05:00+07:00",
+      "status": "Closed"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "AP01",
+      "lead_id": "L01",
+      "assignment_id": "A01",
+      "scheduled_at": "2026-10-21T11:00:00+07:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "AP02",
+      "lead_id": "L02",
+      "assignment_id": "A02",
+      "scheduled_at": "2026-10-21T10:30:00+07:00",
+      "status": "attended"
+    },
+    {
+      "id": "AP03",
+      "lead_id": "L05",
+      "assignment_id": "A05",
+      "scheduled_at": "2026-10-21T11:00:00+07:00",
+      "status": "cancelled"
+    },
+    {
+      "id": "AP04",
+      "lead_id": "L05",
+      "assignment_id": "A06",
+      "scheduled_at": "2026-10-22T09:00:00+07:00",
+      "status": "scheduled",
+      "previous_appointment_id": "AP03"
+    },
+    {
+      "id": "AP05",
+      "lead_id": "L08",
+      "assignment_id": "A10",
+      "scheduled_at": "2026-10-21T11:00:00+07:00",
+      "status": "cancelled"
+    },
+    {
+      "id": "AP06",
+      "lead_id": "L08",
+      "assignment_id": "A08",
+      "scheduled_at": "2026-10-21T11:30:00+07:00",
+      "status": "scheduled",
+      "previous_appointment_id": "AP05"
+    }
+  ],
+  "receptions": [
+    {
+      "id": "R01",
+      "lead_id": "L01",
+      "source": "web",
+      "received_at": "2026-10-21T09:00:00+07:00"
+    },
+    {
+      "id": "R02",
+      "lead_id": "L02",
+      "source": "facebook",
+      "received_at": "2026-10-21T09:10:00+07:00"
+    },
+    {
+      "id": "R03",
+      "lead_id": "L05",
+      "source": "web",
+      "received_at": "2026-10-21T09:40:00+07:00"
+    },
+    {
+      "id": "R04",
+      "lead_id": "L05",
+      "source": "facebook",
+      "received_at": "2026-10-21T11:10:00+07:00"
+    },
+    {
+      "id": "R05",
+      "lead_id": "L07",
+      "source": "hotline",
+      "received_at": "2026-10-21T11:20:00+07:00"
+    },
+    {
+      "id": "R06",
+      "lead_id": "L08",
+      "source": "web",
+      "received_at": "2026-10-21T10:00:00+07:00"
+    },
+    {
+      "id": "R07",
+      "lead_id": "L08",
+      "source": "hotline",
+      "received_at": "2026-10-21T11:40:00+07:00"
+    },
+    {
+      "id": "R08",
+      "lead_id": "L08",
+      "source": "web",
+      "received_at": "2026-10-21T11:50:00+07:00"
+    }
+  ],
+  "cases": [
+    {
+      "id": "global",
+      "filters": {},
+      "expected": {
+        "lead_ids": [
+          "L01",
+          "L02",
+          "L03",
+          "L04",
+          "L05",
+          "L07",
+          "L08"
+        ],
+        "total": 7,
+        "registered": 2,
+        "onboarded": 1,
+        "overdue": 2,
+        "new_today": 4
+      }
+    },
+    {
+      "id": "cohort-2026-10-21",
+      "filters": {
+        "from_date": "2026-10-21",
+        "to_date": "2026-10-21"
+      },
+      "expected": {
+        "lead_ids": [
+          "L01",
+          "L02",
+          "L05",
+          "L08"
+        ],
+        "total": 4,
+        "registered": 1,
+        "onboarded": 0,
+        "overdue": 2,
+        "new_today": 4
+      }
+    },
+    {
+      "id": "web",
+      "filters": {
+        "source": "web"
+      },
+      "expected": {
+        "lead_ids": [
+          "L01",
+          "L05",
+          "L08"
+        ],
+        "total": 3,
+        "registered": 0,
+        "onboarded": 0,
+        "overdue": 2,
+        "new_today": 3
+      }
+    },
+    {
+      "id": "sale-1",
+      "filters": {
+        "assignee_id": "sale-1"
+      },
+      "expected": {
+        "lead_ids": [
+          "L01",
+          "L03"
+        ],
+        "total": 2,
+        "registered": 1,
+        "onboarded": 1,
+        "overdue": 1,
+        "new_today": 1
+      }
+    },
+    {
+      "id": "sale-2",
+      "filters": {
+        "assignee_id": "sale-2"
+      },
+      "expected": {
+        "lead_ids": [
+          "L02",
+          "L04"
+        ],
+        "total": 2,
+        "registered": 1,
+        "onboarded": 0,
+        "overdue": 0,
+        "new_today": 1
+      }
+    },
+    {
+      "id": "sale-3",
+      "filters": {
+        "assignee_id": "sale-3"
+      },
+      "expected": {
+        "lead_ids": [
+          "L05",
+          "L08"
+        ],
+        "total": 2,
+        "registered": 0,
+        "onboarded": 0,
+        "overdue": 1,
+        "new_today": 2
+      }
+    },
+    {
+      "id": "team-a",
+      "filters": {
+        "team_id": "team-a"
+      },
+      "expected": {
+        "lead_ids": [
+          "L01",
+          "L02",
+          "L03",
+          "L04"
+        ],
+        "total": 4,
+        "registered": 2,
+        "onboarded": 1,
+        "overdue": 1,
+        "new_today": 2
+      }
+    },
+    {
+      "id": "team-b",
+      "filters": {
+        "team_id": "team-b"
+      },
+      "expected": {
+        "lead_ids": [
+          "L05",
+          "L08"
+        ],
+        "total": 2,
+        "registered": 0,
+        "onboarded": 0,
+        "overdue": 1,
+        "new_today": 2
+      }
+    },
+    {
+      "id": "unassigned",
+      "filters": {
+        "assignee_id": "unassigned"
+      },
+      "expected": {
+        "lead_ids": [
+          "L07"
+        ],
+        "total": 1,
+        "registered": 0,
+        "onboarded": 0,
+        "overdue": 0,
+        "new_today": 0
+      }
+    },
+    {
+      "id": "empty",
+      "filters": {
+        "from_date": "2026-10-22",
+        "to_date": "2026-10-22"
+      },
+      "expected": {
+        "lead_ids": [],
+        "total": 0,
+        "registered": 0,
+        "onboarded": 0,
+        "overdue": 0,
+        "new_today": 0
+      }
+    },
+    {
+      "id": "invalid-date-range",
+      "filters": {
+        "from_date": "2026-10-22",
+        "to_date": "2026-10-21"
+      },
+      "expected": {
+        "error": "VALIDATION_FAILED"
+      }
+    }
+  ],
+  "reception_checks": {
+    "date": "2026-10-21",
+    "expected_events": 8,
+    "expected_unique_leads": 5,
+    "expected_new_leads": 4
+  }
+}

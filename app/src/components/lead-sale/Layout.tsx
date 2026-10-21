@@ -13,20 +13,33 @@ import {
   Settings2,
   Truck,
   X,
+  Bell,
+  LogOut,
+  Inbox,
+  UserCircle,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import { roleLabels, canAssign } from "./domain";
 import { formatDate } from "./shared";
+import { supabase } from "./backend";
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { db, actor, setActor } = useWorkspace();
+  const { db, actor, setActor, cloud, run } = useWorkspace();
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const navigation = [
     { to: "/", label: "Tổng quan", icon: LayoutDashboard },
-    { to: "/leads", label: "Hồ sơ Lead", icon: ContactRound },
+    ...(actor.role !== "viewer"
+      ? [{ to: "/leads", label: "Hồ sơ Lead", icon: ContactRound }]
+      : []),
+    ...(["admin", "leader"].includes(actor.role)
+      ? [{ to: "/queue", label: "Chờ phân công", icon: Inbox }]
+      : []),
+    ...(["admin", "intake", "leader"].includes(actor.role)
+      ? [{ to: "/handover", label: "Bàn giao Closed", icon: Inbox }]
+      : []),
     ...(actor.role !== "viewer"
       ? [
           { to: "/assignments", label: "Nhiệm vụ tư vấn", icon: ClipboardList },
@@ -34,6 +47,7 @@ export function Layout({ children }: { children: ReactNode }) {
         ]
       : []),
     { to: "/reports", label: "Báo cáo", icon: BarChart3 },
+    { to: "/account", label: "Tài khoản của tôi", icon: UserCircle },
     ...(actor.role === "admin"
       ? [{ to: "/settings", label: "Quản trị", icon: Settings2 }]
       : []),
@@ -55,11 +69,11 @@ export function Layout({ children }: { children: ReactNode }) {
         <button
           className="sidebar-scrim"
           aria-label="Đóng điều hướng"
-          onClick={() => setOpen(false)}
+          onClick={async () => setOpen(false)}
         />
       )}
       <aside className={`workspace-sidebar ${open ? "is-open" : ""}`}>
-        <Link to="/" className="brand" onClick={() => setOpen(false)}>
+        <Link to="/" className="brand" onClick={async () => setOpen(false)}>
           <span className="brand-symbol">
             <Truck size={22} />
           </span>
@@ -72,7 +86,7 @@ export function Layout({ children }: { children: ReactNode }) {
           variant="ghost"
           size="icon"
           aria-label="Đóng menu"
-          onClick={() => setOpen(false)}
+          onClick={async () => setOpen(false)}
         >
           <X />
         </Button>
@@ -82,7 +96,7 @@ export function Layout({ children }: { children: ReactNode }) {
               key={to}
               to={to}
               end={to === "/"}
-              onClick={() => setOpen(false)}
+              onClick={async () => setOpen(false)}
             >
               <Icon size={19} />
               <span>{label}</span>
@@ -95,7 +109,12 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="sidebar-bottom">
           <div className="demo-note">
             <span className="demo-dot" />
-            Bản xem thử<small>Dữ liệu lưu trên trình duyệt này.</small>
+            {cloud ? "Đã kết nối Supabase" : "Bản xem thử"}
+            <small>
+              {cloud
+                ? "Dữ liệu được lưu trên máy chủ."
+                : "Dữ liệu lưu trên trình duyệt này."}
+            </small>
           </div>
           <label className="actor-picker">
             <span className="avatar">
@@ -110,23 +129,33 @@ export function Layout({ children }: { children: ReactNode }) {
               <small>{roleLabels[actor.role]}</small>
             </span>
             <ChevronsUpDown size={14} />
-            <select
-              aria-label="Chọn vai trò dùng thử"
-              value={actor.id}
-              onChange={(e) => {
-                setActor(e.target.value);
-                setOpen(false);
-              }}
-            >
-              {db.members
-                .filter((m) => m.active)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} · {roleLabels[m.role]}
-                  </option>
-                ))}
-            </select>
+            {!cloud && (
+              <select
+                aria-label="Chọn vai trò dùng thử"
+                value={actor.id}
+                onChange={(e) => {
+                  setActor(e.target.value);
+                  setOpen(false);
+                }}
+              >
+                {db.members
+                  .filter((m) => m.active)
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} · {roleLabels[m.role]}
+                    </option>
+                  ))}
+              </select>
+            )}
           </label>
+          {cloud && (
+            <Button
+              variant="outline"
+              onClick={() => void supabase?.auth.signOut()}
+            >
+              <LogOut size={15} /> Đăng xuất
+            </Button>
+          )}
         </div>
       </aside>
       <div className="workspace-body">
@@ -137,7 +166,7 @@ export function Layout({ children }: { children: ReactNode }) {
               size="icon"
               className="mobile-menu"
               aria-label="Mở điều hướng"
-              onClick={() => setOpen(true)}
+              onClick={async () => setOpen(true)}
             >
               <Menu />
             </Button>
@@ -152,11 +181,29 @@ export function Layout({ children }: { children: ReactNode }) {
             </span>
             <span className="local-indicator">
               <Check size={13} />
-              Lưu cục bộ
+              {cloud ? "Supabase" : "Lưu cục bộ"}
             </span>
           </div>
         </div>
         <main id="main-content" className="workspace-content">
+          {db.notices
+            .filter((n) => n.recipientId === actor.id && !n.readAt)
+            .slice(0, 3)
+            .map((n) => (
+              <div className="review-notice" key={n.id}>
+                <Bell size={16} />
+                <span>{n.title}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    await run({ type: "noticeRead", id: n.id });
+                  }}
+                >
+                  Đã đọc
+                </Button>
+              </div>
+            ))}
           {children}
         </main>
         <footer className="workspace-footer">
