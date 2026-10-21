@@ -2,7 +2,7 @@
 
 Hệ thống quản lý Lead tài xế dựa trên Atomic CRM, bám yêu cầu Google Doc. Bản tại `app/` đã dùng Supabase Auth, PostgreSQL/RLS và Storage thật; có tiếp nhận/import, phân công, tư vấn, lịch hẹn, nhắc việc/tự đóng trên máy chủ, bàn giao, báo cáo và quản trị. Ngày cập nhật: **21/10/2026**.
 
-Chạy tại `app/`: `npm ci` → cấu hình `.env.local` từ `.env.example` → `npm run dev`. Chế độ xem thử riêng: `npm run dev:demo`. Bản build: `npm run build` → `npm start` (mặc định `http://127.0.0.1:4173`).
+Chạy tại `app/`: `npm ci` → `npm run dev`. File `.env.local` đã có URL và publishable key của project hiện tại; nếu dùng project khác thì cấu hình lại theo `.env.example`. Chế độ xem thử riêng: `npm run dev:demo`. Bản build: `npm run build` → `npm start` (mặc định `http://127.0.0.1:4173`).
 
 Đọc [bàn giao, cấu hình, API và kết quả kiểm chứng](docs/06-ban-giao-va-van-hanh.md). Backend đang dùng nằm tại **`app/backend/supabase/`**; thư mục `app/supabase/` là backend gốc được giữ lại, không chạy migration của thư mục đó vào project Lead Sale.
 

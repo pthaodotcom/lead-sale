@@ -24,8 +24,8 @@ Yêu cầu Node 24+ và npm. Chạy từ `app/`:
 
 ```powershell
 npm ci
-Copy-Item .env.example .env.local
-# Điền URL project và publishable key vào .env.local
+# Repo đã có .env.local cho project hiện tại.
+# Khi dùng project khác, cấu hình lại theo .env.example.
 npm run dev
 ```
 

@@ -1,6 +1,6 @@
 # Lead Sale
 
-The active application is Lead Sale. Run `npm ci`, copy `.env.example` to `.env.local` and configure Supabase, then `npm run dev`. The backend used by this application is `backend/supabase/`.
+The active application is Lead Sale. Run `npm ci`, then `npm run dev`. The included `.env.local` contains the current project's URL and client publishable key; use `.env.example` when connecting another project. The backend used by this application is `backend/supabase/`.
 
 See [setup, API, operations and acceptance checks](../docs/06-ban-giao-va-van-hanh.md). The original Atomic CRM source and documentation below are retained for provenance and reference; its old migrations are not used by Lead Sale.
 
