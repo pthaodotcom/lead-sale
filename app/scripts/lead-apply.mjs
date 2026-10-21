@@ -1,17 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import pg from "pg";
-if (!process.env.LEAD_DATABASE_URL) throw new Error("Set LEAD_DATABASE_URL.");
+import { databaseClient } from "./lead-db.mjs";
 const version = "20261021000000";
 const sql = await readFile(
   `backend/supabase/migrations/${version}_lead_sale.sql`,
   "utf8",
 );
 const hash = createHash("sha256").update(sql).digest("hex");
-const client = new pg.Client({
-  connectionString: process.env.LEAD_DATABASE_URL,
-  ssl: { rejectUnauthorized: process.env.LEAD_DB_SSL_VERIFY !== "false" },
-});
+const client = databaseClient();
 try {
   await client.connect();
   await client.query("begin");
@@ -28,7 +24,15 @@ try {
         [version],
       )
     ).rows[0];
-    if (applied?.hash !== hash)
+    if (
+      ![
+        hash,
+        createHash("sha256").update(sql.replaceAll("\r\n", "\n")).digest("hex"),
+        createHash("sha256")
+          .update(sql.replaceAll("\r\n", "\n").replaceAll("\n", "\r\n"))
+          .digest("hex"),
+      ].includes(applied?.hash)
+    )
       throw new Error(
         "Schema version differs. Create a reviewed forward migration; do not rerun or overwrite the bootstrap.",
       );

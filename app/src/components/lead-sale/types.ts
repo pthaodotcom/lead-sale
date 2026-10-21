@@ -1,7 +1,12 @@
 export type Role = "admin" | "intake" | "leader" | "telesale" | "viewer";
 export type LeadStatus = "New" | "Activated" | "Onboarded" | "Closed";
 export type TicketStatus = "New" | "Open" | "Solved" | "Closed";
-export type Outcome = "called" | "no_answer" | "overdue" | "wrong_phone";
+export type Outcome =
+  | "called"
+  | "no_answer"
+  | "unresponsive"
+  | "overdue"
+  | "wrong_phone";
 export type Decision = "none" | "agreed" | "declined" | "hungup";
 export type Reason = "none" | "no_need" | "busy" | "ineligible";
 export interface Member {
@@ -33,6 +38,19 @@ export interface Lead {
   activatedAt?: string;
   onboardedAt?: string;
   version?: number;
+  externalDriverId?: string;
+  coreSource?: string;
+  activatedSource?: string;
+  activatedEventId?: string;
+  activatedReceivedAt?: string;
+  onboardedSource?: string;
+  onboardedEventId?: string;
+  onboardedReceivedAt?: string;
+  firstOrderId?: string;
+  milestoneSource?: string;
+  milestoneRecordedAt?: string;
+  coreCorrectionAt?: string;
+  correctionReason?: string;
 }
 export interface Assignment {
   sequence?: number;
@@ -65,6 +83,8 @@ export interface Activity {
   round?: number;
   appointmentId?: string;
   attachments?: Attachment[];
+  voidedAt?: string;
+  voidReason?: string;
 }
 export interface Attachment {
   path: string;
@@ -91,6 +111,7 @@ export interface Reception {
   actorId: string;
 }
 export interface ClosureReview {
+  version?: number;
   id: string;
   assignmentId: string;
   leadId: string;
@@ -102,6 +123,7 @@ export interface ClosureReview {
   note?: string;
 }
 export interface Notice {
+  href?: string;
   id: string;
   recipientId: string;
   at: string;
@@ -116,6 +138,7 @@ export interface ReportFilters {
   member?: string;
 }
 export interface ReportData {
+  byResultSource?: { id: string; registered: number; onboarded: number }[];
   total: number;
   registered: number;
   onboarded: number;
@@ -152,7 +175,7 @@ export interface Database {
 export type LeadInput = Pick<
   Lead,
   "name" | "phone" | "city" | "vehicle" | "sourceId" | "tags" | "note"
->;
+> & { receivedAt?: string };
 export type ActivityInput = Pick<
   Activity,
   "channel" | "at" | "outcome" | "decision" | "reason" | "note"
@@ -167,13 +190,36 @@ export type Command =
       occurredAt?: string;
     }
   | { type: "archiveLead"; id: string }
+  | { type: "receiveLead"; id: string; sourceId: string; reason: string }
+  | {
+      type: "correctMilestone";
+      id: string;
+      status: LeadStatus;
+      reason: string;
+      activatedAt?: string;
+      onboardedAt?: string;
+    }
+  | { type: "voidActivity"; id: string; reason: string }
+  | {
+      type: "correctAppointment";
+      id: string;
+      status: Appointment["status"];
+      reason: string;
+    }
   | { type: "assign"; leadId: string; assigneeId: string; transfer?: boolean }
   | { type: "accept"; id: string }
   | { type: "ticketStatus"; id: string; status: TicketStatus; reason: string }
   | { type: "activity"; assignmentId: string; input: ActivityInput }
   | { type: "appointment"; id: string; status: Appointment["status"] }
   | { type: "reschedule"; id: string; at: string; place: string }
-  | { type: "review"; id: string; note: string }
+  | { type: "review"; id: string; note: string; result?: string }
+  | {
+      type: "amendReview";
+      id: string;
+      note: string;
+      result: string;
+      reason: string;
+    }
   | { type: "noticeRead"; id: string }
   | { type: "attachment"; activityId: string; attachment: Attachment }
   | { type: "source"; name: string; id?: string; active?: boolean }

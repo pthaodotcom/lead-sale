@@ -7,17 +7,26 @@ import { AssignmentDialog } from "./AssignmentDialog";
 import { canAssign, canEditLead, isLive } from "./domain";
 import { Badge, Empty, Field, formatDate, Guard, PageHeading } from "./shared";
 import type { ClosureReview } from "./types";
+import { serverNow } from "./dates";
 export function IntakeQueue() {
   const { db, actor } = useWorkspace();
   const rows = db.leads.filter(
     (l) =>
       l.status === "New" &&
       !l.archived &&
+      !db.reviews.some((r) => r.leadId === l.id && !r.reviewedAt) &&
+      !["follow_up", "closed"].includes(
+        db.reviews
+          .filter((r) => r.leadId === l.id)
+          .sort((a, b) =>
+            (b.reviewedAt ?? "").localeCompare(a.reviewedAt ?? ""),
+          )[0]?.result ?? "",
+      ) &&
       !db.assignments.some(
         (t) =>
           t.leadId === l.id &&
           isLive(t) &&
-          Date.parse(t.expiresAt) > Date.now(),
+          Date.parse(t.expiresAt) > serverNow().getTime(),
       ),
   );
   return (
@@ -70,6 +79,9 @@ export function IntakeQueue() {
 function ReviewRow({ review }: { review: ClosureReview }) {
   const { db, actor, run, busy } = useWorkspace();
   const [note, setNote] = useState("");
+  const [result, setResult] = useState("eligible");
+  const [amending, setAmending] = useState(false);
+  const [reason, setReason] = useState("");
   const lead = db.leads.find((l) => l.id === review.leadId);
   return (
     <article className="handover-card">
@@ -83,11 +95,22 @@ function ReviewRow({ review }: { review: ClosureReview }) {
         </p>
         <p>{review.reason}</p>
       </div>
-      {review.reviewedAt ? (
-        <p>
-          Đã rà soát {formatDate(review.reviewedAt, true)} ·{" "}
-          {review.note ?? review.result}
-        </p>
+      {review.reviewedAt && !amending ? (
+        <div>
+          <p>
+            Đã rà soát {formatDate(review.reviewedAt, true)} ·{" "}
+            {review.note ?? review.result}
+          </p>
+          {canEditLead(actor) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAmending(true)}
+            >
+              Đính chính rà soát
+            </Button>
+          )}
+        </div>
       ) : (
         canEditLead(actor) && (
           <form
@@ -96,11 +119,22 @@ function ReviewRow({ review }: { review: ClosureReview }) {
               e.preventDefault();
               if (
                 await run(
-                  { type: "review", id: review.id, note },
+                  amending
+                    ? {
+                        type: "amendReview",
+                        id: review.id,
+                        note,
+                        result,
+                        reason,
+                      }
+                    : { type: "review", id: review.id, note, result },
                   "Đã ghi nhận rà soát.",
                 )
-              )
+              ) {
                 setNote("");
+                setAmending(false);
+                setReason("");
+              }
             }}
           >
             <p>
@@ -108,12 +142,31 @@ function ReviewRow({ review }: { review: ClosureReview }) {
               giao.
             </p>
             <Field label="Kết quả rà soát">
+              <select
+                value={result}
+                onChange={(e) => setResult(e.target.value)}
+              >
+                <option value="eligible">Đủ điều kiện phân công lại</option>
+                <option value="follow_up">Cần theo dõi thêm</option>
+                <option value="closed">Đề nghị đóng hồ sơ</option>
+              </select>
+            </Field>
+            <Field label="Căn cứ rà soát">
               <Textarea
                 required
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
             </Field>
+            {amending && (
+              <Field label="Lý do đính chính rà soát">
+                <Textarea
+                  required
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </Field>
+            )}
             <Button disabled={busy}>Hoàn tất rà soát</Button>
           </form>
         )

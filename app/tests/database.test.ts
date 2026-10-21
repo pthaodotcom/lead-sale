@@ -27,7 +27,7 @@ beforeAll(async () => {
  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
  create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(bucket_id text,name text,primary key(bucket_id,name));alter table storage.objects enable row level security;grant usage on schema storage,auth to authenticated;grant select,insert on storage.objects to authenticated;`);
   for (const f of (await readdir("backend/supabase/schemas"))
-    .filter((f) => /^1[0-4]_/.test(f))
+    .filter((f) => /^(1[0-46-9]|20)_/.test(f))
     .sort())
     await db.exec(await readFile("backend/supabase/schemas/" + f, "utf8"));
   for (const [key, id] of Object.entries(users)) {
@@ -124,7 +124,474 @@ const activity = () => ({
   reason: "none",
   note: "Không nghe máy",
 });
+async function simulator(c: object) {
+  return (
+    await db.query<{ result: any }>(
+      "select public.lead_simulator($1::jsonb) result",
+      [JSON.stringify(c)],
+    )
+  ).rows[0].result;
+}
+async function receive(event: object) {
+  await db.exec("reset role");
+  const result = (
+    await db.query<{ result: any }>(
+      "select private.lead_core_receive($1::jsonb) result",
+      [JSON.stringify(event)],
+    )
+  ).rows[0].result;
+  await act("admin");
+  return result;
+}
+async function source(link = true) {
+  const l = await createLead();
+  const d = await simulator({
+    type: "createDriver",
+    name: l.name,
+    phone: l.phone,
+  });
+  if (link)
+    await simulator({ type: "link", driverId: d.driverId, leadId: l.id });
+  return { l, driverId: d.driverId };
+}
+async function event(driverId: string, eventType: string, extra: object = {}) {
+  return (
+    await simulator({
+      type: "emit",
+      driverId,
+      eventType,
+      occurredAt: clock,
+      orderId: "ORDER-TEST",
+      ...extra,
+    })
+  ).event;
+}
+describe("Simulator source, trusted receiver and milestones", () => {
+  it.each([
+    "account_created",
+    "registration_pending",
+    "order_received",
+    "order_cancelled",
+  ])("%s does not create milestones", async (type) => {
+    const { driverId } = await source();
+    expect((await receive(await event(driverId, type))).status).toBe("ignored");
+    expect((await snapshot()).leads[0].status).toBe("New");
+  });
+  it("registration/first-order events update exactly one Lead, preserve actual dates, survive reload and solve pending work", async () => {
+    const t = await assign();
+    await command(
+      {
+        type: "activity",
+        assignmentId: t.id,
+        input: {
+          ...activity(),
+          outcome: "called",
+          decision: "agreed",
+          appointmentAt: new Date(
+            new Date(clock).getTime() + 3600000,
+          ).toISOString(),
+          place: "Văn phòng thử",
+        },
+      },
+      t.version,
+    );
+    let s = await snapshot();
+    const d = await simulator({
+      type: "createDriver",
+      name: s.leads[0].name,
+      phone: s.leads[0].phone,
+    });
+    await simulator({ type: "link", driverId: d.driverId, leadId: t.leadId });
+    const past = new Date(new Date(clock).getTime() - 86400000).toISOString();
+    const reg = await event(d.driverId, "registration_completed", {
+      occurredAt: past,
+    });
+    expect((await receive(reg)).status).toBe("processed");
+    s = await snapshot();
+    expect(s.leads[0].status).toBe("Activated");
+    expect(new Date(s.leads[0].activatedAt).toISOString()).toBe(past);
+    expect(s.leads[0].activatedSource).toBe("simulator");
+    expect(s.assignments[0].status).toBe("Solved");
+    expect(s.activities).toHaveLength(1);
+    expect(s.appointments[0].status).toBe("cancelled");
+    expect((await receive(reg)).status).toBe("processed");
+    expect((await snapshot()).leads[0].version).toBe(s.leads[0].version);
+    expect((await receive({ ...reg, phone: "0909999999" })).status).toBe(
+      "id_collision",
+    );
+    expect(
+      (await receive(await event(d.driverId, "first_order_completed"))).status,
+    ).toBe("processed");
+    s = await snapshot();
+    expect(s.leads[0].status).toBe("Onboarded");
+    expect(s.report.registered).toBe(1);
+    expect(s.report.onboarded).toBe(1);
+    const data = await simulator({ type: "snapshot" });
+    expect(data.events).toHaveLength(2);
+    expect(data.attempts.some((x: any) => x.status === "id_collision")).toBe(
+      true,
+    );
+  });
+  it("waits for mapping, then retries the immutable source event", async () => {
+    const { l, driverId } = await source(false);
+    const reg = await event(driverId, "registration_completed");
+    expect((await receive(reg)).status).toBe("waiting_link");
+    expect((await snapshot()).leads[0].status).toBe("New");
+    await simulator({ type: "link", driverId, leadId: l.id });
+    expect((await receive(reg)).status).toBe("processed");
+  });
+  it("waits for late registration without inventing a registration date", async () => {
+    const { driverId } = await source();
+    const first = await event(driverId, "first_order_completed");
+    expect((await receive(first)).status).toBe("waiting_registration");
+    await receive(
+      await event(driverId, "registration_completed", {
+        occurredAt: new Date(new Date(clock).getTime() - 60000).toISOString(),
+      }),
+    );
+    expect((await snapshot()).leads[0].status).toBe("Onboarded");
+  });
+  it("rejects identity mismatch and actual first-order time before registration", async () => {
+    const { driverId } = await source();
+    const reg = await event(driverId, "registration_completed");
+    expect(
+      (await receive({ ...reg, eventId: randomUUID(), phone: "0909999999" }))
+        .status,
+    ).toBe("conflict");
+    await receive(reg);
+    expect(
+      (
+        await receive(
+          await event(driverId, "first_order_completed", {
+            occurredAt: new Date(
+              new Date(clock).getTime() - 60000,
+            ).toISOString(),
+          }),
+        )
+      ).status,
+    ).toBe("conflict");
+  });
+  it("does not reopen Closed or overwrite a correction", async () => {
+    const { l, driverId } = await source();
+    await command(
+      { type: "leadStatus", id: l.id, status: "Closed", reason: "Ngừng" },
+      1,
+    );
+    expect(
+      (await receive(await event(driverId, "registration_completed"))).status,
+    ).toBe("conflict");
+    await command(
+      {
+        type: "correctMilestone",
+        id: l.id,
+        status: "New",
+        reason: "Đính chính",
+      },
+      2,
+    );
+    expect(
+      (await receive(await event(driverId, "registration_completed"))).status,
+    ).toBe("conflict");
+  });
+  it("keeps archived Leads and invalid future events unchanged with a retained rejection", async () => {
+    const { l, driverId } = await source();
+    await command({ type: "archiveLead", id: l.id }, 1);
+    const e = await event(driverId, "registration_completed");
+    expect((await receive(e)).status).toBe("conflict");
+    expect(
+      (
+        await receive({
+          ...e,
+          eventId: randomUUID(),
+          occurredAt: "2100-01-01T00:00:00Z",
+        })
+      ).status,
+    ).toBe("rejected");
+    expect((await snapshot()).leads[0].status).toBe("New");
+    expect((await simulator({ type: "snapshot" })).inbox).toHaveLength(2);
+  });
+  it("denies non-admin simulation and direct receiver calls from authenticated clients", async () => {
+    await source();
+    await act("sale");
+    await db.exec("savepoint denied");
+    await expect(
+      simulator({ type: "createDriver", name: "X", phone: "0909999999" }),
+    ).rejects.toThrow("Admin/Tiếp nhận");
+    await db.exec("rollback to savepoint denied");
+    await expect(
+      db.query("select private.lead_core_receive('{}'::jsonb)"),
+    ).rejects.toThrow("permission denied");
+    await db.exec("rollback to savepoint denied");
+    await act("intake");
+    await expect(
+      simulator({ type: "createDriver", name: "X", phone: "0909999999" }),
+    ).rejects.toThrow("Chỉ Admin");
+  });
+});
 describe("PostgreSQL commands, RLS and transactions", () => {
+  it("appointment correction voids the derived missed count without reopening the appointment", async () => {
+    const t = await accepted();
+    await command(
+      {
+        type: "activity",
+        assignmentId: t.id,
+        input: {
+          ...activity(),
+          outcome: "called",
+          decision: "agreed",
+          appointmentAt: new Date(
+            new Date(clock).getTime() + 3600000,
+          ).toISOString(),
+          place: "Văn phòng",
+        },
+      },
+      t.version,
+    );
+    let s = await snapshot();
+    const ap = s.appointments[0];
+    await db.exec("reset role");
+    await db.query(
+      "update public.lead_appointments set due_at=now(),data=data||jsonb_build_object('at',now()) where id=$1",
+      [ap.id],
+    );
+    await act("sale");
+    await command(
+      { type: "appointment", id: ap.id, status: "missed" },
+      s.assignments[0].version,
+    );
+    s = await snapshot();
+    await command(
+      {
+        type: "correctAppointment",
+        id: ap.id,
+        status: "attended",
+        reason: "Nhân viên xác nhận đã đến",
+      },
+      s.assignments[0].version,
+    );
+    s = await snapshot();
+    expect(s.appointments[0].status).toBe("attended");
+    expect(
+      s.activities.find((a: any) => a.appointmentId === ap.id).voidedAt,
+    ).toBeTruthy();
+  });
+  it("persistent import batches resume without duplicate Leads and flag duplicates inside one file", async () => {
+    const batch = async (c: object) =>
+      (
+        await db.query<{ result: any }>(
+          "select public.lead_import($1::jsonb) result",
+          [JSON.stringify(c)],
+        )
+      ).rows[0].result;
+    const id = randomUUID(),
+      input = {
+        name: "Lô nhập",
+        phone: "0901111111",
+        city: "Hà Nội",
+        vehicle: "Motorbike",
+        sourceId: "web",
+        tags: [],
+        note: "",
+        receivedAt: "2026-01-01T09:00:00+07:00",
+      };
+    await batch({
+      type: "create",
+      id,
+      fileName: "test.csv",
+      rows: [
+        input,
+        { ...input, phone: "+84901111111" },
+        { ...input, phone: "bad" },
+      ],
+    });
+    expect((await batch({ type: "row", id, index: 0 })).status).toBe("saved");
+    expect((await batch({ type: "row", id, index: 0 })).status).toBe("saved");
+    expect((await batch({ type: "row", id, index: 1 })).status).toBe("skipped");
+    expect((await batch({ type: "row", id, index: 2 })).status).toBe("failed");
+    expect((await snapshot()).leads).toHaveLength(1);
+    expect(new Date((await snapshot()).leads[0].receivedAt).toISOString()).toBe(
+      "2026-01-01T02:00:00.000Z",
+    );
+    expect(
+      Object.keys((await batch({ type: "get", id })).results),
+    ).toHaveLength(3);
+    await act("sale");
+    await expect(batch({ type: "get", id })).rejects.toThrow("Chỉ tiếp nhận");
+  });
+  it("amended review retains prior result and requires a fresh version", async () => {
+    const t = await assign();
+    await command(
+      { type: "ticketStatus", id: t.id, status: "Closed", reason: "Bàn giao" },
+      t.version,
+    );
+    const r = (await snapshot()).reviews[0];
+    await command(
+      { type: "review", id: r.id, note: "Cần đối soát", result: "follow_up" },
+      1,
+    );
+    expect(
+      await attempt({
+        type: "assign",
+        leadId: t.leadId,
+        assigneeId: members.other,
+      }),
+    ).toContain("chưa đủ điều kiện");
+    expect(
+      await attempt(
+        {
+          type: "amendReview",
+          id: r.id,
+          note: "Đủ điều kiện",
+          result: "eligible",
+          reason: "Đã kiểm tra",
+        },
+        1,
+      ),
+    ).toContain("thay đổi");
+    await command(
+      {
+        type: "amendReview",
+        id: r.id,
+        note: "Đủ điều kiện",
+        result: "eligible",
+        reason: "Đã kiểm tra",
+      },
+      2,
+    );
+    const s = await snapshot();
+    expect(s.reviews[0].history[0].result).toBe("follow_up");
+    await command({
+      type: "assign",
+      leadId: t.leadId,
+      assigneeId: members.other,
+    });
+  });
+  it("editing does not create a reception; explicit reception and historical creation preserve first source/date", async () => {
+    const l = await createLead();
+    await command(
+      { type: "saveLead", id: l.id, input: { ...l, city: "HCM" } },
+      l.version,
+    );
+    let s = await snapshot();
+    expect(s.receptions).toHaveLength(1);
+    await command(
+      {
+        type: "receiveLead",
+        id: l.id,
+        sourceId: "hotline",
+        reason: "Liên hệ lại",
+      },
+      s.leads[0].version,
+    );
+    s = await snapshot();
+    expect(s.receptions).toHaveLength(2);
+    expect(s.leads[0].sourceId).toBe("web");
+  });
+  it("chat unresponsive does not count as missed calls and preserves backdated activity identity", async () => {
+    let t = await accepted();
+    for (let n = 0; n < 3; n++) {
+      await command(
+        {
+          type: "activity",
+          assignmentId: t.id,
+          input: { ...activity(), channel: "zalo", outcome: "unresponsive" },
+        },
+        t.version,
+      );
+      t = (await snapshot()).assignments[0];
+    }
+    expect(t.status).toBe("Open");
+    expect(
+      (await snapshot()).activities.every(
+        (a: any) => a.outcome === "unresponsive",
+      ),
+    ).toBe(true);
+    expect(
+      await attempt(
+        {
+          type: "activity",
+          assignmentId: t.id,
+          input: { ...activity(), channel: "zalo" },
+        },
+        t.version,
+      ),
+    ).toContain("Chưa phản hồi");
+  });
+  it("review cannot be overwritten, and pending handover blocks reassignment", async () => {
+    const t = await assign();
+    await command(
+      { type: "ticketStatus", id: t.id, status: "Closed", reason: "Rà soát" },
+      t.version,
+    );
+    const r = (await snapshot()).reviews[0];
+    expect(
+      await attempt({
+        type: "assign",
+        leadId: t.leadId,
+        assigneeId: members.other,
+      }),
+    ).toContain("bàn giao");
+    await command(
+      { type: "review", id: r.id, note: "Đủ điều kiện", result: "eligible" },
+      1,
+    );
+    expect(
+      await attempt({ type: "review", id: r.id, note: "Ghi đè" }, 1),
+    ).toContain("đã được xác nhận");
+    await command({
+      type: "assign",
+      leadId: t.leadId,
+      assigneeId: members.other,
+    });
+    expect((await snapshot()).reviews[0].note).toBe("Đủ điều kiện");
+  });
+  it("voiding preserves history and counts without silently reopening Solved", async () => {
+    let t = await accepted();
+    for (let n = 0; n < 3; n++) {
+      await command(
+        { type: "activity", assignmentId: t.id, input: activity() },
+        t.version,
+      );
+      t = (await snapshot()).assignments[0];
+    }
+    const activityId = (await snapshot()).activities[0].id;
+    await command(
+      { type: "voidActivity", id: activityId, reason: "Nhập nhầm" },
+      t.version,
+    );
+    const s = await snapshot();
+    expect(s.activities).toHaveLength(3);
+    expect(
+      s.activities.find((a: any) => a.id === activityId).voidedAt,
+    ).toBeTruthy();
+    expect(s.assignments[0].status).toBe("Solved");
+  });
+  it("milestone correction removes invalid dates and keeps closed tickets closed", async () => {
+    const t = await assign();
+    await command(
+      {
+        type: "leadStatus",
+        id: t.leadId,
+        status: "Activated",
+        reason: "Thủ công",
+      },
+      1,
+    );
+    await command(
+      {
+        type: "correctMilestone",
+        id: t.leadId,
+        status: "New",
+        reason: "Sai hồ sơ",
+      },
+      2,
+    );
+    const s = await snapshot();
+    expect(s.leads[0].activatedAt).toBeUndefined();
+    expect(s.leads[0].coreCorrectionAt).toBeTruthy();
+    expect(s.assignments[0].status).toBe("Solved");
+    expect(s.report.registered).toBe(0);
+  });
   it("creates one Lead, reception and audit; rejects normalized duplicate", async () => {
     const l = await createLead();
     expect(l.status).toBe("New");
@@ -260,7 +727,7 @@ describe("PostgreSQL commands, RLS and transactions", () => {
     expect((await snapshot()).leads).toEqual([]);
     expect((await snapshot()).activities).toEqual([]);
     await act("other");
-    expect((await snapshot()).assignments).toHaveLength(1);
+    expect((await snapshot()).assignments).toHaveLength(2);
   });
   it("activation solves the ticket without making Lead Closed", async () => {
     const t = await assign();

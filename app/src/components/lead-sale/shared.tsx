@@ -13,7 +13,7 @@ import { leadLabels, ticketLabels } from "./domain";
 import { serverNow } from "./dates";
 
 export const formatDate = (value?: string, time = false) =>
-  value
+  value && Number.isFinite(Date.parse(value))
     ? new Intl.DateTimeFormat("vi-VN", {
         timeZone: "Asia/Ho_Chi_Minh",
         day: "2-digit",

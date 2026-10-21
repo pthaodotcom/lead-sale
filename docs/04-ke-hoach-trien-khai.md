@@ -1,14 +1,16 @@
 # Kế hoạch triển khai tiếp Lead Sale
 
+> **Bổ sung 21/10/2026:** người dùng chọn gọi/chat thủ công, bỏ Telegram và thêm nguồn kết quả đăng ký/đơn đầu giả lập. [Kế hoạch 07](07-ke-hoach-gia-lap-core-va-khac-phuc.md) giữ quyết định xử lý 41 điểm; [kết quả 08](08-ket-qua-gia-lap-core-va-khac-phuc.md) ghi luồng giả lập và các sửa nghiệp vụ đã triển khai, bằng chứng cùng phần còn phụ thuộc môi trường.
+
 > **Cập nhật triển khai 21/10/2026:** người dùng đã yêu cầu “OK triển khai” và tiếp tục hoàn thiện sản phẩm. M1/M2 đã có dữ liệu Supabase thật; các checkbox dưới đây phản ánh mã đã triển khai. Bằng chứng và điều chỉnh so với kế hoạch nằm tại [bàn giao/vận hành](06-ban-giao-va-van-hanh.md). Giao diện dùng frontend cục bộ + Supabase cloud; P8.4 (frontend public hosting) còn chờ đích triển khai. P2.1 đã có DB/Auth/Storage, chưa có tên miền public; P8.2 đã kiểm tra desktop/mobile/quyền URL, chưa kiểm tra đủ mọi biến thể offline/SMTP/hosting. Các đoạn mô tả hiện trạng ban đầu bên dưới được giữ làm lịch sử.
 
-Ngày lập: **21/10/2026** (UTC+7). Trạng thái: **đang làm bước 1: đã có bộ thiết kế dự thảo, ngưỡng lần 3 → Solved đã được người dùng xác nhận; các quyết định nghiệp vụ khác còn chờ xác nhận**. Chưa chạy bước 0 hoặc triển khai bước 2 trở đi. Xem [đặc tả bước 1](05-dac-ta-buoc-1.md).
+Ngày lập: **21/10/2026** (UTC+7). Đã có bản Supabase và nguồn giả lập chạy cục bộ; trạng thái từng phần theo tài liệu 06/08. Các quyết định thiết kế ban đầu ở [đặc tả bước 1](05-dac-ta-buoc-1.md) giữ phân biệt nguồn/đề xuất/xác nhận.
 
 Căn cứ: [yêu cầu R/FR/Q](01-yeu-cau-de-tai.md), [ghi chú đọc đủ 4 tab và đối chiếu app](03-ghi-chu-trien-khai.md), [bản chụp nguồn 21/10](sources/google-doc-2026-10-21.md). Phát triển tiếp trong `app/` trên nền Atomic CRM và module Lead Sale hiện có.
 
 ## 1. Điểm xuất phát và nguyên tắc thực hiện
 
-- App đã có màn hình và logic demo cho hồ sơ, phân công, tư vấn, lịch hẹn, dashboard/báo cáo, quản trị. Dữ liệu nghiệp vụ lưu localStorage; đổi người dùng qua bộ chọn demo.
+- App thường dùng Supabase Auth/DB/RLS/Storage. localStorage và bộ chọn vai trò chỉ thuộc chế độ dev:demo độc lập.
 - Chưa xác nhận app chạy, build và các test hiện có trên máy này. Kiểm tra sơ bộ ngày 21/10: có lệnh `node` và `git`; chưa tìm thấy `npm`, Docker, Make trên PATH; `app/node_modules` chưa có, `app/package-lock.json` có. Chưa kết luận các công cụ hoàn toàn chưa được cài.
 - `.nvmrc` của repo ghi `v24.21.0`. Xác minh runtime thực tế và cách cài dependency trước khi chạy.
 - Tận dụng UI, router, form, Auth/data provider của base khi phù hợp. Mỗi đợt nối trọn một luồng từ UI đến DB và kiểm tra quyền, thay vì nối DB xong mới xử lý quyền.

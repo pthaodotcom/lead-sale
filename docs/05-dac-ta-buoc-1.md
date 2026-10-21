@@ -66,7 +66,7 @@ Phạm vi loại khỏi bản đầu theo đề xuất: vận hành chuyến xe/
 | D-04 | Q-04 | Mọi lần tiếp nhận tạo sự kiện; giữ hồ sơ/ngày/nguồn đầu. New vào hàng đợi nếu chưa có phiếu hiệu lực; Closed chỉ mở lại khi tiếp nhận xác nhận nhu cầu/SĐT; Activated/Onboarded giữ nguyên và không tự phân công lại | **ĐX** |
 | D-05 | Q-05 | Mỗi Lead tối đa một phiếu chưa Closed, kể cả Solved. Chuyển người = đóng cũ/tạo mới, có liên kết, phiếu mới có 14×24 giờ từ lúc tạo | **ĐX**, đã gửi câu hỏi lựa chọn; không coi im lặng là đồng ý |
 | D-06 | Q-06 | 5 vai trò tách riêng; 1 vai trò/user; Admin nghiệp vụ toàn cục; tiếp nhận toàn cục; trưởng nhóm theo nhóm và hàng đợi chưa phân công; Telesale theo phiếu hiện còn quyền; viewer chỉ tổng hợp không SĐT | **ĐX**; không tự gộp “tuyển dụng” vào Telesale |
-| D-07 | Q-07 | Nhập nội dung cuộc gọi/chat thủ công + recording/ảnh chat/tệp đính kèm qua Storage riêng; chưa nối dịch vụ gọi/Zalo thật | **ĐX**, đã gửi câu hỏi phạm vi |
+| D-07 | Q-07 | Nhân viên tự cập nhật kết quả gọi/chat và đính kèm bằng chứng; không tích hợp Telegram hoặc tự đồng bộ liên lạc trong bản này | **XN 21/10/2026:** người dùng chọn làm thủ công và bỏ Telegram; xem kế hoạch 07 và kết quả triển khai 08 |
 | D-08 | Q-08 | Tiếp nhận thủ công + CSV và XLSX dùng chung kiểm tra/preview; xuất CSV trước. Chưa kết nối nguồn ngoài trực tiếp | **ĐX**, đã gửi câu hỏi phạm vi |
 | D-09 | Q-09 | Báo cáo theo nhóm hồ sơ có ngày tiếp nhận đầu trong khoảng lọc; nguồn đầu; phụ trách/nhóm trên phiếu gần nhất; chỉ số chuyển đổi tích lũy theo mốc thời gian hợp lệ; loại lưu trữ | **ĐX**, chi tiết và số mẫu ở tài liệu KPI |
 | D-10 | Q-10 | Lịch hẹn có giờ/nơi; nhắc trong app trước 1 giờ và khi đến giờ; job mỗi phút. Closed có hàng đợi ngay, tổng hợp thông báo lúc 08:00 UTC+7 cho ngày trước | **ĐX**; chưa cam kết email/SMS/Zalo thông báo |
@@ -74,6 +74,7 @@ Phạm vi loại khỏi bản đầu theo đề xuất: vận hành chuyến xe/
 | D-12 | Q-01/10 | Đếm tổng trong từng đợt chăm sóc của phiếu, hai bộ đếm riêng; không reset vì cuộc gọi thành công. Mở lại Solved tạo đợt mới, reset bộ đếm đợt và giữ tổng lịch sử. Một lịch không đến chỉ tăng quá hẹn một lần | **ĐX**; ngưỡng 3 đã XN nhưng cách đếm/reset vẫn cần xác nhận |
 | D-13 | Q-12 | Thay xóa nghiệp vụ bằng lưu trữ/khôi phục bởi tiếp nhận/Admin, chỉ khi mọi phiếu đã Closed; giữ SĐT unique, dữ liệu và audit | **ĐX**; chưa có thao tác xóa cứng |
 | D-14 | Q-13 | Chưa có tên đề tài/deadline/đích triển khai/quy mô chính thức; chọn môi trường ở bước 0/2 | **Còn mở**; không tự ước lượng hạn bàn giao hoặc tạo project bên ngoài |
+| D-15 | Bổ sung nguồn xác nhận kết quả | Xây hệ thống ngoài giả lập cho chọn tài xế/tình huống, gửi kết quả đăng ký và đơn đầu về Lead Sale; giữ rõ nguồn mô phỏng và lịch sử tiếp nhận | **XN phạm vi 21/10/2026:** người dùng yêu cầu giả lập nguồn ngoài; chi tiết xử lý/UI trong [kế hoạch 07](07-ke-hoach-gia-lap-core-va-khac-phuc.md) là thiết kế đề xuất, chưa triển khai |
 
 Khi người dùng trả lời thêm, cập nhật trạng thái/căn cứ ở đây trước khi chuyển checklist “chốt” sang hoàn thành. Không dùng ngày đọc tài liệu làm ngày xác nhận nghiệp vụ.
 

@@ -4,7 +4,9 @@
 
 This repository now runs Lead Sale at `src/components/lead-sale/`, entered through `src/App.tsx`. Use Node 24+, `npm ci`, `npm run dev`, `npm run build`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e`. Cloud browser tests use `npm run test:e2e:cloud` and ignored local test credentials. `npm run dev:demo` is isolated from Supabase.
 
-The active backend is **`backend/supabase/`**. Its declarative `schemas/10_*` through `15_*` are the source of truth. Generate its bootstrap with `npm run db:generate`; apply to an empty project with `npm run db:apply` and server-only `LEAD_DATABASE_URL`. For an existing database, use forward migrations; never replay or overwrite an applied bootstrap.
+The active backend is **`backend/supabase/`**. Its declarative `schemas/10_*` through `20_*` are the source of truth (15 is cron setup). Empty database: `npm run db:apply` then `npm run db:migrate`. Existing database: forward migrations through `db:migrate` only; never replay or overwrite applied versions. `db:generate` checks/generates the fixed checked-in versions and refuses content drift. New SQL changes require a new forward migration. Server-only settings live in ignored `.env.server.local`; TLS uses `LEAD_DB_CA_FILE` when required.
+
+The external driver simulator is local Node API `npm run dev:core` on 5180 plus Vite on 5173 (`/api/` proxy). It uses its own source drivers/orders/outbox and an authenticated HTTP receiver; it is not a live delivery-platform integration. `npm run test:e2e:core` expects these services running. Read `../docs/08-ket-qua-gia-lap-core-va-khac-phuc.md` for the new workflow, API and verification limits.
 
 The original Atomic CRM code, `supabase/`, registry and tooling below are preserved for reference. They are outside the Lead Sale entry graph and are not its backend migrations. **Do not apply the original `supabase/migrations` to the Lead Sale project.** The active dependency manifest supports Lead Sale; restoring the standalone Atomic CRM application would require its original dependencies.
 

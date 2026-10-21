@@ -15,6 +15,12 @@ import {
 import type { ReportData } from "./types";
 const percent = (n: number, total: number) =>
   total ? Number(((n / total) * 100).toFixed(2)) : 0;
+const resultSource = (source?: string) =>
+  source === "simulator"
+    ? "Giả lập"
+    : ["manual", "manual_correction"].includes(source ?? "")
+      ? "Xác nhận thủ công"
+      : "Chưa rõ căn cứ (dữ liệu cũ)";
 export function Reports() {
   const { db, actor, cloud } = useWorkspace();
   const [from, setFrom] = useState("");
@@ -97,6 +103,10 @@ export function Reports() {
                         "Trạng thái",
                         "Phụ trách gần nhất",
                         "Ngày tiếp nhận",
+                        "Ngày đăng ký thực tế",
+                        "Nguồn xác nhận đăng ký",
+                        "Ngày đơn đầu thực tế",
+                        "Nguồn xác nhận đơn đầu",
                       ],
                       ...rows.map((l) => [
                         l.id,
@@ -109,6 +119,10 @@ export function Reports() {
                             m.id === latestAssignment(db, l.id)?.assigneeId,
                         )?.name ?? "Chưa phân công",
                         formatDate(l.receivedAt),
+                        formatDate(l.activatedAt, true),
+                        l.activatedAt ? resultSource(l.activatedSource) : "",
+                        formatDate(l.onboardedAt, true),
+                        l.onboardedAt ? resultSource(l.onboardedSource) : "",
                       ]),
                     ]
                   : [
@@ -305,6 +319,33 @@ export function Reports() {
               </table>
             </div>
           </section>
+          {summary.byResultSource && (
+            <section className="data-section">
+              <div className="section-header">
+                <h2>Theo nguồn xác nhận kết quả</h2>
+              </div>
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nguồn xác nhận</th>
+                      <th>Đã đăng ký</th>
+                      <th>Đã chạy đơn đầu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.byResultSource.map((s) => (
+                      <tr key={s.id}>
+                        <td>{resultSource(s.id)}</td>
+                        <td>{s.registered}</td>
+                        <td>{s.onboarded}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
           {canDetail && (
             <section className="data-section">
               <div className="section-header">
@@ -320,6 +361,7 @@ export function Reports() {
                       <th>Nguồn</th>
                       <th>Phụ trách gần nhất</th>
                       <th>Tiếp nhận</th>
+                      <th>Mốc kết quả / căn cứ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -347,6 +389,23 @@ export function Reports() {
                           )?.name ?? "Chưa phân công"}
                         </td>
                         <td>{formatDate(l.receivedAt)}</td>
+                        <td>
+                          {l.activatedAt && (
+                            <small>
+                              Đăng ký: {formatDate(l.activatedAt, true)} ·{" "}
+                              {resultSource(l.activatedSource)}
+                            </small>
+                          )}
+                          {l.onboardedAt && (
+                            <small>
+                              Đơn đầu: {formatDate(l.onboardedAt, true)} ·{" "}
+                              {resultSource(l.onboardedSource)}
+                            </small>
+                          )}
+                          {!l.activatedAt &&
+                            !l.onboardedAt &&
+                            "Chưa có mốc xác nhận"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

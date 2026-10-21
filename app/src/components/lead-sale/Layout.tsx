@@ -24,6 +24,7 @@ import { useWorkspace } from "./context";
 import { roleLabels, canAssign } from "./domain";
 import { formatDate } from "./shared";
 import { supabase } from "./backend";
+import { serverNow } from "./dates";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { db, actor, setActor, cloud, run } = useWorkspace();
@@ -47,7 +48,14 @@ export function Layout({ children }: { children: ReactNode }) {
         ]
       : []),
     { to: "/reports", label: "Báo cáo", icon: BarChart3 },
+    ...(["admin", "intake"].includes(actor.role)
+      ? [{ to: "/integrations", label: "Đối soát nguồn", icon: Inbox }]
+      : []),
+    ...(actor.role === "admin"
+      ? [{ to: "/core-simulator", label: "Tài xế giả lập", icon: Truck }]
+      : []),
     { to: "/account", label: "Tài khoản của tôi", icon: UserCircle },
+    { to: "/notices", label: "Thông báo", icon: Bell },
     ...(actor.role === "admin"
       ? [{ to: "/settings", label: "Quản trị", icon: Settings2 }]
       : []),
@@ -58,7 +66,9 @@ export function Layout({ children }: { children: ReactNode }) {
     ) ?? navigation[0];
   const due = db.assignments.filter(
     (t) =>
-      (canAssign(actor) || t.assigneeId === actor.id) && t.status === "New",
+      (canAssign(actor) || t.assigneeId === actor.id) &&
+      t.status === "New" &&
+      Date.parse(t.expiresAt) > serverNow().getTime(),
   ).length;
   return (
     <div className="workspace">
@@ -192,7 +202,7 @@ export function Layout({ children }: { children: ReactNode }) {
             .map((n) => (
               <div className="review-notice" key={n.id}>
                 <Bell size={16} />
-                <span>{n.title}</span>
+                <Link to={n.href ?? "/notices"}>{n.title}</Link>
                 <Button
                   variant="ghost"
                   size="sm"

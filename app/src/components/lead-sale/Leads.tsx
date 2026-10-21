@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "./context";
 import { AssignmentDialog } from "./AssignmentDialog";
+import { LeadMilestones } from "./Corrections";
 import {
   Badge,
   downloadCsv,
@@ -20,6 +21,7 @@ import {
   Field,
   formatDate,
   Guard,
+  localDateTime,
   PageHeading,
   SearchBox,
   textMatches,
@@ -454,6 +456,7 @@ export function LeadShow() {
   const l = db.leads.find((l) => l.id === id);
   const [status, setStatus] = useState<LeadStatus | "">("");
   const [reason, setReason] = useState("");
+  const [occurredAt, setOccurredAt] = useState(localDateTime);
   if (!l) return <Empty title="Không tìm thấy hồ sơ" />;
   if (!canReadLead(db, actor, l.id))
     return <Guard allowed={false}>{null}</Guard>;
@@ -606,6 +609,7 @@ export function LeadShow() {
           </section>
         </div>
         <aside className="detail-side">
+          <LeadMilestones key={`${l.id}-${l.version}`} lead={l} />
           <section className="data-section">
             <div className="section-header">
               <h2>Người phụ trách</h2>
@@ -628,7 +632,7 @@ export function LeadShow() {
           {canEditLead(actor) && !l.archived && transitions.length > 0 && (
             <section className="data-section">
               <div className="section-header">
-                <h2>Cập nhật trạng thái Lead</h2>
+                <h2>Xác nhận trạng thái thủ công</h2>
               </div>
               <form
                 className="side-content stack-form"
@@ -637,7 +641,13 @@ export function LeadShow() {
                   if (
                     status &&
                     (await run(
-                      { type: "leadStatus", id: l.id, status, reason },
+                      {
+                        type: "leadStatus",
+                        id: l.id,
+                        status,
+                        reason,
+                        occurredAt,
+                      },
                       "Đã cập nhật trạng thái hồ sơ.",
                     ))
                   ) {
@@ -666,6 +676,15 @@ export function LeadShow() {
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     placeholder="Ví dụ: Đã đối chiếu đăng ký thành công…"
+                  />
+                </Field>
+                <Field label="Thời điểm xảy ra thực tế">
+                  <Input
+                    type="datetime-local"
+                    step="any"
+                    required
+                    value={occurredAt}
+                    onChange={(e) => setOccurredAt(e.target.value)}
                   />
                 </Field>
                 <Button type="submit">Lưu trạng thái hồ sơ</Button>

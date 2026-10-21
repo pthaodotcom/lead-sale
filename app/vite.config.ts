@@ -9,7 +9,11 @@ export default defineConfig(({ mode }) => ({
     ),
   },
   plugins: [react(), tailwindcss()],
-  server: { port: 5173, host: "127.0.0.1" },
+  server: {
+    port: 5173,
+    host: "127.0.0.1",
+    proxy: { "/api/": "http://127.0.0.1:5180" },
+  },
   resolve: {
     dedupe: ["react-router", "react-router-dom"],
     alias: { "@": path.resolve(import.meta.dirname, "./src") },

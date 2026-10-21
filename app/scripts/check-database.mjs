@@ -1,10 +1,5 @@
-import pg from "pg";
-if (!process.env.LEAD_DATABASE_URL)
-  throw new Error("Set LEAD_DATABASE_URL for the database to inspect.");
-const client = new pg.Client({
-  connectionString: process.env.LEAD_DATABASE_URL,
-  ssl: { rejectUnauthorized: process.env.LEAD_DB_SSL_VERIFY !== "false" },
-});
+import { databaseClient } from "./lead-db.mjs";
+const client = databaseClient();
 try {
   await client.connect();
   const { rows } = await client.query(

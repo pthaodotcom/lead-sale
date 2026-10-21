@@ -28,5 +28,16 @@ export function serializeCommandDates(command: Command): Command {
   if (command.type === "reschedule") return { ...command, at: iso(command.at) };
   if (command.type === "leadStatus" && command.occurredAt)
     return { ...command, occurredAt: iso(command.occurredAt) };
+  if (command.type === "correctMilestone")
+    return {
+      ...command,
+      ...(command.activatedAt ? { activatedAt: iso(command.activatedAt) } : {}),
+      ...(command.onboardedAt ? { onboardedAt: iso(command.onboardedAt) } : {}),
+    };
+  if (command.type === "saveLead" && command.input.receivedAt)
+    return {
+      ...command,
+      input: { ...command.input, receivedAt: iso(command.input.receivedAt) },
+    };
   return command;
 }

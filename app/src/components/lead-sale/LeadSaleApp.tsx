@@ -14,6 +14,8 @@ import { Appointments } from "./Appointments";
 import { Reports } from "./Reports";
 import { Settings } from "./Settings";
 import { Empty } from "./shared";
+import { CoreSimulator } from "./CoreSimulator";
+import { Notices } from "./Notices";
 import "./lead-sale.css";
 
 // Keep Atomic CRM's Admin/router/UI foundation; domain commands use Supabase.
@@ -50,6 +52,9 @@ export default function LeadSaleApp() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/import" element={<ImportLeads />} />
+          <Route path="/core-simulator" element={<CoreSimulator />} />
+          <Route path="/integrations" element={<CoreSimulator reconcile />} />
+          <Route path="/notices" element={<Notices />} />
         </CustomRoutes>
       </Admin>
     </WorkspaceProvider>

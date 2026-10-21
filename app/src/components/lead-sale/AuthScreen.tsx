@@ -19,6 +19,8 @@ export function AuthScreen({
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState(error);
   const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [sent, setSent] = useState(false);
   return (
     <main className="auth-screen">
       <section className="auth-card">
@@ -30,7 +32,9 @@ export function AuthScreen({
             ? "Kết nối không gian làm việc"
             : signedIn
               ? "Kiểm tra không gian làm việc"
-              : "Đăng nhập"}
+              : forgot
+                ? "Khôi phục mật khẩu"
+                : "Đăng nhập"}
         </h1>
         <p>Quản lý tiếp nhận và tư vấn tuyển tài xế.</p>
         {!configured ? (
@@ -67,11 +71,16 @@ export function AuthScreen({
               setBusy(true);
               setMessage("");
               try {
-                const result = await supabase!.auth.signInWithPassword({
-                  email,
-                  password,
-                });
+                const result = forgot
+                  ? await supabase!.auth.resetPasswordForEmail(email, {
+                      redirectTo: window.location.origin + "/",
+                    })
+                  : await supabase!.auth.signInWithPassword({
+                      email,
+                      password,
+                    });
                 if (result.error) throw result.error;
+                if (forgot) setSent(true);
               } catch (e) {
                 setMessage((e as Error).message);
               } finally {
@@ -88,17 +97,41 @@ export function AuthScreen({
                 onChange={(e) => setEmail(e.target.value)}
               />
             </Field>
-            <Field label="Mật khẩu">
-              <Input
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </Field>
+            {!forgot && (
+              <Field label="Mật khẩu">
+                <Input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </Field>
+            )}
+            {sent && (
+              <p role="status">
+                Nếu email đã có tài khoản và nhận được thư, hãy mở liên kết khôi
+                phục. Kiểm tra cả thư rác.
+              </p>
+            )}
             <Button type="submit" disabled={busy}>
-              {busy ? "Đang đăng nhập…" : "Đăng nhập"}
+              {busy
+                ? "Đang xử lý…"
+                : forgot
+                  ? "Gửi liên kết khôi phục"
+                  : "Đăng nhập"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setForgot(!forgot);
+                setMessage("");
+                setSent(false);
+              }}
+            >
+              {forgot ? "Quay lại đăng nhập" : "Quên mật khẩu"}
             </Button>
           </form>
         )}

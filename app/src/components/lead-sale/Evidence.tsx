@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uploadEvidence, evidenceUrl } from "./backend";
 import { useWorkspace } from "./context";
-import type { Activity } from "./types";
+import type { Activity, Attachment } from "./types";
 export function Evidence({
   activity,
   ticketId,
@@ -16,6 +16,7 @@ export function Evidence({
   const { actor, perform } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const [media, setMedia] = useState<{ url: string; type: string }>();
+  const [pending, setPending] = useState<Attachment>();
   return (
     <div className="evidence-list">
       {activity.attachments?.map((a) => (
@@ -48,7 +49,7 @@ export function Evidence({
           <input
             aria-label="Đính kèm bằng chứng"
             type="file"
-            disabled={busy}
+            disabled={busy || !!pending}
             accept="audio/*,image/jpeg,image/png,image/webp,application/pdf"
             onChange={async (e) => {
               const file = e.target.files?.[0];
@@ -60,11 +61,13 @@ export function Evidence({
                   actor.id,
                   ticketId,
                 );
+                setPending(attachment);
                 await perform({
                   type: "attachment",
                   activityId: activity.id,
                   attachment,
                 });
+                setPending(undefined);
                 toast.success("Đã lưu bằng chứng.");
               } catch (error) {
                 toast.error((error as Error).message);
@@ -75,6 +78,37 @@ export function Evidence({
             }}
           />
         </label>
+      )}
+      {pending && (
+        <div role="status">
+          <p>
+            Tệp đã tải lên, chưa xác nhận được liên kết bằng chứng. Thử lưu lại
+            cùng tệp.
+          </p>
+          <Button
+            disabled={busy}
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await perform({
+                  type: "attachment",
+                  activityId: activity.id,
+                  attachment: pending,
+                });
+                setPending(undefined);
+                toast.success("Đã lưu bằng chứng.");
+              } catch (e) {
+                toast.error((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Thử lưu liên kết tệp
+          </Button>
+        </div>
       )}
     </div>
   );

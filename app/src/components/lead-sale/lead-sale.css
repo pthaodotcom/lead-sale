@@ -1464,3 +1464,48 @@ select {
     padding: 24px;
   }
 }
+/* Extend the existing staff workspace for the separate simulated source. */
+.core-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+.core-grid h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.core-grid > section {
+  min-width: 0;
+}
+.core-grid p {
+  overflow-wrap: anywhere;
+}
+.core-events .data-table {
+  min-width: 800px;
+}
+.core-simulation-note {
+  padding: 16px 20px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.core-event-id {
+  overflow-wrap: anywhere;
+  max-width: 340px;
+  font-size: 12px;
+}
+.core-grid details summary,
+.data-table details summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.core-grid details form {
+  margin-top: 16px;
+}
+@media (max-width: 900px) {
+  .core-grid {
+    grid-template-columns: 1fr;
+  }
+}

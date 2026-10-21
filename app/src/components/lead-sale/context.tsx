@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { execute, getDatabase, getStorageError } from "./store";
 import { demoMode, supabase, loadWorkspace, sendCommand } from "./backend";
 import { AuthScreen } from "./AuthScreen";
+import { PasswordRecovery } from "./PasswordRecovery";
 import type { Command, Database, Member } from "./types";
 interface Workspace {
   db: Database;
@@ -38,8 +39,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
   const [loading, setLoading] = useState(!demoMode);
   const [signedIn, setSignedIn] = useState(false);
+  const [recovering, setRecovering] = useState(
+    () => sessionStorage.getItem("lead-sale.recovering") === "true",
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const pendingRequests = useRef(new Map<string, string>());
   const refresh = useCallback(async () => {
     if (!supabase) return;
     const next = await loadWorkspace();
@@ -67,6 +72,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setActorState(undefined);
         }
       else {
+        setRecovering(false);
+        sessionStorage.removeItem("lead-sale.recovering");
+        pendingRequests.current.clear();
         setActorState(undefined);
         setDb(getDatabase());
       }
@@ -75,7 +83,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     void init();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecovering(true);
+        sessionStorage.setItem("lead-sale.recovering", "true");
+      }
       setTimeout(() => {
         if (active) void init();
       }, 0);
@@ -100,8 +112,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const perform = async (command: Command) => {
     if (!actor) throw new Error("Đăng nhập trước khi thao tác.");
     if (supabase) {
-      await sendCommand(command, dbRef.current);
-      await refresh();
+      const key = JSON.stringify(command);
+      if (!pendingRequests.current.has(key))
+        pendingRequests.current.set(key, crypto.randomUUID());
+      await sendCommand(
+        command,
+        dbRef.current,
+        pendingRequests.current.get(key)!,
+      );
+      pendingRequests.current.delete(key);
+      try {
+        await refresh();
+      } catch {
+        toast.warning(
+          "Đã lưu trên máy chủ. Chưa tải được dữ liệu mới; dùng Làm mới hoặc tải lại trang.",
+        );
+      }
     } else {
       if (!demoMode) throw new Error("Chưa cấu hình Supabase.");
       execute(actor.id, command);
@@ -145,6 +171,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         <p role="status">Đang tải không gian Lead Sale…</p>
       </div>
     );
+  if (recovering && signedIn) return <PasswordRecovery />;
   if (!actor)
     return (
       <AuthScreen

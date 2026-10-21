@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useWorkspace } from "./context";
 import { AssignmentDialog } from "./AssignmentDialog";
 import { Evidence } from "./Evidence";
+import { ActivityCorrection } from "./Corrections";
 import {
   Badge,
   Empty,
@@ -30,6 +31,7 @@ import {
   canReadLead,
 } from "./domain";
 import type { ActivityInput, TicketStatus } from "./types";
+import { serverNow } from "./dates";
 
 const groups = [
   { id: "pending", name: "Chưa giải quyết" },
@@ -70,7 +72,7 @@ export function AssignmentsList() {
     if (key === "unaccepted") return t.status === "New" && !t.acceptedAt;
     if (key === "solved") return t.status === "Solved";
     if (key === "recent")
-      return new Date(t.updatedAt).getTime() >= Date.now() - 3 * 86400000;
+      return new Date(t.updatedAt).getTime() >= serverNow().getTime() - 3 * 86400000;
     if ((key === "no_answer_3" || key === "overdue_3") && t.status === "Solved")
       return key === "no_answer_3" ? c.noAnswer >= 3 : c.overdue >= 3;
     if (!isPending(t)) return false;
@@ -87,7 +89,7 @@ export function AssignmentsList() {
               (a) =>
                 a.assignmentId === t.id &&
                 a.status === "scheduled" &&
-                Date.parse(a.at) < Date.now(),
+                Date.parse(a.at) < serverNow().getTime(),
             )
         : c.overdue === Number(key.slice(-1));
     return isPending(t);
@@ -405,11 +407,16 @@ export function AssignmentShow() {
                         )}
                       </div>
                       <p>{a.note}</p>
+                      {(actor.role === "admin" ||
+                        (actor.role === "telesale" &&
+                          t.assigneeId === actor.id)) && (
+                        <ActivityCorrection activity={a} />
+                      )}
                       {cloud && (
                         <Evidence
                           activity={a}
                           ticketId={t.id}
-                          editable={permitted && t.status !== "Closed"}
+                          editable={canWork(actor, t) && !a.voidedAt}
                         />
                       )}
                     </article>
@@ -481,12 +488,13 @@ export function AssignmentShow() {
                   <Field label="Kênh liên hệ">
                     <select
                       value={form.channel}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         update(
                           "channel",
                           e.target.value as ActivityInput["channel"],
-                        )
-                      }
+                        );
+                        update("outcome", "called");
+                      }}
                     >
                       <option value="call">Gọi điện</option>
                       <option value="zalo">Nhắn tin Zalo</option>
@@ -517,7 +525,13 @@ export function AssignmentShow() {
                       }}
                     >
                       {Object.entries(outcomeLabels)
-                        .filter(([key]) => key !== "overdue")
+                        .filter(
+                          ([key]) =>
+                            key !== "overdue" &&
+                            (form.channel === "zalo"
+                              ? key !== "no_answer"
+                              : key !== "unresponsive"),
+                        )
                         .map(([key, label]) => (
                           <option value={key} key={key}>
                             {label}

@@ -33,6 +33,7 @@ export const ticketLabels = {
 export const outcomeLabels = {
   called: "Đã liên hệ",
   no_answer: "Không nghe máy",
+  unresponsive: "Chat chưa phản hồi",
   overdue: "Quá hẹn đăng ký",
   wrong_phone: "Sai số điện thoại",
 };
@@ -59,8 +60,9 @@ export const canWork = (actor: Member, ticket: Assignment) =>
   (actor.role === "admin" ||
     (actor.role === "telesale" && ticket.assigneeId === actor.id));
 export const isLive = (ticket: Assignment) => ticket.status !== "Closed";
-export const isPending = (ticket: Assignment) =>
-  ticket.status === "New" || ticket.status === "Open";
+export const isPending = (ticket: Assignment, now = serverNow()) =>
+  (ticket.status === "New" || ticket.status === "Open") &&
+  Date.parse(ticket.expiresAt) > now.getTime();
 export const normalizePhone = (value: string) =>
   value.replace(/[\s().-]/g, "").replace(/^\+?84(?=\d{9}$)/, "0");
 export const latestAssignment = (db: Database, leadId: string) =>
@@ -142,7 +144,7 @@ export function calculateReport(
           a.status === "scheduled" &&
           Date.parse(a.at) < now.getTime() &&
           t &&
-          isPending(t) &&
+          isPending(t, now) &&
           Date.parse(t.expiresAt) > now.getTime()
         );
       })
@@ -150,6 +152,25 @@ export function calculateReport(
   );
   return {
     total: leads.length,
+    byResultSource: ["simulator", "manual", "unverified"].map((id) => {
+      const source = (value?: string) =>
+        value === "simulator"
+          ? "simulator"
+          : ["manual", "manual_correction"].includes(value ?? "")
+            ? "manual"
+            : "unverified";
+      return {
+        id,
+        registered: leads.filter(
+          (l) => registered(l) && source(l.activatedSource) === id,
+        ).length,
+        onboarded: leads.filter(
+          (l) =>
+            (l.onboardedAt || l.status === "Onboarded") &&
+            source(l.onboardedSource) === id,
+        ).length,
+      };
+    }),
     registered: leads.filter(registered).length,
     onboarded: leads.filter((l) => !!l.onboardedAt || l.status === "Onboarded")
       .length,
@@ -214,6 +235,13 @@ export function validateLead(
       `Số điện thoại đã có trong hồ sơ ${duplicate.id} — ${duplicate.name}. Hãy mở hồ sơ này để bổ sung thông tin.`,
     );
   ensure(clean.city, "Nhập thành phố đăng ký chạy xe.");
+  if (clean.receivedAt)
+    ensure(
+      Number.isFinite(Date.parse(clean.receivedAt)) &&
+        new Date(clean.receivedAt) <= serverNow() &&
+        new Date(clean.receivedAt) >= new Date("2000-01-01"),
+      "Ngày tiếp nhận không hợp lệ.",
+    );
   ensure(
     ["Motorbike", "Van"].includes(clean.vehicle),
     "Chọn loại phương tiện hợp lệ.",
@@ -232,10 +260,13 @@ export function validateLead(
 export function counts(db: Database, ticketId: string) {
   const round = db.assignments.find((t) => t.id === ticketId)?.round ?? 1;
   const items = db.activities.filter(
-    (a) => a.assignmentId === ticketId && (a.round ?? 1) === round,
+    (a) =>
+      a.assignmentId === ticketId && (a.round ?? 1) === round && !a.voidedAt,
   );
   return {
-    noAnswer: items.filter((a) => a.outcome === "no_answer").length,
+    noAnswer: items.filter(
+      (a) => a.outcome === "no_answer" && a.channel === "call",
+    ).length,
     overdue: items.filter((a) => a.outcome === "overdue").length,
   };
 }
@@ -254,6 +285,9 @@ export function applyCommand(
     fail("Không tìm thấy người thao tác.");
   ensure(actor.active, "Tài khoản đang tạm ngưng.");
   const stamp = now.toISOString();
+  const isPending = (ticket: Assignment) =>
+    (ticket.status === "New" || ticket.status === "Open") &&
+    Date.parse(ticket.expiresAt) > now.getTime();
   const log = (action: string, target: string, detail: string) =>
     db.audit.unshift({
       id: id("LOG"),
@@ -320,20 +354,15 @@ export function applyCommand(
           lead.id,
           JSON.stringify({ before: JSON.parse(before), after: lead }),
         );
-        db.receptions.unshift({
-          id: id("TN"),
-          leadId: lead.id,
-          sourceId: input.sourceId,
-          at: stamp,
-          actorId,
-        });
         lead.sourceId = original.leads.find((l) => l.id === lead.id)!.sourceId;
       } else {
         const lead = {
           ...input,
           id: id("LEAD"),
           status: "New" as const,
-          receivedAt: stamp,
+          receivedAt: input.receivedAt
+            ? new Date(input.receivedAt).toISOString()
+            : stamp,
           updatedAt: stamp,
           archived: false,
         };
@@ -345,7 +374,7 @@ export function applyCommand(
           id: id("TN"),
           leadId: db.leads[0].id,
           sourceId: input.sourceId,
-          at: stamp,
+          at: db.leads[0].receivedAt,
           actorId,
         });
       break;
@@ -373,17 +402,20 @@ export function applyCommand(
       ensure(
         Number.isFinite(occurred.getTime()) &&
           occurred <= now &&
-          occurred >= new Date(lead.receivedAt),
+          occurred >= new Date("2000-01-01"),
         "Thời điểm xác nhận không hợp lệ.",
       );
-      if (command.status === "Activated")
+      if (command.status === "Activated") {
         lead.activatedAt = occurred.toISOString();
+        lead.activatedSource = "manual";
+      }
       if (command.status === "Onboarded") {
         ensure(
           !lead.activatedAt || occurred >= new Date(lead.activatedAt),
           "Đơn đầu phải sau đăng ký.",
         );
         lead.onboardedAt = occurred.toISOString();
+        lead.onboardedSource = "manual";
       }
       lead.status = command.status;
       lead.updatedAt = stamp;
@@ -426,6 +458,20 @@ export function applyCommand(
     case "assign": {
       ensure(canAssign(actor), "Chỉ trưởng nhóm hoặc quản trị được phân công.");
       const lead = leadById(command.leadId);
+      ensure(
+        !db.reviews.some((r) => r.leadId === lead.id && !r.reviewedAt),
+        "Xác nhận bàn giao trước khi phân công lại.",
+      );
+      ensure(
+        !["follow_up", "closed"].includes(
+          db.reviews
+            .filter((r) => r.leadId === lead.id)
+            .sort((a, b) =>
+              (b.reviewedAt ?? "").localeCompare(a.reviewedAt ?? ""),
+            )[0]?.result ?? "",
+        ),
+        "Kết quả bàn giao chưa đủ điều kiện phân công lại.",
+      );
       ensure(
         !lead.archived && lead.status === "New",
         "Chỉ phân công hồ sơ Mới đang sử dụng.",
@@ -546,6 +592,11 @@ export function applyCommand(
         "Nhận việc trước khi ghi tư vấn.",
       );
       const input: ActivityInput = command.input;
+      ensure(
+        !(input.channel === "zalo" && input.outcome === "no_answer") &&
+          !(input.channel === "call" && input.outcome === "unresponsive"),
+        "Chat chưa phản hồi không tính KNM.",
+      );
       ensure(
         ["call", "zalo"].includes(input.channel) &&
           input.outcome in outcomeLabels &&
@@ -703,7 +754,8 @@ export function applyCommand(
       log("Hẹn lại", appointment.id, command.at);
       break;
     }
-    case "review": {
+    case "review":
+    case "amendReview": {
       ensure(
         canEditLead(actor),
         "Chỉ bộ phận tiếp nhận được rà soát bàn giao.",
@@ -712,13 +764,158 @@ export function applyCommand(
         db.reviews.find((r) => r.id === command.id) ??
         fail("Không tìm thấy bàn giao.");
       ensure(command.note.trim(), "Nhập kết quả rà soát.");
+      if (command.type === "review")
+        ensure(
+          !review.reviewedAt,
+          "Bàn giao đã được xác nhận, không được ghi đè.",
+        );
+      else {
+        ensure(
+          review.reviewedAt && command.reason.trim(),
+          "Đính chính cần lý do và rà soát đã xác nhận.",
+        );
+        log(
+          "Đính chính rà soát",
+          review.id,
+          JSON.stringify({ before: review, reason: command.reason }),
+        );
+      }
       Object.assign(review, {
         reviewedAt: stamp,
         reviewedBy: actorId,
         note: command.note.trim(),
-        result: "reviewed",
+        result: command.result ?? "reviewed",
       });
       log("Rà soát bàn giao", review.id, command.note);
+      break;
+    }
+    case "receiveLead": {
+      ensure(canEditLead(actor), "Không có quyền tiếp nhận.");
+      const lead = leadById(command.id);
+      ensure(
+        !lead.archived &&
+          command.reason.trim() &&
+          db.sources.some((s) => s.id === command.sourceId && s.active),
+        "Nguồn hoặc căn cứ tiếp nhận không hợp lệ.",
+      );
+      db.receptions.unshift({
+        id: id("TN"),
+        leadId: lead.id,
+        sourceId: command.sourceId,
+        at: stamp,
+        actorId,
+      });
+      lead.updatedAt = stamp;
+      log("Tái tiếp nhận", lead.id, command.reason);
+      break;
+    }
+    case "correctMilestone": {
+      ensure(canEditLead(actor), "Không có quyền đính chính.");
+      const lead = leadById(command.id);
+      ensure(!lead.archived && command.reason.trim(), "Nhập lý do đính chính.");
+      delete lead.activatedAt;
+      delete lead.onboardedAt;
+      delete lead.activatedSource;
+      delete lead.onboardedSource;
+      delete lead.firstOrderId;
+      if (["Activated", "Onboarded"].includes(command.status)) {
+        const at = new Date(command.activatedAt ?? "");
+        ensure(
+          at <= now && at >= new Date("2000-01-01"),
+          "Ngày đăng ký không hợp lệ.",
+        );
+        lead.activatedAt = at.toISOString();
+        lead.activatedSource = "manual_correction";
+      }
+      if (command.status === "Onboarded") {
+        const at = new Date(command.onboardedAt ?? "");
+        ensure(
+          at <= now && at >= new Date(lead.activatedAt!),
+          "Ngày đơn đầu không hợp lệ.",
+        );
+        lead.onboardedAt = at.toISOString();
+        lead.onboardedSource = "manual_correction";
+      }
+      lead.status = command.status;
+      lead.coreCorrectionAt = stamp;
+      lead.correctionReason = command.reason;
+      lead.updatedAt = stamp;
+      if (command.status !== "New")
+        for (const t of db.assignments.filter(
+          (t) => t.leadId === lead.id && ["New", "Open"].includes(t.status),
+        )) {
+          t.status = "Solved";
+          cancelAppointments(t.id);
+        }
+      log("Đính chính kết quả", lead.id, command.reason);
+      break;
+    }
+    case "voidActivity": {
+      const activity =
+        db.activities.find((a) => a.id === command.id) ??
+        fail("Không tìm thấy hoạt động.");
+      const ticket = ticketById(activity.assignmentId);
+      ensure(
+        writable(ticket) &&
+          !activity.voidedAt &&
+          !activity.appointmentId &&
+          command.reason.trim(),
+        "Không thể hủy kết quả này.",
+      );
+      activity.voidedAt = stamp;
+      activity.voidReason = command.reason;
+      for (const a of db.appointments.filter(
+        (a) => a.activityId === activity.id && a.status === "scheduled",
+      ))
+        a.status = "cancelled";
+      log("Hủy tính kết quả", activity.id, command.reason);
+      break;
+    }
+    case "correctAppointment": {
+      const ap =
+        db.appointments.find((a) => a.id === command.id) ??
+        fail("Không tìm thấy lịch.");
+      const ticket = ticketById(ap.assignmentId);
+      ensure(
+        writable(ticket) &&
+          ["attended", "missed"].includes(ap.status) &&
+          ["attended", "missed", "cancelled"].includes(command.status) &&
+          command.reason.trim(),
+        "Không thể đính chính lịch này.",
+      );
+      ap.status = command.status;
+      const activity = db.activities.find((a) => a.appointmentId === ap.id);
+      if (activity) {
+        if (command.status === "missed") {
+          delete activity.voidedAt;
+          delete activity.voidReason;
+        } else {
+          activity.voidedAt = stamp;
+          activity.voidReason = command.reason;
+        }
+      } else if (command.status === "missed")
+        db.activities.unshift({
+          id: id("HD"),
+          leadId: ap.leadId,
+          assignmentId: ticket.id,
+          actorId,
+          channel: "call",
+          at: stamp,
+          outcome: "overdue",
+          decision: "none",
+          reason: "none",
+          note: command.reason,
+          round:
+            db.activities.find((a) => a.id === ap.activityId)?.round ??
+            ticket.round ??
+            1,
+          appointmentId: ap.id,
+        });
+      if (isPending(ticket) && counts(db, ticket.id).overdue >= 3) {
+        ticket.status = "Solved";
+        cancelAppointments(ticket.id);
+      }
+      log("Đính chính lịch", ap.id, command.reason);
       break;
     }
     case "noticeRead": {

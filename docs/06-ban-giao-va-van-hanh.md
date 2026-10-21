@@ -1,5 +1,7 @@
 # Lead Sale — bàn giao và vận hành
 
+> **Bổ sung hiện trạng:** [tài liệu 08](08-ket-qua-gia-lap-core-va-khac-phuc.md) cập nhật nguồn tài xế giả lập, API Node cục bộ, schema 16…20, sửa sai/bàn giao/lô nhập/nhắc việc và kiểm chứng mới. Nội dung dưới mô tả nền Supabase đã có; các giới hạn được thay thế được ghi rõ ở phần cuối.
+
 Cập nhật **21/10/2026**. Đây là hiện trạng đã triển khai, thay cho các nhận định “chỉ localStorage/chưa nối DB” trong ghi chú khảo sát ban đầu. Nguồn nghiệp vụ vẫn là bản chụp đủ 4 tab/8 ảnh và bộ đặc tả trong `docs/design/`.
 
 ## 1. Bản hiện tại
@@ -46,7 +48,7 @@ Chế độ xem thử: `npm run dev:demo`; dùng localStorage riêng và bộ ch
 5. Thiết lập `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `LEAD_ADMIN_EMAIL`, `LEAD_ADMIN_PASSWORD` trong terminal; chạy `npm run db:admin` để tạo admin đầu tiên. Mật khẩu tối thiểu 10 ký tự. Script không đổi mật khẩu/quyền nếu email đã tồn tại.
 6. Điền URL và publishable key vào `.env.local`; đăng nhập admin và tạo tài khoản/nhóm, cấp vai trò/kích hoạt ở Quản trị.
 
-Nếu môi trường PostgreSQL yêu cầu CA riêng, cung cấp CA phù hợp. `LEAD_DB_SSL_VERIFY=false` là lựa chọn cấu hình có chủ đích cho môi trường phát triển có chuỗi CA không được runtime nhận diện; không mặc định tắt xác minh.
+Nếu PostgreSQL yêu cầu CA riêng, cấu hình LEAD_DB_CA_FILE với chứng chỉ phù hợp. Các script DB hiện dùng xác minh TLS bắt buộc và đọc .env.server.local; không dùng LEAD_DB_SSL_VERIFY=false. Xem cấu hình hiện tại trong tài liệu 08.
 
 Project hiện tại đã được cài và kiểm chứng. Các thay đổi sau bootstrap phải dùng migration tiến lên; không sửa rồi chạy lại bootstrap đã áp dụng. Không chạy `db reset` vào project đang dùng.
 
@@ -61,8 +63,8 @@ Tài khoản mới từ giao diện được tạo qua Supabase Auth, mặc đ�
 | `backend.ts`, `context.tsx` | Auth, RPC, đọc/làm mới workspace, trạng thái tải/lỗi |
 | `domain.ts`, `types.ts`, `dates.ts` | Workflow/types, chuẩn hóa ngày giờ và đồng bộ đồng hồ máy chủ |
 | `store.ts`, `seed.ts` | Chỉ dùng cho chế độ demo |
-| `app/backend/supabase/schemas/10_*…15_*` | Nguồn schema, command, read/report, RLS, jobs, cron |
-| `app/backend/supabase/migrations/` | Bootstrap được sinh từ schema |
+| `app/backend/supabase/schemas/10_*…20_*` | Nguồn schema, command, read/report, RLS, jobs, cron và phần mở rộng giả lập/import |
+| `app/backend/supabase/migrations/` | Bootstrap bất biến và các migration tiến lên |
 | `app/tests/`, `app/e2e/lead-sale/`, `app/e2e/cloud/` | Kiểm thử SQL/RLS, KPI, demo và Auth/UI thật |
 
 Luồng ghi: trình duyệt có phiên Supabase → `lead_command` → quyền từ `auth.uid()`/profile → khóa, expected version và request ID → thay đổi nghiệp vụ + audit trong một transaction. Bảng nghiệp vụ không cấp INSERT/UPDATE/DELETE trực tiếp cho client.
@@ -84,6 +86,8 @@ Các endpoint Supabase `/rest/v1/rpc/...`, cần publishable key và Bearer acce
 | `lead_report` | `p_filters:{from,to,source,status,member}` | tổng Lead, đăng ký, đơn đầu, quá hẹn, mới hôm nay và nhóm nguồn/trạng thái/nhân viên |
 | `lead_people` | `{}` | roster tối thiểu; email chỉ cấp cho admin |
 | `lead_run_jobs` | `{}` | Chỉ scheduler/service_role; không cho tài khoản ứng dụng gọi |
+| `lead_simulator` | `p_command` | Dữ liệu tài xế/đơn/outbox nguồn và đối soát; quyền Admin/Tiếp nhận theo thao tác |
+| `lead_import` | `p_command` | Tạo/xem/tiếp tục lô nhập và kết quả từng dòng |
 
 `p_command.type`: `saveLead`, `leadStatus`, `archiveLead`, `assign`, `accept`, `ticketStatus`, `activity`, `appointment`, `reschedule`, `review`, `noticeRead`, `attachment`, `source`, `team`, `statusLabel`, `member`. Hình dạng payload cụ thể tại `types.ts`. API thực tế là RPC theo bảng trên; các endpoint REST minh họa trong đặc tả ban đầu không phải endpoint đã cung cấp.
 
@@ -117,7 +121,7 @@ Máy hiện tại dùng frontend cục bộ và Supabase cloud. **Chưa phát h�
 
 ## 7. Kiểm chứng
 
-- Unit/PostgreSQL: **44 ca** gồm 13 domain, 18 SQL/RLS/workflow, 2 ngày giờ và 11 fixture KPI. SQL chạy bằng PostgreSQL WASM (PGlite), tải chính schema ứng dụng; Auth/Storage chỉ mô phỏng phần nền trong nhóm test đó.
+- Unit/PostgreSQL: **63 ca** gồm 13 domain, 37 SQL/RLS/workflow/nguồn/import, 2 ngày giờ và 11 fixture KPI. SQL chạy bằng PostgreSQL WASM (PGlite), tải chính schema ứng dụng; Auth/Storage chỉ mô phỏng phần nền trong nhóm test đó.
 - Trình duyệt demo: tạo → phân công → tư vấn/hẹn → reload; trùng SĐT; giới hạn Telesale; xuất báo cáo; mobile; nhập CSV và XLSX với dòng hợp lệ/trùng/lỗi.
 - Trình duyệt Supabase thật: admin tạo hồ sơ/giao phiếu/ghi tư vấn; Telesale nhận việc/ghi tư vấn; tải lại giữ dữ liệu; viewer chỉ xuất tổng hợp và bị chặn danh sách Lead; quản trị và mobile. Tài khoản dùng từ file local bị gitignore.
 - API/DB cloud: đã kiểm tra trực tiếp 5 vai trò, thu hồi quyền nhân viên cũ/tệp sau chuyển, threshold/mở lại và expected version. Hai request tạo cùng SĐT đồng thời chỉ tạo một Lead, request còn lại báo trùng.
@@ -135,6 +139,6 @@ Chạy lại từ `app/`: `npm test`, `npm run test:e2e`, `npm run test:e2e:clou
 5. Tiếp nhận mở Bàn giao Closed, rà soát; xác nhận Activated rồi Onboarded theo căn cứ.
 6. Đối chiếu dashboard/báo cáo; đổi nguồn/ngày/nhân viên; viewer xuất tổng hợp không có SĐT.
 
-Giới hạn được giữ rõ: cuộc gọi/Zalo và dữ liệu đăng ký/đơn đầu ghi nhận thủ công, chưa tích hợp nhà cung cấp ngoài; nhắc trong ứng dụng, chưa gửi SMS/email/Zalo. Snapshot hiện tải toàn bộ dữ liệu **trong quyền** rồi phân trang danh sách trên UI; chưa có phân trang server cho quy mô lớn (điều chỉnh T-04 bản thiết kế). Nhập file lưu từng dòng, chưa có màn hình lịch sử lô. Tệp đã upload nhưng gắn metadata thất bại có thể cần dọn bởi quản trị; chưa có job dọn tệp mồ côi. Signed URL đã cấp còn hiệu lực tối đa 60 giây sau khi đổi quyền. Chưa kiểm thử tải lớn hoặc tất cả biến thể SMTP/hosting.
+Hiện tại cuộc gọi/Zalo ghi nhận thủ công; đăng ký/đơn đầu có nguồn giả lập qua API hoặc xác nhận thủ công có căn cứ, chưa kết nối nhà cung cấp thật. Nhập file đã có lịch sử lô/dòng, tiếp tục/retry và ngày lịch sử. Nhắc vẫn trong ứng dụng, chưa gửi SMS/email/Zalo. Snapshot tải toàn bộ dữ liệu **trong quyền**, chưa có phân trang server cho tải lớn. Upload có finalize/retry; tệp bỏ dở có thể cần Admin dọn, chưa có job tự dọn. Signed URL đã cấp có hiệu lực tối đa 60 giây sau đổi quyền. Recovery đã có UI, chưa nghiệm thu giao thư/redirect bằng email thật. Bằng chứng bổ sung và API nguồn xem tài liệu 08; chưa public hosting hoặc chứng nhận restore toàn bộ môi trường.
 
 Tận dụng base: React/Admin/router, thành phần UI/form, typography và cấu trúc Supabase/Auth. Tự phát triển: toàn bộ domain Lead Sale, workflow/roles/teams, RPC/RLS/schema/job, import, bằng chứng, báo cáo và kiểm thử. Giữ `app/LICENSE.md` theo MIT và ghi công Atomic CRM.

@@ -1,6 +1,6 @@
 # KPI, dữ liệu mẫu và tiêu chí nghiệm thu
 
-Thuộc [đặc tả bước 1](../05-dac-ta-buoc-1.md). Công thức là **đề xuất D-09**, chưa được người dùng duyệt. Ca KNM/quá hẹn lần 3 dùng ngưỡng **đã xác nhận D-01**; cách đếm/reset D-12 vẫn là đề xuất. Chưa chạy các ca này trên app hoặc Supabase thật.
+Thuộc [đặc tả bước 1](../05-dac-ta-buoc-1.md). Công thức là **đề xuất D-09**, chưa được người dùng duyệt. Ca KNM/quá hẹn lần 3 dùng ngưỡng **đã xác nhận D-01**; cách đếm/reset D-12 vẫn là đề xuất. Bản thiết kế ban đầu được giữ để truy vết; fixture, SQL và luồng trình duyệt đã được chạy, xem kết quả hiện tại tại ../08-ket-qua-gia-lap-core-va-khac-phuc.md.
 
 ## 1. Mô hình báo cáo đề xuất
 

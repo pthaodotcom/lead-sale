@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
-import { canWork } from "./domain";
+import { canWork, isPending } from "./domain";
+import { serverNow } from "./dates";
+import { AppointmentCorrection } from "./Corrections";
 import {
   Empty,
   Field,
@@ -126,7 +128,7 @@ export function Appointments() {
                     <td>
                       {formatDate(a.at, true)}
                       {a.status === "scheduled" &&
-                        Date.parse(a.at) < Date.now() && (
+                        Date.parse(a.at) < serverNow().getTime() && (
                           <small className="warning-text">Đã quá giờ hẹn</small>
                         )}
                     </td>
@@ -136,7 +138,7 @@ export function Appointments() {
                     <td>
                       {a.status === "scheduled" &&
                       canWork(actor, t) &&
-                      t.status !== "Closed" ? (
+                      isPending(t) ? (
                         <div className="row-actions">
                           <Button
                             size="sm"
@@ -152,6 +154,7 @@ export function Appointments() {
                           <Button
                             size="sm"
                             variant="outline"
+                            disabled={Date.parse(a.at) > serverNow().getTime()}
                             onClick={async () =>
                               await run(
                                 {
@@ -168,7 +171,7 @@ export function Appointments() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            disabled={Date.parse(a.at) > Date.now()}
+                            disabled={Date.parse(a.at) > serverNow().getTime()}
                             onClick={async () =>
                               await run(
                                 {
@@ -199,6 +202,9 @@ export function Appointments() {
                             Hủy hẹn
                           </Button>
                         </div>
+                      ) : ["attended", "missed"].includes(a.status) &&
+                        (actor.role === "admin" || canWork(actor, t)) ? (
+                        <AppointmentCorrection appointment={a} />
                       ) : (
                         "—"
                       )}

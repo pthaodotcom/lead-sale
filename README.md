@@ -2,12 +2,16 @@
 
 Hệ thống quản lý Lead tài xế dựa trên Atomic CRM, bám yêu cầu Google Doc. Bản tại `app/` đã dùng Supabase Auth, PostgreSQL/RLS và Storage thật; có tiếp nhận/import, phân công, tư vấn, lịch hẹn, nhắc việc/tự đóng trên máy chủ, bàn giao, báo cáo và quản trị. Ngày cập nhật: **21/10/2026**.
 
-Chạy tại `app/`: `npm ci` → `npm run dev`. File `.env.local` đã có URL và publishable key của project hiện tại; nếu dùng project khác thì cấu hình lại theo `.env.example`. Chế độ xem thử riêng: `npm run dev:demo`. Bản build: `npm run build` → `npm start` (mặc định `http://127.0.0.1:4173`).
+Chạy tại `app/` với Node 24+: `npm ci --legacy-peer-deps`, chạy `npm run dev:core` và ở terminal thứ hai `npm run dev`. Web mặc định `http://127.0.0.1:5173`, API nguồn 5180. `.env.local` chứa URL/publishable key; `.env.server.local` riêng chứa cấu hình DB/CA cho máy chủ, không đưa vào Git. Chế độ xem thử độc lập: `npm run dev:demo`.
+
+**Đã triển khai nguồn tài xế giả lập:** Admin mở **Tài xế giả lập** để tạo/liên kết tài xế và gửi tình huống đăng ký/đơn đầu qua API về Lead Sale. Admin/Tiếp nhận mở **Đối soát nguồn** để xem kết quả. Đã sửa tiếp nhận/sửa hồ sơ, đính chính kết quả/hoạt động/lịch, bàn giao, chat chưa phản hồi, lịch sử chuyển người, lô nhập và retry. [Cách thử, API, kiểm chứng và phần còn phụ thuộc môi trường](docs/08-ket-qua-gia-lap-core-va-khac-phuc.md).
 
 Đọc [bàn giao, cấu hình, API và kết quả kiểm chứng](docs/06-ban-giao-va-van-hanh.md). Backend đang dùng nằm tại **`app/backend/supabase/`**; thư mục `app/supabase/` là backend gốc được giữ lại, không chạy migration của thư mục đó vào project Lead Sale.
 
 ## Tài liệu làm việc
 
+- [Kết quả triển khai giả lập core và sửa nghiệp vụ](docs/08-ket-qua-gia-lap-core-va-khac-phuc.md).
+- [Kế hoạch và quyết định xử lý 41 điểm rà soát](docs/07-ke-hoach-gia-lap-core-va-khac-phuc.md). Gọi/chat thủ công, bỏ Telegram; xem tài liệu 08 để biết phần đã triển khai và giới hạn còn lại.
 - [Yêu cầu, quy tắc, điểm cần chốt và checklist nghiệm thu](docs/01-yeu-cau-de-tai.md).
 - [Đối chiếu Atomic CRM, khoảng thiếu và hướng kỹ thuật](docs/02-doi-chieu-atomic-crm.md).
 - [Ghi chú triển khai: đủ 4 tab, hiện trạng app, lựa chọn demo và thứ tự làm tiếp](docs/03-ghi-chu-trien-khai.md).

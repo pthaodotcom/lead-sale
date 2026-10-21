@@ -12,13 +12,16 @@
     "test": "vitest run",
     "test:unit:app": "vitest run",
     "test:e2e": "playwright test --config playwright.lead.config.ts",
-    "lint": "eslint src/components/lead-sale src/App.tsx src/main.tsx tests e2e/lead-sale e2e/cloud scripts/lead-*.mjs scripts/serve.mjs scripts/generate-migration.mjs scripts/check-database.mjs",
+    "lint": "eslint src/components/lead-sale src/App.tsx src/main.tsx tests e2e/lead-sale e2e/cloud e2e/core scripts/lead-*.mjs scripts/serve.mjs scripts/generate-migration.mjs scripts/check-database.mjs",
     "format": "prettier --write src tests scripts *.ts *.json",
     "db:generate": "node scripts/generate-migration.mjs",
     "db:check": "node scripts/check-database.mjs",
     "db:apply": "node scripts/lead-apply.mjs",
+    "db:migrate": "node scripts/lead-migrate.mjs",
+    "dev:core": "node scripts/lead-core-server.mjs",
     "db:admin": "node scripts/lead-admin.mjs",
-    "test:e2e:cloud": "playwright test --config playwright.cloud.config.ts"
+    "test:e2e:cloud": "playwright test --config playwright.cloud.config.ts",
+    "test:e2e:core": "playwright test --config playwright.core.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

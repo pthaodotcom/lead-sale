@@ -46,9 +46,9 @@ Các trường hồ sơ được nêu: mã hồ sơ, SĐT, họ tên, thành ph�
 - Ảnh 7: phạm vi cam kết có nhập danh sách, workflow/lịch sử/lý do/nhắc việc, tương tác, chuyển phân công và báo cáo. Nguồn dữ liệu chọn một mức khả thi, không yêu cầu nối thật mọi kênh.
 - Ảnh 8: bằng chứng chính là bản chạy và kịch bản demo; ảnh chụp chỉ minh họa. Nếu tích hợp thật phải mô tả xác thực, lỗi, giới hạn và phương án dự phòng.
 
-## 4. Base thực tế và phần cần làm tiếp
+## 4. Base tại mốc khảo sát ban đầu và phần đã được thay thế
 
-`app/src/App.tsx` đang mở `LeadSaleApp`. Module `app/src/components/lead-sale/` tận dụng Admin/router và UI của nền Atomic CRM. `LeadSaleApp.tsx` dùng FakeRest rỗng làm provider nền, còn dữ liệu nghiệp vụ do `store.ts` lưu trong localStorage (`lead-sale.demo.v1`). `context.tsx` dùng sessionStorage chọn người thao tác; `Layout.tsx` có bộ đổi vai trò dùng thử. Chưa có Auth/RLS cho dữ liệu Lead Sale trong luồng này.
+Hiện tại `app/src/App.tsx` mở `LeadSaleApp`; FakeRest rỗng chỉ là provider nền Admin/router. Dữ liệu nghiệp vụ bản thường đã đi qua Supabase Auth/RPC/RLS/Storage. `store.ts`/localStorage và bộ đổi actor chỉ dùng cho dev:demo. Nguồn giả lập, API nhận và sửa workflow mới xem [kết quả 08](08-ket-qua-gia-lap-core-va-khac-phuc.md). Bảng bên dưới là khoảng thiếu tại mốc khảo sát cũ, không phải checklist chưa làm của bản hiện tại.
 
 | Nhóm yêu cầu | Bằng chứng code hiện có | Phần cần hoàn thiện |
 | --- | --- | --- |

@@ -57,27 +57,41 @@ export async function registerMember(
 export async function sendCommand(
   command: Command,
   db: Database,
-  requestId = crypto.randomUUID(),
+  requestId: string = crypto.randomUUID(),
 ) {
   if (!supabase) throw new Error("Chưa cấu hình Supabase.");
   let version: number | undefined;
   if (
     "id" in command &&
-    ["saveLead", "leadStatus", "archiveLead"].includes(command.type)
+    [
+      "saveLead",
+      "leadStatus",
+      "archiveLead",
+      "receiveLead",
+      "correctMilestone",
+    ].includes(command.type)
   )
     version = db.leads.find((l) => l.id === command.id)?.version;
   let ticketId: string | undefined;
   if ("assignmentId" in command) ticketId = command.assignmentId;
   if (command.type === "accept" || command.type === "ticketStatus")
     ticketId = command.id;
-  if (command.type === "appointment" || command.type === "reschedule")
+  if (
+    command.type === "appointment" ||
+    command.type === "reschedule" ||
+    command.type === "correctAppointment"
+  )
     ticketId = db.appointments.find((a) => a.id === command.id)?.assignmentId;
   if (command.type === "attachment")
     ticketId = db.activities.find(
       (a) => a.id === command.activityId,
     )?.assignmentId;
+  if (command.type === "voidActivity")
+    ticketId = db.activities.find((a) => a.id === command.id)?.assignmentId;
   if (ticketId)
     version = db.assignments.find((t) => t.id === ticketId)?.version;
+  if (command.type === "review" || command.type === "amendReview")
+    version = db.reviews.find((r) => r.id === command.id)?.version ?? 1;
   const { error } = await supabase.rpc("lead_command", {
     p_command: serializeCommandDates(command),
     p_request_id: requestId,
@@ -89,6 +103,14 @@ export async function loadReport(filters: ReportFilters): Promise<ReportData> {
   if (!supabase) throw new Error("Chưa cấu hình Supabase.");
   const { data, error } = await supabase.rpc("lead_report", {
     p_filters: filters,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+export async function importBatch(command: Record<string, unknown>) {
+  if (!supabase) throw new Error("Lô nhập cần kết nối Supabase.");
+  const { data, error } = await supabase.rpc("lead_import", {
+    p_command: command,
   });
   if (error) throw new Error(error.message);
   return data;

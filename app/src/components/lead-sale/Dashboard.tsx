@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import { Badge, Empty, formatDate, PageHeading } from "./shared";
 import { canEditLead, isPending, leadLabels, calculateReport } from "./domain";
+import { serverNow } from "./dates";
 
 export function Dashboard() {
   const { db, actor } = useWorkspace();
@@ -223,7 +224,7 @@ export function Dashboard() {
                     <small>{formatDate(a.at, true)}</small>
                     <span>{a.place}</span>
                   </div>
-                  {Date.parse(a.at) < Date.now() && (
+                  {Date.parse(a.at) < serverNow().getTime() && (
                     <span className="warning-text">Quá hẹn</span>
                   )}
                 </Link>

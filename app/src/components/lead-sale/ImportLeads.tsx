@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -6,14 +6,31 @@ import { useWorkspace } from "./context";
 import { canEditLead, normalizePhone, validateLead } from "./domain";
 import { downloadCsv, Empty, Field, Guard, PageHeading } from "./shared";
 import type { LeadInput } from "./types";
+import { importBatch } from "./backend";
 type Row = Record<string, string>;
 export function ImportLeads() {
-  const { db, actor, perform } = useWorkspace();
+  const { db, actor, perform, cloud, refresh } = useWorkspace();
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const [results, setResults] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [batchId, setBatchId] = useState(crypto.randomUUID());
+  const [batches, setBatches] = useState<
+    {
+      id: string;
+      fileName: string;
+      count: number;
+      results: Record<string, { status: string; message: string }>;
+    }[]
+  >([]);
+  useEffect(() => {
+    if (cloud && canEditLead(actor))
+      void importBatch({ type: "list" })
+        .then(setBatches)
+        .catch((e) => setError((e as Error).message));
+  }, [cloud, actor.id, actor.role]);
   const input = (r: Row): LeadInput => ({
     name: r.name ?? "",
     phone: r.phone ?? "",
@@ -22,8 +39,19 @@ export function ImportLeads() {
     sourceId: r.sourceId ?? "",
     tags: (r.tags ?? "").split(",").filter(Boolean),
     note: r.note ?? "",
+    ...(r.receivedAt ? { receivedAt: r.receivedAt } : {}),
   });
   const inspect = (r: Row) => {
+    const index = rows.indexOf(r);
+    if (
+      rows
+        .slice(0, index)
+        .some(
+          (x) =>
+            normalizePhone(x.phone ?? "") === normalizePhone(r.phone ?? ""),
+        )
+    )
+      return { message: "Trùng SĐT với dòng trước trong file" };
     const existing = db.leads.find(
       (l) => normalizePhone(l.phone) === normalizePhone(r.phone ?? ""),
     );
@@ -49,8 +77,9 @@ export function ImportLeads() {
       <section className="form-surface stack-form">
         <p>
           Mỗi file tối đa 500 dòng và 5 MB. Các cột: name, phone, city, vehicle
-          (Motorbike/Van), sourceId, note, tags. Đặt cột SĐT ở dạng văn bản để
-          giữ số 0 đầu.
+          (Motorbike/Van), sourceId, note, tags, receivedAt (tùy chọn, ví dụ
+          2026-10-01T09:00:00+07:00). Đặt cột SĐT ở dạng văn bản để giữ số 0
+          đầu.
         </p>
         <Button
           variant="outline"
@@ -82,6 +111,8 @@ export function ImportLeads() {
               setResults([]);
               setError("");
               setCompleted(false);
+              setFileName(file.name);
+              setBatchId(crypto.randomUUID());
               setBusy(true);
               try {
                 if (file.size > 5 * 1024 * 1024)
@@ -189,18 +220,50 @@ export function ImportLeads() {
               onClick={async () => {
                 setBusy(true);
                 const messages: string[] = [];
-                for (const [i, row] of rows.entries()) {
-                  try {
-                    await perform({ type: "saveLead", input: input(row) });
-                    messages.push(`Dòng ${i + 2}: Đã lưu ${row.name}.`);
-                  } catch (e) {
-                    messages.push(
-                      `Dòng ${i + 2}: Lỗi — ${(e as Error).message}`,
-                    );
+                try {
+                  if (cloud)
+                    await importBatch({
+                      type: "create",
+                      id: batchId,
+                      fileName,
+                      rows: rows.map(input),
+                    });
+                  for (const [i, row] of rows.entries()) {
+                    try {
+                      if (cloud) {
+                        const result = await importBatch({
+                          type: "row",
+                          id: batchId,
+                          index: i,
+                        });
+                        messages.push(
+                          `Dòng ${i + 2}: ${result.message} (${result.status}).`,
+                        );
+                      } else {
+                        await perform({ type: "saveLead", input: input(row) });
+                        messages.push(`Dòng ${i + 2}: Đã lưu ${row.name}.`);
+                      }
+                    } catch (e) {
+                      messages.push(
+                        `Dòng ${i + 2}: Lỗi — ${(e as Error).message}`,
+                      );
+                    }
                   }
+                  setResults(messages);
+                  setCompleted(true);
+                  if (cloud) {
+                    setBatches(await importBatch({ type: "list" }));
+                    try {
+                      await refresh();
+                    } catch {
+                      setError(
+                        "Đã xử lý lô; chưa tải lại được hồ sơ. Lịch sử lô đã lưu trên máy chủ.",
+                      );
+                    }
+                  }
+                } catch (e) {
+                  setError((e as Error).message);
                 }
-                setResults(messages);
-                setCompleted(true);
                 setBusy(false);
               }}
             >
@@ -227,6 +290,68 @@ export function ImportLeads() {
           />
         )}
       </section>
+      {cloud && (
+        <section className="data-section">
+          <div className="section-header">
+            <h2>Lịch sử lô nhập</h2>
+            <span>{batches.length} lô</span>
+          </div>
+          {batches.map((b) => (
+            <div className="handover-card" key={b.id}>
+              <div>
+                <strong>{b.fileName}</strong>
+                <p>
+                  {b.count} dòng ·{" "}
+                  {
+                    Object.values(b.results).filter((r) => r.status === "saved")
+                      .length
+                  }{" "}
+                  đã lưu ·{" "}
+                  {
+                    Object.values(b.results).filter(
+                      (r) => r.status === "failed",
+                    ).length
+                  }{" "}
+                  lỗi
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={async () => {
+                  try {
+                    const data = await importBatch({ type: "get", id: b.id });
+                    setBatchId(b.id as ReturnType<typeof crypto.randomUUID>);
+                    setFileName(data.fileName);
+                    setRows(
+                      data.rows.map((r: LeadInput) => ({
+                        ...r,
+                        tags: r.tags.join(","),
+                      })),
+                    );
+                    setResults(
+                      Object.entries(
+                        data.results as Record<
+                          string,
+                          { status: string; message: string }
+                        >,
+                      ).map(
+                        ([i, r]) =>
+                          `Dòng ${Number(i) + 2}: ${r.message} (${r.status}).`,
+                      ),
+                    );
+                    setCompleted(false);
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                Xem / tiếp tục / thử dòng lỗi
+              </Button>
+            </div>
+          ))}
+        </section>
+      )}
     </Guard>
   );
 }
