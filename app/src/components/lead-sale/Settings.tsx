@@ -1,375 +1,735 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { NavLink, useParams } from "react-router";
+import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useWorkspace } from "./context";
 import { roleLabels, leadLabels } from "./domain";
-import { formatDate, Guard, PageHeading, Field } from "./shared";
 import { registerMember } from "./backend";
-import { toast } from "sonner";
-import type { Member, Source } from "./types";
+import {
+  Avatar,
+  Badge,
+  Chip,
+  Empty,
+  Field,
+  formatDate,
+  Guard,
+  memberName,
+  RowMenu,
+  SearchBox,
+  textMatches,
+} from "./shared";
+import type { Database, Member, Role, Source } from "./types";
 
-function SourceName({ source }: { source: Source }) {
-  const { run, busy } = useWorkspace();
-  const [name, setName] = useState(source.name);
+const teamsOf = (db: Database) =>
+  db.teams?.length ? db.teams : [{ id: "default", name: "Nhóm tuyển tài xế" }];
+
+/** Modal form used for every create/edit action on this page. */
+function FormDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  submitLabel = "Lưu",
+  onSubmit,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  description?: string;
+  submitLabel?: string;
+  onSubmit: () => Promise<boolean>;
+  children: ReactNode;
+}) {
+  const [saving, setSaving] = useState(false);
   return (
-    <form
-      className="filter-bar"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        await run(
-          { type: "source", id: source.id, name, active: source.active },
-          "Đã cập nhật tên nguồn.",
-        );
-      }}
-    >
-      <Input
-        aria-label={`Tên nguồn ${source.name}`}
-        required
-        minLength={2}
-        maxLength={120}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={busy || name.trim() === source.name}
-      >
-        Lưu tên
-      </Button>
-    </form>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {description && <DialogDescription>{description}</DialogDescription>}
+        </DialogHeader>
+        <form
+          className="stack-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setSaving(true);
+            try {
+              if (await onSubmit()) onOpenChange(false);
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {children}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Hủy
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Đang lưu…" : submitLabel}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function MemberRow({ member }: { member: Member }) {
-  const { db, actor, run } = useWorkspace();
-  const [role, setRole] = useState(member.role);
-  const [active, setActive] = useState(member.active);
-  const [teamId, setTeamId] = useState(member.teamId ?? "default");
+function SectionHead({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
   return (
-    <tr>
-      <td>
-        <strong>{member.name}</strong>
-        <small>{member.id}</small>
-        <small>{member.email}</small>
-      </td>
-      <td>
-        <select
-          aria-label={`Nhóm của ${member.name}`}
-          disabled={member.id === actor.id}
-          value={teamId}
-          onChange={(e) => setTeamId(e.target.value)}
-        >
-          {(db.teams ?? [{ id: "default", name: "Nhóm tuyển tài xế" }]).map(
-            (t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ),
-          )}
-        </select>
-      </td>
-      <td>
-        <select
-          aria-label={`Vai trò của ${member.name}`}
-          value={role}
-          disabled={member.id === actor.id}
-          onChange={(e) => setRole(e.target.value as Member["role"])}
-        >
+    <header className="settings-head">
+      <div>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+      {action}
+    </header>
+  );
+}
+
+/* ---------- Users ---------- */
+
+function MemberDialog({
+  member,
+  onClose,
+}: {
+  member: Member;
+  onClose: () => void;
+}) {
+  const { db, run } = useWorkspace();
+  const [role, setRole] = useState<Role>(member.role);
+  const [teamId, setTeamId] = useState(member.teamId ?? "default");
+  const [active, setActive] = useState(member.active);
+  return (
+    <FormDialog
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title={`Sửa người dùng · ${member.name}`}
+      description={member.email}
+      onSubmit={() =>
+        run(
+          {
+            type: "member",
+            id: member.id,
+            role,
+            active,
+            ...(teamId !== (member.teamId ?? "default") ? { teamId } : {}),
+          },
+          "Đã cập nhật người dùng.",
+        )
+      }
+    >
+      <Field label="Vai trò">
+        <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
           {Object.entries(roleLabels).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
           ))}
         </select>
-      </td>
-      <td>
-        <label className="inline-check">
-          <input
-            type="checkbox"
-            disabled={member.id === actor.id}
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-          />
-          Đang hoạt động
-        </label>
-      </td>
-      <td>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={
-            member.id === actor.id ||
-            (role === member.role &&
-              active === member.active &&
-              teamId === (member.teamId ?? "default"))
-          }
-          onClick={async () =>
-            await run(
-              {
-                type: "member",
-                id: member.id,
-                role,
-                active,
-                ...(teamId !== (member.teamId ?? "default") ? { teamId } : {}),
-              },
-              "Đã cập nhật người dùng.",
-            )
-          }
+      </Field>
+      <Field
+        label="Nhóm"
+        hint="Trưởng nhóm và Telesale chỉ thao tác trong nhóm của mình."
+      >
+        <select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+          {teamsOf(db).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Trạng thái tài khoản">
+        <select
+          value={active ? "1" : "0"}
+          onChange={(e) => setActive(e.target.value === "1")}
         >
-          Lưu thay đổi
-        </Button>
-      </td>
-    </tr>
+          <option value="1">Hoạt động</option>
+          <option value="0">Tạm ngưng — chặn đăng nhập và mọi thao tác</option>
+        </select>
+      </Field>
+    </FormDialog>
   );
 }
-export function Settings() {
-  const { db, actor, run, cloud, refresh } = useWorkspace();
-  const [tab, setTab] = useState("sources");
-  const [source, setSource] = useState("");
-  const [email, setEmail] = useState("");
+
+function CreateMemberDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { refresh } = useWorkspace();
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [team, setTeam] = useState("");
   return (
-    <Guard allowed={actor.role === "admin"}>
-      <PageHeading
-        title="Quản trị hệ thống"
-        description="Quản lý danh mục, tài khoản, phạm vi nhóm và nhật ký thao tác."
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Thêm người dùng"
+      description="Tài khoản mới ở trạng thái tạm ngưng, chưa có vai trò. Sau khi tạo, chọn Sửa để gán vai trò, nhóm và kích hoạt."
+      submitLabel="Tạo tài khoản"
+      onSubmit={async () => {
+        try {
+          await registerMember(email, password, name);
+          await refresh();
+          toast.success(`Đã tạo tài khoản ${email}.`);
+          setName("");
+          setEmail("");
+          setPassword("");
+          return true;
+        } catch (e) {
+          toast.error((e as Error).message);
+          return false;
+        }
+      }}
+    >
+      <Field label="Họ tên">
+        <Input
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </Field>
+      <Field label="Email đăng nhập">
+        <Input
+          required
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </Field>
+      <Field label="Mật khẩu ban đầu" hint="Tối thiểu 10 ký tự.">
+        <Input
+          required
+          type="password"
+          minLength={10}
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </Field>
+    </FormDialog>
+  );
+}
+
+function Users() {
+  const { db, actor, cloud } = useWorkspace();
+  const [q, setQ] = useState("");
+  const [role, setRole] = useState("");
+  const [state, setState] = useState("");
+  const [editing, setEditing] = useState<Member>();
+  const [creating, setCreating] = useState(false);
+  const teamName = (id?: string) =>
+    teamsOf(db).find((t) => t.id === (id ?? "default"))?.name ?? "—";
+  const rows = db.members.filter(
+    (m) =>
+      (!role || m.role === role) &&
+      (!state || String(m.active) === state) &&
+      textMatches(q, m.name, m.email ?? ""),
+  );
+  return (
+    <>
+      <SectionHead
+        title="Người dùng"
+        description="Tài khoản nhân viên, vai trò và nhóm. Không xóa tài khoản — tạm ngưng để giữ lịch sử."
+        action={
+          <Button
+            disabled={!cloud}
+            title={cloud ? undefined : "Bản xem thử không tạo tài khoản thật"}
+            onClick={() => setCreating(true)}
+          >
+            <Plus /> Thêm người dùng
+          </Button>
+        }
       />
-      <section className="data-section">
-        <div className="list-tabs">
-          {[
-            ["sources", "Nguồn Lead"],
-            ["members", "Người dùng & vai trò"],
-            ["audit", "Nhật ký hệ thống"],
-            ["teams", "Nhóm"],
-            ["statuses", "Trạng thái Lead"],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              className={tab === key ? "active" : ""}
-              onClick={async () => setTab(key)}
-            >
-              {label}
-            </button>
-          ))}
+      <section className="panel">
+        <div className="toolbar">
+          <SearchBox
+            className="grow"
+            value={q}
+            onChange={setQ}
+            placeholder="Tìm theo tên hoặc email…"
+          />
+          <select
+            aria-label="Lọc vai trò"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="">Mọi vai trò</option>
+            {Object.entries(roleLabels).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Lọc trạng thái"
+            value={state}
+            onChange={(e) => setState(e.target.value)}
+          >
+            <option value="">Mọi trạng thái</option>
+            <option value="true">Hoạt động</option>
+            <option value="false">Tạm ngưng</option>
+          </select>
         </div>
-        {tab === "sources" && (
-          <>
-            <form
-              className="filter-bar"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (
-                  await run(
-                    { type: "source", name: source },
-                    "Đã thêm nguồn Lead.",
-                  )
-                )
-                  setSource("");
-              }}
-            >
-              <Input
-                aria-label="Tên nguồn Lead mới"
-                placeholder="Nhập tên nguồn tiếp nhận mới"
-                required
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-              />
-              <Button type="submit">Thêm nguồn</Button>
-            </form>
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Nguồn tiếp nhận</th>
-                    <th>Mã nguồn</th>
-                    <th>Hồ sơ</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Người dùng</th>
+                <th>Vai trò</th>
+                <th>Nhóm</th>
+                <th>Trạng thái</th>
+                <th className="narrow" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((m) => (
+                <tr key={m.id}>
+                  <td>
+                    <span className="person">
+                      <Avatar name={m.name} size="sm" />
+                      <span>
+                        <strong>{m.name}</strong>
+                        {m.id === actor.id && (
+                          <span className="muted"> (bạn)</span>
+                        )}
+                        <small>{m.email ?? m.id}</small>
+                      </span>
+                    </span>
+                  </td>
+                  <td>{roleLabels[m.role]}</td>
+                  <td>
+                    {["leader", "telesale"].includes(m.role)
+                      ? teamName(m.teamId)
+                      : "Toàn hệ thống"}
+                  </td>
+                  <td>
+                    <Chip tone={m.active ? "solved" : "closed"}>
+                      {m.active ? "Hoạt động" : "Tạm ngưng"}
+                    </Chip>
+                  </td>
+                  <td className="narrow">
+                    {m.id !== actor.id && (
+                      <RowMenu
+                        label={m.name}
+                        items={[
+                          {
+                            label: "Sửa vai trò, nhóm…",
+                            onSelect: () => setEditing(m),
+                          },
+                        ]}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!rows.length && <Empty title="Không có người dùng phù hợp" />}
+        <div className="table-foot">
+          <span>
+            {rows.length} / {db.members.length} tài khoản
+          </span>
+        </div>
+      </section>
+      {editing && (
+        <MemberDialog member={editing} onClose={() => setEditing(undefined)} />
+      )}
+      <CreateMemberDialog open={creating} onOpenChange={setCreating} />
+    </>
+  );
+}
+
+/* ---------- Teams ---------- */
+
+function Teams() {
+  const { db, run } = useWorkspace();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const teams = teamsOf(db);
+  return (
+    <>
+      <SectionHead
+        title="Nhóm Telesale"
+        description="Trưởng nhóm chỉ phân công và xem phiếu trong nhóm của mình."
+        action={
+          <Button onClick={() => setOpen(true)}>
+            <Plus /> Thêm nhóm
+          </Button>
+        }
+      />
+      <section className="panel">
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Tên nhóm</th>
+                <th>Trưởng nhóm</th>
+                <th className="end">Telesale</th>
+                <th className="end">Phiếu đang mở</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teams.map((t) => {
+                const members = db.members.filter(
+                  (m) => (m.teamId ?? "default") === t.id,
+                );
+                return (
+                  <tr key={t.id}>
+                    <td>
+                      <strong>{t.name}</strong>
+                    </td>
+                    <td>
+                      {members
+                        .filter((m) => m.role === "leader")
+                        .map((m) => m.name)
+                        .join(", ") || "—"}
+                    </td>
+                    <td className="end">
+                      {members.filter((m) => m.role === "telesale").length}
+                    </td>
+                    <td className="end">
+                      {
+                        db.assignments.filter(
+                          (a) =>
+                            (a.teamId ?? "default") === t.id &&
+                            a.status !== "Closed",
+                        ).length
+                      }
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {db.sources.map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <SourceName source={s} />
-                      </td>
-                      <td>{s.id}</td>
-                      <td>
-                        {db.leads.filter((l) => l.sourceId === s.id).length}
-                      </td>
-                      <td>{s.active ? "Đang sử dụng" : "Tạm ngưng"}</td>
-                      <td>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () =>
-                            await run(
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!teams.length && <Empty title="Chưa có nhóm" />}
+      </section>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Thêm nhóm"
+        submitLabel="Tạo nhóm"
+        onSubmit={async () => {
+          const ok = await run({ type: "team", name }, "Đã tạo nhóm.");
+          if (ok) setName("");
+          return ok;
+        }}
+      >
+        <Field label="Tên nhóm">
+          <Input
+            required
+            minLength={2}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="VD: Telesale Hà Nội"
+          />
+        </Field>
+      </FormDialog>
+    </>
+  );
+}
+
+/* ---------- Sources ---------- */
+
+function Sources() {
+  const { db, run } = useWorkspace();
+  const [dialog, setDialog] = useState<{ source?: Source } | null>(null);
+  const [name, setName] = useState("");
+  const openDialog = (source?: Source) => {
+    setName(source?.name ?? "");
+    setDialog({ source });
+  };
+  return (
+    <>
+      <SectionHead
+        title="Nguồn Lead"
+        description="Kênh tài xế để lại thông tin. Nguồn tạm ngưng không chọn được khi tiếp nhận mới; hồ sơ cũ giữ nguyên."
+        action={
+          <Button onClick={() => openDialog()}>
+            <Plus /> Thêm nguồn
+          </Button>
+        }
+      />
+      <section className="panel">
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Tên nguồn</th>
+                <th>Mã</th>
+                <th className="end">Hồ sơ</th>
+                <th>Trạng thái</th>
+                <th className="narrow" />
+              </tr>
+            </thead>
+            <tbody>
+              {db.sources.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <strong>{s.name}</strong>
+                  </td>
+                  <td className="muted">{s.id}</td>
+                  <td className="end">
+                    {db.leads.filter((l) => l.sourceId === s.id).length}
+                  </td>
+                  <td>
+                    <Chip tone={s.active ? "solved" : "closed"}>
+                      {s.active ? "Đang dùng" : "Tạm ngưng"}
+                    </Chip>
+                  </td>
+                  <td className="narrow">
+                    <RowMenu
+                      label={s.name}
+                      items={[
+                        { label: "Đổi tên…", onSelect: () => openDialog(s) },
+                        {
+                          label: s.active ? "Tạm ngưng" : "Dùng lại",
+                          danger: s.active,
+                          onSelect: () =>
+                            void run(
                               {
                                 type: "source",
                                 id: s.id,
                                 name: s.name,
                                 active: !s.active,
                               },
-                              "Đã cập nhật nguồn.",
-                            )
-                          }
-                        >
-                          {s.active ? "Tạm ngưng" : "Sử dụng lại"}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-        {tab === "members" && (
-          <>
-            <p className="side-content muted">
-              {cloud
-                ? "Tài khoản mới chờ quản trị gán vai trò và kích hoạt. Nếu hệ thống yêu cầu xác nhận email, nhân viên cần xác nhận trước khi đăng nhập."
-                : "Các tài khoản trong chế độ xem thử chỉ mô phỏng vai trò."}
-            </p>
-            {cloud && (
-              <form
-                className="side-content stack-form"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setCreating(true);
-                  try {
-                    await registerMember(email, password, name);
-                    await refresh();
-                    setEmail("");
-                    setName("");
-                    setPassword("");
-                    toast.success(
-                      "Đã tạo tài khoản. Chọn vai trò và kích hoạt bên dưới.",
-                    );
-                  } catch (error) {
-                    toast.error((error as Error).message);
-                  } finally {
-                    setCreating(false);
-                  }
-                }}
-              >
-                <h2>Tạo tài khoản nhân viên</h2>
-                <div className="form-grid">
-                  <Field label="Họ tên nhân viên">
-                    <Input
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                              s.active
+                                ? `Đã tạm ngưng nguồn ${s.name}.`
+                                : `Đã dùng lại nguồn ${s.name}.`,
+                            ),
+                        },
+                      ]}
                     />
-                  </Field>
-                  <Field label="Email nhân viên">
-                    <Input
-                      required
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Mật khẩu ban đầu">
-                    <Input
-                      required
-                      type="password"
-                      minLength={10}
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </Field>
-                </div>
-                <Button disabled={creating}>Tạo tài khoản</Button>
-              </form>
-            )}
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Người dùng</th>
-                    <th>Nhóm</th>
-                    <th>Vai trò</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <FormDialog
+        open={!!dialog}
+        onOpenChange={(v) => !v && setDialog(null)}
+        title={dialog?.source ? "Đổi tên nguồn" : "Thêm nguồn Lead"}
+        submitLabel={dialog?.source ? "Lưu" : "Thêm nguồn"}
+        onSubmit={() =>
+          run(
+            dialog?.source
+              ? {
+                  type: "source",
+                  id: dialog.source.id,
+                  name,
+                  active: dialog.source.active,
+                }
+              : { type: "source", name },
+            dialog?.source ? "Đã đổi tên nguồn." : "Đã thêm nguồn.",
+          )
+        }
+      >
+        <Field label="Tên nguồn">
+          <Input
+            required
+            minLength={2}
+            maxLength={120}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="VD: TikTok"
+          />
+        </Field>
+      </FormDialog>
+    </>
+  );
+}
+
+/* ---------- Lead statuses ---------- */
+
+const statusMeaning: Record<string, string> = {
+  New: "Còn khả năng lên đăng ký",
+  Activated: "Đã hoàn tất đăng ký",
+  Onboarded: "Đã chạy được đơn đầu tiên",
+  Closed: "Không còn nhu cầu hoặc sai số điện thoại",
+};
+
+function Statuses() {
+  const { db, run } = useWorkspace();
+  const [code, setCode] = useState<keyof typeof leadLabels>();
+  const [label, setLabel] = useState("");
+  return (
+    <>
+      <SectionHead
+        title="Trạng thái Lead"
+        description="Mã và luồng chuyển trạng thái cố định theo quy trình; chỉ đổi được tên hiển thị."
+      />
+      <section className="panel">
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Tên hiển thị</th>
+                <th>Ý nghĩa</th>
+                <th className="end">Hồ sơ</th>
+                <th className="narrow" />
+              </tr>
+            </thead>
+            <tbody>
+              {(Object.keys(leadLabels) as (keyof typeof leadLabels)[]).map(
+                (k) => (
+                  <tr key={k}>
+                    <td className="muted">{k}</td>
+                    <td>
+                      <Badge status={k} />
+                    </td>
+                    <td className="muted">{statusMeaning[k]}</td>
+                    <td className="end">
+                      {db.leads.filter((l) => l.status === k).length}
+                    </td>
+                    <td className="narrow">
+                      <RowMenu
+                        label={k}
+                        items={[
+                          {
+                            label: "Đổi tên hiển thị…",
+                            onSelect: () => {
+                              setCode(k);
+                              setLabel(leadLabels[k]);
+                            },
+                          },
+                        ]}
+                      />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {db.members.map((m) => (
-                    <MemberRow member={m} key={m.id} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-        {tab === "teams" && (
-          <div className="side-content stack-form">
-            <form
-              className="filter-bar"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (await run({ type: "team", name: team }, "Đã tạo nhóm."))
-                  setTeam("");
-              }}
-            >
-              <Input
-                aria-label="Tên nhóm mới"
-                required
-                minLength={2}
-                value={team}
-                onChange={(e) => setTeam(e.target.value)}
-              />
-              <Button>Tạo nhóm</Button>
-            </form>
-            {db.teams?.map((t) => (
-              <p key={t.id}>{t.name}</p>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <FormDialog
+        open={!!code}
+        onOpenChange={(v) => !v && setCode(undefined)}
+        title={`Đổi tên trạng thái ${code ?? ""}`}
+        onSubmit={() =>
+          run(
+            { type: "statusLabel", code: code!, label },
+            "Đã đổi tên trạng thái.",
+          )
+        }
+      >
+        <Field label="Tên hiển thị">
+          <Input
+            required
+            maxLength={120}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+        </Field>
+      </FormDialog>
+    </>
+  );
+}
+
+/* ---------- Audit ---------- */
+
+const PAGE = 50;
+function Audit() {
+  const { db } = useWorkspace();
+  const [q, setQ] = useState("");
+  const [who, setWho] = useState("");
+  const [page, setPage] = useState(1);
+  const rows = db.audit
+    .filter(
+      (a) =>
+        (!who || a.actorId === who) &&
+        textMatches(q, a.action, a.target, a.detail),
+    )
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const cur = Math.min(page, pages);
+  return (
+    <>
+      <SectionHead
+        title="Nhật ký thao tác"
+        description="Mọi thay đổi dữ liệu nghiệp vụ, kèm người và thời điểm thực hiện. Không sửa, không xóa."
+      />
+      <section className="panel">
+        <div className="toolbar">
+          <SearchBox
+            className="grow"
+            value={q}
+            onChange={(v) => {
+              setQ(v);
+              setPage(1);
+            }}
+            placeholder="Tìm hành động, mã đối tượng, nội dung…"
+          />
+          <select
+            aria-label="Lọc người thao tác"
+            value={who}
+            onChange={(e) => {
+              setWho(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Mọi người thao tác</option>
+            {db.members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
             ))}
-          </div>
-        )}
-        {tab === "statuses" && (
-          <div className="side-content stack-form">
-            <p>
-              Mã trạng thái và luồng chuyển được giữ cố định. Có thể chỉnh nhãn
-              hiển thị.
-            </p>
-            {Object.entries(leadLabels).map(([code, label]) => (
-              <StatusLabel
-                key={code}
-                code={code as keyof typeof leadLabels}
-                label={label}
-              />
-            ))}
-          </div>
-        )}
-        {tab === "audit" && (
+          </select>
+        </div>
+        {rows.length ? (
           <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Thời điểm</th>
                   <th>Người thao tác</th>
-                  <th>Hành động / Đối tượng</th>
+                  <th>Hành động</th>
+                  <th>Đối tượng</th>
                   <th>Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
-                {db.audit.map((a) => (
+                {rows.slice((cur - 1) * PAGE, cur * PAGE).map((a) => (
                   <tr key={a.id}>
-                    <td>{formatDate(a.at, true)}</td>
-                    <td>{db.members.find((m) => m.id === a.actorId)?.name}</td>
-                    <td>
-                      <strong>{a.action}</strong>
-                      <small>{a.target}</small>
-                    </td>
+                    <td className="nowrap">{formatDate(a.at, true)}</td>
+                    <td>{memberName(db, a.actorId)}</td>
+                    <td>{a.action}</td>
+                    <td className="muted">{a.target}</td>
                     <td className="audit-detail">
                       <details>
-                        <summary>Xem nội dung</summary>
+                        <summary>Xem</summary>
                         <pre>{a.detail}</pre>
                       </details>
                     </td>
@@ -378,41 +738,74 @@ export function Settings() {
               </tbody>
             </table>
           </div>
+        ) : (
+          <Empty title="Không có bản ghi phù hợp" />
         )}
+        <div className="table-foot">
+          <span>{rows.length} bản ghi</span>
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={cur === 1}
+              onClick={() => setPage(cur - 1)}
+            >
+              Trước
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={cur >= pages}
+              onClick={() => setPage(cur + 1)}
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
       </section>
-    </Guard>
+    </>
   );
 }
 
-function StatusLabel({
-  code,
-  label,
-}: {
-  code: keyof typeof leadLabels;
-  label: string;
-}) {
-  const { run } = useWorkspace();
-  const [value, setValue] = useState(label);
+const sections = [
+  { id: "users", label: "Người dùng", group: "Tài khoản", el: Users },
+  { id: "teams", label: "Nhóm Telesale", group: "Tài khoản", el: Teams },
+  { id: "sources", label: "Nguồn Lead", group: "Danh mục", el: Sources },
+  { id: "statuses", label: "Trạng thái Lead", group: "Danh mục", el: Statuses },
+  { id: "audit", label: "Nhật ký thao tác", group: "Hệ thống", el: Audit },
+];
+
+export function Settings() {
+  const { actor } = useWorkspace();
+  const { tab = "users" } = useParams();
+  const current = sections.find((s) => s.id === tab) ?? sections[0];
+  const Section = current.el;
   return (
-    <form
-      className="filter-bar"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        await run(
-          { type: "statusLabel", code, label: value },
-          "Đã cập nhật nhãn trạng thái.",
-        );
-      }}
-    >
-      <span>{code}</span>
-      <Input
-        aria-label={`Nhãn ${code}`}
-        required
-        maxLength={120}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-      />
-      <Button variant="outline">Lưu</Button>
-    </form>
+    <Guard allowed={actor.role === "admin"}>
+      <div className="settings">
+        <nav className="settings-nav" aria-label="Mục cài đặt">
+          <h1>Cài đặt</h1>
+          {[...new Set(sections.map((s) => s.group))].map((g) => (
+            <div key={g}>
+              <p>{g}</p>
+              {sections
+                .filter((s) => s.group === g)
+                .map((s) => (
+                  <NavLink
+                    key={s.id}
+                    to={`/admin/${s.id}`}
+                    className={s.id === current.id ? "active" : ""}
+                  >
+                    {s.label}
+                  </NavLink>
+                ))}
+            </div>
+          ))}
+        </nav>
+        <div className="settings-body">
+          <Section key={current.id} />
+        </div>
+      </div>
+    </Guard>
   );
 }

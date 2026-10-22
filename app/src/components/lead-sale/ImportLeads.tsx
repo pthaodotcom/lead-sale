@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import { Link } from "react-router";
+import { Download, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import { canEditLead, normalizePhone, validateLead } from "./domain";
-import { downloadCsv, Empty, Field, Guard, PageHeading } from "./shared";
+import { downloadCsv, Guard, PageHeading } from "./shared";
 import type { LeadInput } from "./types";
 import { importBatch } from "./backend";
 type Row = Record<string, string>;
@@ -73,9 +74,21 @@ export function ImportLeads() {
         title="Nhập danh sách Lead"
         description="Nhập CSV hoặc Excel XLSX; xem trước và kiểm tra từng dòng."
         back="/leads"
+        backLabel="Hồ sơ Lead"
       />
-      <section className="form-surface stack-form">
-        <p>
+      <ol className="steps">
+        <li className={rows.length ? "done" : "on"}>
+          <b>1</b> Chọn file
+        </li>
+        <li className={completed ? "done" : rows.length ? "on" : ""}>
+          <b>2</b> Kiểm tra từng dòng
+        </li>
+        <li className={completed ? "on" : ""}>
+          <b>3</b> Kết quả
+        </li>
+      </ol>
+      <section className="panel panel-body stack-form">
+        <p className="muted" style={{ margin: 0 }}>
           Mỗi file tối đa 500 dòng và 5 MB. Các cột: name, phone, city, vehicle
           (Motorbike/Van), sourceId, note, tags, receivedAt (tùy chọn, ví dụ
           2026-10-01T09:00:00+07:00). Đặt cột SĐT ở dạng văn bản để giữ số 0
@@ -83,6 +96,7 @@ export function ImportLeads() {
         </p>
         <Button
           variant="outline"
+          style={{ justifySelf: "start" }}
           onClick={() =>
             downloadCsv("mau-nhap-lead.csv", [
               ["name", "phone", "city", "vehicle", "sourceId", "note"],
@@ -97,9 +111,12 @@ export function ImportLeads() {
             ])
           }
         >
-          Tải mẫu CSV
+          <Download /> Tải file mẫu CSV
         </Button>
-        <Field label="Chọn CSV hoặc XLSX">
+        <label className="dropzone">
+          <FileSpreadsheet size={28} />
+          <strong>{fileName || "Chọn file CSV hoặc XLSX"}</strong>
+          <span>{busy ? "Đang đọc file…" : "Bấm để chọn file từ máy"}</span>
           <input
             type="file"
             accept=".csv,.xlsx"
@@ -168,7 +185,7 @@ export function ImportLeads() {
               }
             }}
           />
-        </Field>
+        </label>
         {error && (
           <p role="alert" className="form-error">
             {error}
@@ -195,7 +212,15 @@ export function ImportLeads() {
                           {r.name}
                           <small>{r.phone}</small>
                         </td>
-                        <td>
+                        <td
+                          className={
+                            check.message === "Hợp lệ"
+                              ? "result-ok"
+                              : check.id
+                                ? "result-warn"
+                                : "result-bad"
+                          }
+                        >
                           {check.id ? (
                             <Link to={`/leads/${check.id}/show`}>
                               {check.message}
@@ -210,7 +235,7 @@ export function ImportLeads() {
                 </tbody>
               </table>
             </div>
-            <p>
+            <p className="muted" style={{ margin: 0 }}>
               Dòng trùng được giữ nguyên để bạn mở hồ sơ và chọn thông tin cần
               bổ sung. Các dòng hợp lệ được lưu độc lập; dòng lỗi có kết quả
               riêng.
@@ -277,27 +302,30 @@ export function ImportLeads() {
           </>
         )}
         {!!results.length && (
-          <div role="status" className="import-results">
+          <div
+            role="status"
+            className="callout info import-results"
+            style={{ display: "grid" }}
+          >
             {results.map((r, i) => (
               <p key={i}>{r}</p>
             ))}
+            {completed && (
+              <Button asChild variant="outline" className="justify-self-start">
+                <Link to="/leads">Về Hồ sơ Lead</Link>
+              </Button>
+            )}
           </div>
-        )}
-        {!rows.length && !busy && (
-          <Empty
-            title="Chọn file để xem trước"
-            description="Dữ liệu chỉ được lưu khi bạn bấm Nhập."
-          />
         )}
       </section>
       {cloud && (
-        <section className="data-section">
-          <div className="section-header">
+        <section className="panel panel-spaced">
+          <div className="panel-head">
             <h2>Lịch sử lô nhập</h2>
             <span>{batches.length} lô</span>
           </div>
           {batches.map((b) => (
-            <div className="handover-card" key={b.id}>
+            <div className="list-row" key={b.id}>
               <div>
                 <strong>{b.fileName}</strong>
                 <p>

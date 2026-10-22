@@ -152,25 +152,6 @@ export function calculateReport(
   );
   return {
     total: leads.length,
-    byResultSource: ["simulator", "manual", "unverified"].map((id) => {
-      const source = (value?: string) =>
-        value === "simulator"
-          ? "simulator"
-          : ["manual", "manual_correction"].includes(value ?? "")
-            ? "manual"
-            : "unverified";
-      return {
-        id,
-        registered: leads.filter(
-          (l) => registered(l) && source(l.activatedSource) === id,
-        ).length,
-        onboarded: leads.filter(
-          (l) =>
-            (l.onboardedAt || l.status === "Onboarded") &&
-            source(l.onboardedSource) === id,
-        ).length,
-      };
-    }),
     registered: leads.filter(registered).length,
     onboarded: leads.filter((l) => !!l.onboardedAt || l.status === "Onboarded")
       .length,
@@ -676,11 +657,38 @@ export function applyCommand(
           : "Open";
       ticket.updatedAt = stamp;
       if (ticket.status === "Solved") cancelAppointments(ticket.id);
+      // BR-61: a new contact replaces (or clears) the follow-up call.
+      if (input.nextCallAt && ticket.status !== "Solved") {
+        const next = new Date(input.nextCallAt);
+        ensure(
+          next > now && next < new Date(ticket.expiresAt),
+          "Hẹn gọi lại phải ở tương lai và trước hạn phiếu.",
+        );
+        ticket.nextCallAt = next.toISOString();
+      } else delete ticket.nextCallAt;
       log(
         "Ghi hoạt động tư vấn",
         ticket.id,
         `${outcomeLabels[input.outcome]} · ${decisionLabels[input.decision]}`,
       );
+      break;
+    }
+    case "followUp": {
+      const ticket = ticketById(command.id);
+      ensure(
+        writable(ticket) && isPending(ticket),
+        "Chỉ đặt hẹn gọi lại trên phiếu của bạn đang xử lý.",
+      );
+      if (command.at) {
+        const next = new Date(command.at);
+        ensure(
+          next > now && next < new Date(ticket.expiresAt),
+          "Hẹn gọi lại phải ở tương lai và trước hạn phiếu.",
+        );
+        ticket.nextCallAt = next.toISOString();
+      } else delete ticket.nextCallAt;
+      ticket.updatedAt = stamp;
+      log("Hẹn gọi lại", ticket.id, ticket.nextCallAt ?? "Bỏ hẹn gọi lại");
       break;
     }
     case "appointment": {

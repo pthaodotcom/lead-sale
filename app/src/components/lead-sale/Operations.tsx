@@ -1,81 +1,28 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "./context";
-import { AssignmentDialog } from "./AssignmentDialog";
-import { canAssign, canEditLead, isLive } from "./domain";
-import { Badge, Empty, Field, formatDate, Guard, PageHeading } from "./shared";
+import { canEditLead } from "./domain";
+import {
+  Badge,
+  Chip,
+  Empty,
+  Field,
+  formatDate,
+  Guard,
+  memberName,
+  PageHeading,
+} from "./shared";
 import type { ClosureReview } from "./types";
-import { serverNow } from "./dates";
-export function IntakeQueue() {
-  const { db, actor } = useWorkspace();
-  const rows = db.leads.filter(
-    (l) =>
-      l.status === "New" &&
-      !l.archived &&
-      !db.reviews.some((r) => r.leadId === l.id && !r.reviewedAt) &&
-      !["follow_up", "closed"].includes(
-        db.reviews
-          .filter((r) => r.leadId === l.id)
-          .sort((a, b) =>
-            (b.reviewedAt ?? "").localeCompare(a.reviewedAt ?? ""),
-          )[0]?.result ?? "",
-      ) &&
-      !db.assignments.some(
-        (t) =>
-          t.leadId === l.id &&
-          isLive(t) &&
-          Date.parse(t.expiresAt) > serverNow().getTime(),
-      ),
-  );
-  return (
-    <Guard allowed={canAssign(actor)}>
-      <PageHeading
-        title="Lead chờ phân công"
-        description="Hồ sơ Mới đủ điều kiện và chưa có phiếu trong hạn."
-      />
-      <section className="data-section">
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Tài xế</th>
-                <th>Tiếp nhận đầu</th>
-                <th>Lần tiếp nhận gần nhất</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((l) => (
-                <tr key={l.id}>
-                  <td>
-                    <Link to={`/leads/${l.id}/show`}>{l.name}</Link>
-                    <small>{l.phone}</small>
-                  </td>
-                  <td>{formatDate(l.receivedAt, true)}</td>
-                  <td>
-                    {formatDate(
-                      db.receptions
-                        .filter((r) => r.leadId === l.id)
-                        .sort((a, b) => b.at.localeCompare(a.at))[0]?.at ??
-                        l.receivedAt,
-                      true,
-                    )}
-                  </td>
-                  <td>
-                    <AssignmentDialog leadId={l.id} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!rows.length && <Empty title="Đã phân công hết hàng đợi" />}
-      </section>
-    </Guard>
-  );
-}
+
+const resultLabels: Record<string, string> = {
+  eligible: "Đủ điều kiện phân công lại",
+  follow_up: "Cần theo dõi thêm",
+  closed: "Đề nghị đóng hồ sơ",
+};
+
 function ReviewRow({ review }: { review: ClosureReview }) {
   const { db, actor, run, busy } = useWorkspace();
   const [note, setNote] = useState("");
@@ -83,24 +30,35 @@ function ReviewRow({ review }: { review: ClosureReview }) {
   const [amending, setAmending] = useState(false);
   const [reason, setReason] = useState("");
   const lead = db.leads.find((l) => l.id === review.leadId);
+  const ticket = db.assignments.find((t) => t.id === review.assignmentId);
   return (
-    <article className="handover-card">
+    <article className="list-row">
       <div>
-        <Link to={`/leads/${review.leadId}/show`}>
-          {lead?.name ?? review.leadId}
-        </Link>{" "}
-        {lead && <Badge status={lead.status} />}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link className="record-link" to={`/leads/${review.leadId}/show`}>
+            {lead?.name ?? review.leadId}
+          </Link>
+          {lead && <Badge status={lead.status} />}
+        </div>
         <p>
-          {review.assignmentId} · {formatDate(review.at, true)}
+          Phiếu {review.assignmentId}
+          {ticket && <> · {memberName(db, ticket.assigneeId)}</>} · đóng{" "}
+          {formatDate(review.at, true)}
         </p>
-        <p>{review.reason}</p>
+        <p>Lý do đóng: {review.reason}</p>
       </div>
       {review.reviewedAt && !amending ? (
-        <div>
-          <p>
-            Đã rà soát {formatDate(review.reviewedAt, true)} ·{" "}
-            {review.note ?? review.result}
-          </p>
+        <div className="stack-form">
+          <div>
+            <Chip tone="solved">
+              {resultLabels[review.result ?? ""] ?? "Đã rà soát"}
+            </Chip>
+            <p>
+              {formatDate(review.reviewedAt, true)} ·{" "}
+              {memberName(db, review.reviewedBy)}
+              {review.note && <> — {review.note}</>}
+            </p>
+          </div>
           {canEditLead(actor) && (
             <Button
               variant="outline"
@@ -111,112 +69,133 @@ function ReviewRow({ review }: { review: ClosureReview }) {
             </Button>
           )}
         </div>
-      ) : (
-        canEditLead(actor) && (
-          <form
-            className="stack-form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (
-                await run(
-                  amending
-                    ? {
-                        type: "amendReview",
-                        id: review.id,
-                        note,
-                        result,
-                        reason,
-                      }
-                    : { type: "review", id: review.id, note, result },
-                  "Đã ghi nhận rà soát.",
-                )
-              ) {
-                setNote("");
-                setAmending(false);
-                setReason("");
-              }
-            }}
-          >
-            <p>
-              Mở hồ sơ để xác nhận trạng thái và căn cứ trước khi hoàn tất bàn
-              giao.
-            </p>
-            <Field label="Kết quả rà soát">
-              <select
-                value={result}
-                onChange={(e) => setResult(e.target.value)}
-              >
-                <option value="eligible">Đủ điều kiện phân công lại</option>
-                <option value="follow_up">Cần theo dõi thêm</option>
-                <option value="closed">Đề nghị đóng hồ sơ</option>
-              </select>
-            </Field>
-            <Field label="Căn cứ rà soát">
+      ) : canEditLead(actor) ? (
+        <form
+          className="stack-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (
+              await run(
+                amending
+                  ? { type: "amendReview", id: review.id, note, result, reason }
+                  : { type: "review", id: review.id, note, result },
+                "Đã ghi nhận rà soát.",
+              )
+            ) {
+              setNote("");
+              setAmending(false);
+              setReason("");
+            }
+          }}
+        >
+          <Field label="Kết quả rà soát">
+            <select value={result} onChange={(e) => setResult(e.target.value)}>
+              {Object.entries(resultLabels).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Căn cứ *">
+            <Textarea
+              required
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </Field>
+          {amending && (
+            <Field label="Lý do đính chính *">
               <Textarea
                 required
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
               />
             </Field>
-            {amending && (
-              <Field label="Lý do đính chính rà soát">
-                <Textarea
-                  required
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </Field>
-            )}
-            <Button disabled={busy}>Hoàn tất rà soát</Button>
-          </form>
-        )
+          )}
+          <Button disabled={busy}>Hoàn tất rà soát</Button>
+        </form>
+      ) : (
+        <p className="muted">Chờ bộ phận Tiếp nhận rà soát.</p>
       )}
     </article>
   );
 }
+
 export function Handover() {
   const { db, actor } = useWorkspace();
   const [state, setState] = useState("pending");
   const [date, setDate] = useState("");
-  const rows = db.reviews.filter(
-    (r) =>
-      (state === "all" ||
-        (state === "pending" ? !r.reviewedAt : !!r.reviewedAt)) &&
-      (!date ||
-        new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Ho_Chi_Minh",
-        }).format(new Date(r.at)) === date),
-  );
+  const day = (s: string) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
+      new Date(s),
+    );
+  const count = (s: string) =>
+    db.reviews.filter((r) =>
+      s === "all" ? true : s === "pending" ? !r.reviewedAt : !!r.reviewedAt,
+    ).length;
+  const rows = db.reviews
+    .filter(
+      (r) =>
+        (state === "all" ||
+          (state === "pending" ? !r.reviewedAt : !!r.reviewedAt)) &&
+        (!date || day(r.at) === date),
+    )
+    .sort((a, b) => b.at.localeCompare(a.at));
   return (
     <Guard allowed={["admin", "intake", "leader"].includes(actor.role)}>
       <PageHeading
         title="Bàn giao phiếu Closed"
-        description="Rà soát kết quả đóng phiếu; hồ sơ Lead được cập nhật theo căn cứ riêng."
+        description="Phiếu đã đóng chuyển về Tiếp nhận để cập nhật hồ sơ. Phiếu Closed không tự làm hồ sơ Closed."
       />
-      <section className="data-section">
-        <div className="filter-bar">
-          <Field label="Ngày đóng phiếu">
+      <section className="panel">
+        <div className="tabs">
+          {[
+            ["pending", "Chờ rà soát"],
+            ["reviewed", "Đã rà soát"],
+            ["all", "Tất cả"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              className={state === k ? "active" : ""}
+              onClick={() => setState(k)}
+            >
+              {label} <span className="count">{count(k)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="toolbar">
+          <label className="inline-check">
+            Ngày đóng phiếu
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              style={{ width: "auto" }}
             />
-          </Field>
-          <select
-            aria-label="Lọc bàn giao"
-            value={state}
-            onChange={(e) => setState(e.target.value)}
-          >
-            <option value="pending">Chưa rà soát</option>
-            <option value="reviewed">Đã rà soát</option>
-            <option value="all">Tất cả</option>
-          </select>
-          <span>{rows.length} phiếu</span>
+          </label>
+          {date && (
+            <Button variant="ghost" size="sm" onClick={() => setDate("")}>
+              Bỏ lọc ngày
+            </Button>
+          )}
         </div>
         {rows.map((r) => (
           <ReviewRow key={r.id} review={r} />
         ))}
-        {!rows.length && <Empty title="Không có phiếu cần rà soát" />}
+        {!rows.length && (
+          <Empty
+            icon={ArrowLeftRight}
+            title={
+              state === "pending"
+                ? "Không còn phiếu chờ rà soát"
+                : "Không có phiếu phù hợp"
+            }
+            description="Phiếu đóng do hết hạn, đóng sớm hoặc chuyển người sẽ xuất hiện ở đây."
+          />
+        )}
       </section>
     </Guard>
   );

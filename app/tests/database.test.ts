@@ -27,7 +27,7 @@ beforeAll(async () => {
  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
  create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(bucket_id text,name text,primary key(bucket_id,name));alter table storage.objects enable row level security;grant usage on schema storage,auth to authenticated;grant select,insert on storage.objects to authenticated;`);
   for (const f of (await readdir("backend/supabase/schemas"))
-    .filter((f) => /^(1[0-46-9]|20)_/.test(f))
+    .filter((f) => /^(1[0-46-9]|2[0-3])_/.test(f))
     .sort())
     await db.exec(await readFile("backend/supabase/schemas/" + f, "utf8"));
   for (const [key, id] of Object.entries(users)) {
@@ -79,6 +79,133 @@ async function snapshot() {
     await db.query<{ data: any }>("select public.lead_snapshot() as data")
   ).rows[0].data;
 }
+const publicInput = () => ({
+  name: "Tài xế tự đăng ký",
+  phone: "+84 912 345 678",
+  city: "Hà Nội",
+  vehicle: "Van",
+  district: "Cầu Giấy",
+  hasVehicle: "yes",
+  callTime: "afternoon",
+  documents: { cccd: true },
+  note: "Tư vấn đăng ký",
+  consent: true,
+  website: "",
+});
+async function publicIntake(input: object, request = randomUUID()) {
+  await db.exec("set role anon");
+  return (
+    await db.query<{ result: any }>(
+      "select public.lead_public_intake($1::jsonb,$2::uuid) result",
+      [JSON.stringify(input), request],
+    )
+  ).rows[0].result;
+}
+
+describe("public driver intake", () => {
+  it("accepts anonymous intake, ignores forged CRM fields and hides profile identifiers", async () => {
+    expect(
+      await publicIntake({
+        ...publicInput(),
+        status: "Onboarded",
+        sourceId: "hotline",
+        actorId: members.admin,
+        archived: true,
+      }),
+    ).toEqual({ accepted: true });
+    await act("admin");
+    const s = await snapshot();
+    expect(s.leads).toHaveLength(1);
+    expect(s.leads[0]).toMatchObject({
+      phone: "0912345678",
+      sourceId: "web",
+      status: "New",
+      archived: false,
+      profile: {
+        district: "Cầu Giấy",
+        callTime: "afternoon",
+        documents: { cccd: true },
+      },
+    });
+    expect(s.receptions[0]).toMatchObject({
+      actorId: "public-form",
+      consentVersion: "driver-intake-v1",
+    });
+    expect(s.receptions[0].consentAt).toBeTruthy();
+    expect(s.notices.some((n: any) => n.title.includes("form website"))).toBe(
+      true,
+    );
+  });
+  it("keeps existing archived profiles unchanged and records repeat submissions", async () => {
+    const lead = await createLead();
+    await command({ type: "archiveLead", id: lead.id }, lead.version);
+    const before = (await snapshot()).leads[0];
+    expect(await publicIntake({ ...publicInput(), phone: lead.phone })).toEqual(
+      { accepted: true },
+    );
+    await act("admin");
+    const s = await snapshot();
+    expect(s.leads).toEqual([before]);
+    expect(s.receptions).toHaveLength(2);
+    expect(
+      s.receptions.find((r: any) => r.actorId === "public-form").note,
+    ).toContain("Buổi chiều");
+  });
+  it("retries with the same request ID do not create extra receptions", async () => {
+    const request = randomUUID();
+    await publicIntake(publicInput(), request);
+    await publicIntake(publicInput(), request);
+    await act("admin");
+    const s = await snapshot();
+    expect(s.leads).toHaveLength(1);
+    expect(s.receptions).toHaveLength(1);
+    await expect(
+      publicIntake({ ...publicInput(), name: "Khác tên" }, request),
+    ).rejects.toThrow("Mã gửi");
+  });
+  it.each([
+    [{ consent: false }, "đồng ý"],
+    [{ phone: "123" }, "10 chữ số"],
+    [{ name: " " }, "họ và tên"],
+    [{ city: " " }, "thành phố"],
+    [{ vehicle: "Truck" }, "xe máy"],
+    [{ website: "bot.example" }, "đồng ý"],
+    [{ documents: { cccd: "true" } }, "giấy tờ"],
+    [{ name: null }, "họ và tên"],
+  ])(
+    "rejects invalid or unconsented submissions %j",
+    async (patch, message) => {
+      await expect(
+        publicIntake({ ...publicInput(), ...patch }),
+      ).rejects.toThrow(message);
+    },
+  );
+  it("limits repeated phone submissions server-side", async () => {
+    for (let i = 0; i < 3; i++) await publicIntake(publicInput());
+    await expect(publicIntake(publicInput())).rejects.toThrow("nhiều đăng ký");
+  });
+  it("does not grant anonymous access to leads, receipts or staff commands", async () => {
+    await db.exec("reset role");
+    const permission = await db.query<{
+      leads: boolean;
+      receipts: boolean;
+      command: boolean;
+    }>(
+      `select has_table_privilege('anon','public.leads','select') leads, has_table_privilege('anon','private.lead_public_requests','select') receipts, has_function_privilege('anon','public.lead_command(jsonb,uuid,integer)','execute') command`,
+    );
+    expect(permission.rows[0]).toEqual({
+      leads: false,
+      receipts: false,
+      command: false,
+    });
+  });
+  it("disabling the web source pauses intake without saving a profile", async () => {
+    await db.exec(
+      "reset role; update public.lead_sources set data=data||'{\"active\":false}' where id='web'",
+    );
+    await expect(publicIntake(publicInput())).rejects.toThrow("tạm ngưng");
+  });
+});
 async function attempt(c: object, version: number | null = null) {
   await db.exec("savepoint denial");
   try {
@@ -90,6 +217,166 @@ async function attempt(c: object, version: number | null = null) {
     return (e as Error).message;
   }
 }
+async function voice(p: object) {
+  return (
+    await db.query<{ result: any }>(
+      "select public.lead_voice_staff($1::jsonb) result",
+      [JSON.stringify(p)],
+    )
+  ).rows[0].result;
+}
+async function guest(
+  invite: { id: string; token: string },
+  client: string,
+  p: object,
+) {
+  await db.exec("set role anon");
+  return (
+    await db.query<{ result: any }>(
+      "select public.lead_voice_guest($1::uuid,$2,$3::uuid,$4::jsonb) result",
+      [invite.id, invite.token, client, JSON.stringify(p)],
+    )
+  ).rows[0].result;
+}
+const testSdp = "v=0\r\no=- 123456789 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n";
+describe("browser voice calls", () => {
+  it("records accepted connection and duration without changing consultation results", async () => {
+    const lead = await createLead();
+    const invite = await voice({ action: "prepare", leadId: lead.id });
+    const phone = randomUUID();
+    expect(invite.token).toHaveLength(64);
+    expect(await guest(invite, phone, { action: "info" })).toHaveProperty(
+      "expiresAt",
+    );
+    await guest(invite, phone, { action: "ready" });
+    await act("admin");
+    const ringing = await voice({
+      action: "start",
+      inviteId: invite.id,
+      sdp: testSdp,
+    });
+    expect(ringing.call.status).toBe("ringing");
+    const callId = ringing.call.id;
+    expect(
+      (await guest(invite, phone, { action: "accept", callId })).call.status,
+    ).toBe("connecting");
+    await guest(invite, phone, { action: "answer", callId, sdp: testSdp });
+    await guest(invite, phone, { action: "connected", callId });
+    await act("admin");
+    expect(
+      (await voice({ action: "connected", inviteId: invite.id, callId })).call
+        .status,
+    ).toBe("connected");
+    await db.exec("reset role");
+    await db.query(
+      "update public.lead_voice_calls set connected_at=clock_timestamp()-interval '3 seconds' where id=$1",
+      [callId],
+    );
+    const ended = await guest(invite, phone, { action: "end", callId });
+    expect(ended.call.status).toBe("completed");
+    expect(ended.call.durationSeconds).toBeGreaterThanOrEqual(3);
+    expect(
+      (await guest(invite, phone, { action: "end", callId })).call.endedAt,
+    ).toBe(ended.call.endedAt);
+    await act("admin");
+    expect((await snapshot()).activities).toHaveLength(0);
+    expect(
+      (await voice({ action: "history", leadId: lead.id })).calls[0],
+    ).not.toHaveProperty("offer");
+  });
+  it("rejects wrong tokens, private reads and concurrent receiver claims", async () => {
+    const lead = await createLead();
+    const invite = await voice({ action: "prepare", leadId: lead.id });
+    const phone = randomUUID();
+    await guest(invite, phone, { action: "ready" });
+    await db.exec("savepoint wrong_phone");
+    await expect(
+      guest(invite, randomUUID(), { action: "ready" }),
+    ).rejects.toThrow("thiết bị khác");
+    await db.exec("rollback to savepoint wrong_phone");
+    await db.exec("savepoint wrong_token");
+    await expect(
+      guest({ ...invite, token: "x".repeat(64) }, phone, { action: "poll" }),
+    ).rejects.toThrow("Link không hợp lệ");
+    await db.exec("rollback to savepoint wrong_token");
+    await db.exec("reset role");
+    const permissions = await db.query<{ read: boolean; staff: boolean }>(
+      "select has_table_privilege('anon','public.lead_voice_calls','select') read,has_function_privilege('anon','public.lead_voice_staff(jsonb)','execute') staff",
+    );
+    expect(permissions.rows[0]).toEqual({ read: false, staff: false });
+  });
+  it("requires a ready phone and forbids viewers from creating calls", async () => {
+    const lead = await createLead();
+    const invite = await voice({ action: "prepare", leadId: lead.id });
+    await db.exec("savepoint offline");
+    await expect(
+      voice({ action: "start", inviteId: invite.id, sdp: testSdp }),
+    ).rejects.toThrow("chưa sẵn sàng");
+    await db.exec("rollback to savepoint offline");
+    await act("viewer");
+    await expect(voice({ action: "prepare", leadId: lead.id })).rejects.toThrow(
+      "không có quyền",
+    );
+  });
+  it("records rejection and no answer with zero talk duration", async () => {
+    const lead = await createLead();
+    const invite = await voice({ action: "prepare", leadId: lead.id });
+    const phone = randomUUID();
+    await guest(invite, phone, { action: "ready" });
+    await act("admin");
+    const first = await voice({
+      action: "start",
+      inviteId: invite.id,
+      sdp: testSdp,
+    });
+    const rejected = await guest(invite, phone, {
+      action: "end",
+      callId: first.call.id,
+    });
+    expect(rejected.call.status).toBe("rejected");
+    expect(rejected.call.durationSeconds).toBe(0);
+    await act("admin");
+    const second = await voice({
+      action: "start",
+      inviteId: invite.id,
+      sdp: testSdp,
+    });
+    await db.exec("reset role");
+    await db.query(
+      "update public.lead_voice_calls set started_at=clock_timestamp()-interval '1 minute' where id=$1",
+      [second.call.id],
+    );
+    await act("admin");
+    await voice({ action: "poll", inviteId: invite.id });
+    const timeout = await db.query<{
+      status: string;
+      duration_seconds: number;
+    }>(
+      "select status,duration_seconds from public.lead_voice_calls where id=$1",
+      [second.call.id],
+    );
+    expect(timeout.rows[0].status).toBe("no_answer");
+    expect(timeout.rows[0].duration_seconds).toBe(0);
+  });
+  it("refuses a new call after its assigned ticket is closed", async () => {
+    const ticket = await accepted();
+    const invite = await voice({
+      action: "prepare",
+      leadId: ticket.leadId,
+      ticketId: ticket.id,
+    });
+    await guest(invite, randomUUID(), { action: "ready" });
+    await db.exec("reset role");
+    await db.query(
+      'update public.lead_assignments set data=data||\'{"status":"Closed"}\' where id=$1',
+      [ticket.id],
+    );
+    await act("sale");
+    await expect(
+      voice({ action: "start", inviteId: invite.id, sdp: testSdp }),
+    ).rejects.toThrow();
+  });
+});
 async function createLead() {
   await command({
     type: "saveLead",

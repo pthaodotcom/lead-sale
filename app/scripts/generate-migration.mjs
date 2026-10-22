@@ -61,3 +61,40 @@ if (
   throw new Error("Report migration exists; create a new version.");
 if (oldReport === undefined)
   await writeFile(reportTarget, report, { flag: "wx" });
+const intake = await readFile(
+  root + "/schemas/21_lead_sale_public_intake.sql",
+  "utf8",
+);
+const intakeTarget = root + "/migrations/20261022010000_public_intake.sql";
+let oldIntake;
+try {
+  oldIntake = await readFile(intakeTarget, "utf8");
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+if (
+  oldIntake !== undefined &&
+  oldIntake.replaceAll("\r\n", "\n") !== intake.replaceAll("\r\n", "\n")
+)
+  throw new Error("Public intake migration exists; create a new version.");
+if (oldIntake === undefined)
+  await writeFile(intakeTarget, intake, { flag: "wx" });
+for (const [schema, version] of [
+  ["22_lead_sale_inbox.sql", "20261022020000_inbox.sql"],
+  ["23_lead_sale_voice.sql", "20261022030000_voice.sql"],
+]) {
+  const next = await readFile(root + "/schemas/" + schema, "utf8");
+  const file = root + "/migrations/" + version;
+  let saved;
+  try {
+    saved = await readFile(file, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (
+    saved !== undefined &&
+    saved.replaceAll("\r\n", "\n") !== next.replaceAll("\r\n", "\n")
+  )
+    throw new Error("Applied migration content drift: " + version);
+  if (saved === undefined) await writeFile(file, next, { flag: "wx" });
+}

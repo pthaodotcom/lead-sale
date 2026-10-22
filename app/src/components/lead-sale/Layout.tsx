@@ -1,225 +1,384 @@
 import { useState, type ReactNode } from "react";
-import { NavLink, Link, useLocation } from "react-router";
+import { NavLink, Link, useLocation, useNavigate } from "react-router";
 import {
   BarChart3,
-  CalendarDays,
-  Check,
-  ChevronsUpDown,
-  ClipboardList,
-  ContactRound,
-  LayoutDashboard,
-  Menu,
-  PanelLeftClose,
-  Settings2,
-  Truck,
-  X,
   Bell,
-  LogOut,
+  BookUser,
+  CalendarDays,
+  ClipboardList,
   Inbox,
-  UserCircle,
+  KeyRound,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessagesSquare,
+  Search,
+  Send,
+  Settings2,
+  ArrowLeftRight,
+  type LucideIcon,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useWorkspace } from "./context";
-import { roleLabels, canAssign } from "./domain";
-import { formatDate } from "./shared";
+import { roleLabels, canAssign, isLive } from "./domain";
+import { Avatar, formatDate } from "./shared";
 import { supabase } from "./backend";
 import { serverNow } from "./dates";
+import { inGroup, visibleTickets } from "./tasks";
+import { useInbox } from "./inbox-store";
+import type { Database, Member, Role } from "./types";
 
-export function Layout({ children }: { children: ReactNode }) {
-  const { db, actor, setActor, cloud, run } = useWorkspace();
-  const [open, setOpen] = useState(false);
-  const location = useLocation();
-  const navigation = [
-    { to: "/", label: "Tổng quan", icon: LayoutDashboard },
-    ...(actor.role !== "viewer"
-      ? [{ to: "/leads", label: "Hồ sơ Lead", icon: ContactRound }]
-      : []),
-    ...(["admin", "leader"].includes(actor.role)
-      ? [{ to: "/queue", label: "Chờ phân công", icon: Inbox }]
-      : []),
-    ...(["admin", "intake", "leader"].includes(actor.role)
-      ? [{ to: "/handover", label: "Bàn giao Closed", icon: Inbox }]
-      : []),
-    ...(actor.role !== "viewer"
+type Item = { to: string; label: string; icon: LucideIcon; count?: number };
+type Group = { label?: string; items: Item[] };
+
+function navigation(db: Database, actor: Member, unread: number): Group[] {
+  const is = (...roles: Role[]) => roles.includes(actor.role);
+  const tickets = visibleTickets(db, actor);
+  const myPending = tickets.filter(
+    (t) =>
+      inGroup(db, t, "pending") &&
+      (actor.role !== "telesale" || t.assigneeId === actor.id),
+  ).length;
+  const waiting = db.leads.filter(
+    (l) =>
+      l.status === "New" &&
+      !l.archived &&
+      !db.assignments.some(
+        (t) =>
+          t.leadId === l.id &&
+          isLive(t) &&
+          Date.parse(t.expiresAt) > serverNow().getTime(),
+      ),
+  ).length;
+  const reviews = db.reviews.filter((r) => !r.reviewedAt).length;
+  const groups: Group[] = [
+    { items: [{ to: "/", label: "Tổng quan", icon: LayoutDashboard }] },
+    {
+      label: "Công việc",
+      items: [
+        ...(is("admin", "intake")
+          ? [
+              {
+                to: "/inbox",
+                label: "Hộp thư",
+                icon: MessagesSquare,
+                count: unread,
+              },
+            ]
+          : []),
+        ...(is("telesale", "leader", "admin")
+          ? [
+              {
+                to: "/tasks",
+                label: "Nhiệm vụ",
+                icon: ClipboardList,
+                count: myPending,
+              },
+            ]
+          : []),
+        ...(canAssign(actor)
+          ? [
+              {
+                to: "/dispatch",
+                label: "Điều phối",
+                icon: Send,
+                count: waiting,
+              },
+            ]
+          : []),
+        ...(!is("viewer")
+          ? [{ to: "/appointments", label: "Lịch hẹn", icon: CalendarDays }]
+          : []),
+      ],
+    },
+    {
+      label: "Hồ sơ",
+      items: [
+        ...(!is("viewer")
+          ? [{ to: "/leads", label: "Hồ sơ Lead", icon: BookUser }]
+          : []),
+        ...(is("admin", "intake", "leader")
+          ? [
+              {
+                to: "/handover",
+                label: "Bàn giao Closed",
+                icon: ArrowLeftRight,
+                count: is("leader") ? undefined : reviews,
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      label: "Phân tích",
+      items: [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }],
+    },
+    ...(is("admin")
       ? [
-          { to: "/assignments", label: "Nhiệm vụ tư vấn", icon: ClipboardList },
-          { to: "/appointments", label: "Lịch hẹn", icon: CalendarDays },
+          {
+            label: "Hệ thống",
+            items: [{ to: "/admin", label: "Cài đặt", icon: Settings2 }],
+          },
         ]
       : []),
-    { to: "/reports", label: "Báo cáo", icon: BarChart3 },
-    ...(["admin", "intake"].includes(actor.role)
-      ? [{ to: "/integrations", label: "Đối soát nguồn", icon: Inbox }]
-      : []),
-    ...(actor.role === "admin"
-      ? [{ to: "/core-simulator", label: "Tài xế giả lập", icon: Truck }]
-      : []),
-    { to: "/account", label: "Tài khoản của tôi", icon: UserCircle },
-    { to: "/notices", label: "Thông báo", icon: Bell },
-    ...(actor.role === "admin"
-      ? [{ to: "/settings", label: "Quản trị", icon: Settings2 }]
-      : []),
   ];
-  const active =
-    navigation.find(
-      (n) => n.to !== "/" && location.pathname.startsWith(n.to),
-    ) ?? navigation[0];
-  const due = db.assignments.filter(
-    (t) =>
-      (canAssign(actor) || t.assigneeId === actor.id) &&
-      t.status === "New" &&
-      Date.parse(t.expiresAt) > serverNow().getTime(),
-  ).length;
+  return groups.filter((g) => g.items.length);
+}
+
+function NoticeBell() {
+  const { db, actor, run } = useWorkspace();
+  const navigate = useNavigate();
+  const mine = db.notices
+    .filter((n) => n.recipientId === actor.id)
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const unread = mine.filter((n) => !n.readAt);
   return (
-    <div className="workspace">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="icon-btn"
+          aria-label={`Thông báo, ${unread.length} chưa đọc`}
+        >
+          <Bell size={19} />
+          {unread.length > 0 && (
+            <span className="badge-dot">
+              {unread.length > 9 ? "9+" : unread.length}
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="notice-pop">
+        <header>
+          <strong>Thông báo</strong>
+          <Link to="/notifications">Xem tất cả</Link>
+        </header>
+        {mine.slice(0, 6).map((n) => (
+          <DropdownMenuItem
+            key={n.id}
+            className="mini-item"
+            onSelect={() => {
+              if (!n.readAt) void run({ type: "noticeRead", id: n.id });
+              navigate(n.href ?? "/notifications");
+            }}
+          >
+            {!n.readAt ? (
+              <span className="unread-dot" />
+            ) : (
+              <span style={{ width: 8 }} />
+            )}
+            <div>
+              <strong>{n.title}</strong>
+              <small>{formatDate(n.at, true)}</small>
+            </div>
+          </DropdownMenuItem>
+        ))}
+        {!mine.length && (
+          <p className="muted" style={{ padding: "14px" }}>
+            Chưa có thông báo nào.
+          </p>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function UserMenu() {
+  const { db, actor, cloud, setActor } = useWorkspace();
+  const navigate = useNavigate();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="user-btn" aria-label="Tài khoản">
+          <Avatar name={actor.name} />
+          <span className="who">
+            <strong>{actor.name}</strong>
+            <small>{roleLabels[actor.role]}</small>
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel>
+          {actor.name}
+          <div className="muted" style={{ fontWeight: 400, fontSize: 12 }}>
+            {actor.email ?? roleLabels[actor.role]}
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate("/account")}>
+          <KeyRound /> Đổi mật khẩu
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate("/notifications")}>
+          <Bell /> Thông báo
+        </DropdownMenuItem>
+        {!cloud && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="muted" style={{ fontSize: 12 }}>
+              Xem thử với vai trò
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={actor.id}
+              onValueChange={(id) => {
+                setActor(id);
+                navigate("/");
+              }}
+            >
+              {db.members
+                .filter((m) => m.active)
+                .map((m) => (
+                  <DropdownMenuRadioItem key={m.id} value={m.id}>
+                    {m.name} · {roleLabels[m.role]}
+                  </DropdownMenuRadioItem>
+                ))}
+            </DropdownMenuRadioGroup>
+          </>
+        )}
+        {cloud && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void supabase?.auth.signOut()}>
+              <LogOut /> Đăng xuất
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function Layout({ children }: { children: ReactNode }) {
+  const { db, actor, cloud, run } = useWorkspace();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const navigate = useNavigate();
+  useLocation();
+  const inbox = useInbox(["admin", "intake"].includes(actor.role));
+  const groups = navigation(
+    db,
+    actor,
+    inbox.data.threads.filter((t) => t.unread > 0 && t.status !== "spam")
+      .length,
+  );
+  const banner = db.notices
+    .filter((n) => n.recipientId === actor.id && !n.readAt)
+    .sort((a, b) => b.at.localeCompare(a.at))[0];
+  return (
+    <div className="app">
       <a className="skip-link" href="#main-content">
         Đến nội dung chính
       </a>
       {open && (
         <button
-          className="sidebar-scrim"
-          aria-label="Đóng điều hướng"
-          onClick={async () => setOpen(false)}
+          className="scrim"
+          aria-label="Đóng menu"
+          onClick={() => setOpen(false)}
         />
       )}
-      <aside className={`workspace-sidebar ${open ? "is-open" : ""}`}>
-        <Link to="/" className="brand" onClick={async () => setOpen(false)}>
-          <span className="brand-symbol">
-            <Truck size={22} />
-          </span>
+      <aside className={`side ${open ? "open" : ""}`}>
+        <Link to="/" className="brand" onClick={() => setOpen(false)}>
+          <img
+            className="brand-mark"
+            src="/ahamove-mark.png"
+            alt=""
+            width={40}
+            height={28}
+          />
           <span>
-            Lead Sale<small>Quản lý tuyển tài xế</small>
+            <strong>Lead Sale</strong>
+            <small>AhaMove · Tuyển tài xế</small>
           </span>
         </Link>
-        <Button
-          className="mobile-close"
-          variant="ghost"
-          size="icon"
-          aria-label="Đóng menu"
-          onClick={async () => setOpen(false)}
-        >
-          <X />
-        </Button>
         <nav aria-label="Điều hướng chính">
-          {navigation.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              onClick={async () => setOpen(false)}
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-              {to === "/assignments" && due > 0 && (
-                <span className="nav-count">{due}</span>
-              )}
-            </NavLink>
+          {groups.map((g, i) => (
+            <div className="nav-group" key={g.label ?? i}>
+              {g.label && <p>{g.label}</p>}
+              {g.items.map(({ to, label, icon: Icon, count }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === "/"}
+                  onClick={() => setOpen(false)}
+                >
+                  <Icon size={18} />
+                  <span>{label}</span>
+                  {!!count && <span className="count">{count}</span>}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <div className="demo-note">
-            <span className="demo-dot" />
-            {cloud ? "Đã kết nối Supabase" : "Bản xem thử"}
-            <small>
+        <div className="side-foot">
+          <div className={`mode-note ${cloud ? "" : "demo"}`}>
+            <span className="dot" />
+            <span>
               {cloud
-                ? "Dữ liệu được lưu trên máy chủ."
-                : "Dữ liệu lưu trên trình duyệt này."}
-            </small>
+                ? "Đã kết nối máy chủ — dữ liệu lưu trên Supabase."
+                : "Bản xem thử — dữ liệu chỉ lưu trên trình duyệt này."}
+            </span>
           </div>
-          <label className="actor-picker">
-            <span className="avatar">
-              {actor.name
-                .split(" ")
-                .slice(-2)
-                .map((n) => n[0])
-                .join("")}
-            </span>
-            <span className="actor-name">
-              {actor.name}
-              <small>{roleLabels[actor.role]}</small>
-            </span>
-            <ChevronsUpDown size={14} />
-            {!cloud && (
-              <select
-                aria-label="Chọn vai trò dùng thử"
-                value={actor.id}
-                onChange={(e) => {
-                  setActor(e.target.value);
-                  setOpen(false);
-                }}
-              >
-                {db.members
-                  .filter((m) => m.active)
-                  .map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} · {roleLabels[m.role]}
-                    </option>
-                  ))}
-              </select>
-            )}
-          </label>
-          {cloud && (
-            <Button
-              variant="outline"
-              onClick={() => void supabase?.auth.signOut()}
-            >
-              <LogOut size={15} /> Đăng xuất
-            </Button>
-          )}
         </div>
       </aside>
-      <div className="workspace-body">
-        <div className="topbar">
-          <div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="mobile-menu"
-              aria-label="Mở điều hướng"
-              onClick={async () => setOpen(true)}
+      <div className="main">
+        <header className="topbar">
+          <button
+            className="icon-btn menu-toggle"
+            aria-label="Mở menu"
+            onClick={() => setOpen(true)}
+          >
+            <Menu size={20} />
+          </button>
+          {actor.role !== "viewer" && (
+            <form
+              className="global-search"
+              role="search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                navigate(`/leads?q=${encodeURIComponent(q.trim())}`);
+                setQ("");
+              }}
             >
-              <Menu />
-            </Button>
-            <PanelLeftClose size={17} className="desktop-panel-icon" />
-            <span className="breadcrumb">
-              Không gian làm việc <span>/</span> <strong>{active.label}</strong>
-            </span>
+              <Search size={16} />
+              <input
+                aria-label="Tìm hồ sơ Lead"
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Tìm tài xế theo tên, SĐT, mã hồ sơ…"
+              />
+            </form>
+          )}
+          <div className="topbar-end">
+            {actor.role !== "viewer" && <NoticeBell />}
+            <UserMenu />
           </div>
-          <div className="topbar-right">
-            <span className="workspace-date">
-              {formatDate(new Date().toISOString())}
-            </span>
-            <span className="local-indicator">
-              <Check size={13} />
-              {cloud ? "Supabase" : "Lưu cục bộ"}
-            </span>
-          </div>
-        </div>
-        <main id="main-content" className="workspace-content">
-          {db.notices
-            .filter((n) => n.recipientId === actor.id && !n.readAt)
-            .slice(0, 3)
-            .map((n) => (
-              <div className="review-notice" key={n.id}>
-                <Bell size={16} />
-                <Link to={n.href ?? "/notices"}>{n.title}</Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    await run({ type: "noticeRead", id: n.id });
-                  }}
-                >
-                  Đã đọc
-                </Button>
-              </div>
-            ))}
+        </header>
+        <main id="main-content" className="content">
+          {banner && (
+            <div className="notice-strip" role="status">
+              <Inbox size={16} />
+              <Link to={banner.href ?? "/notifications"}>{banner.title}</Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void run({ type: "noticeRead", id: banner.id })}
+              >
+                Đã xem
+              </Button>
+            </div>
+          )}
           {children}
         </main>
-        <footer className="workspace-footer">
-          <span>Lead Sale · Phát triển từ Atomic CRM</span>
-          <span>Tiếp nhận → Tư vấn → Chuyển đổi</span>
-        </footer>
       </div>
       <Toaster richColors position="top-right" closeButton />
     </div>

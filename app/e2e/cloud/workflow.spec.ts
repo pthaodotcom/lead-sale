@@ -8,9 +8,9 @@ async function login(page: Page, role: string) {
   await page.getByLabel("Email", { exact: true }).fill(account.email);
   await page.getByLabel("Mật khẩu", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Tổng quan tuyển tài xế", exact: true }),
-  ).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole("button", { name: "Tài khoản" })).toBeVisible({
+    timeout: 30000,
+  });
 }
 test("đăng nhập thật, tạo hồ sơ, nhận việc và ghi tư vấn; báo cáo không lộ hồ sơ", async ({
   page,
@@ -19,7 +19,9 @@ test("đăng nhập thật, tạo hồ sơ, nhận việc và ghi tư vấn; bá
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await login(page, "admin");
-  await expect(page.getByLabel("Chọn vai trò dùng thử")).toHaveCount(0);
+  await page.getByRole("button", { name: "Tài khoản" }).click();
+  await expect(page.getByText("Xem thử với vai trò")).toHaveCount(0);
+  await page.keyboard.press("Escape");
   const name = `Kiểm thử giao diện ${Date.now()}`;
   const phone = "09" + String(Date.now() % 100000000).padStart(8, "0");
   await page.goto("/#/leads/create");
@@ -27,7 +29,7 @@ test("đăng nhập thật, tạo hồ sơ, nhận việc và ghi tư vấn; bá
   await page.getByLabel("Số điện thoại").fill(phone);
   await page.getByLabel("Thành phố đăng ký").fill("Hà Nội");
   await page.getByLabel("Nguồn Lead").selectOption("web");
-  await page.getByRole("button", { name: "Tạo hồ sơ Lead" }).click();
+  await page.getByRole("button", { name: "Tạo hồ sơ", exact: true }).click();
   await page
     .getByRole("link", { name: new RegExp(name) })
     .first()
@@ -41,9 +43,9 @@ test("đăng nhập thật, tạo hồ sơ, nhận việc và ghi tư vấn; bá
   await page.locator(".data-table").getByRole("link", { name: /^PC-/ }).click();
   const ticketUrl = page.url();
   await page
-    .getByLabel("Nội dung tư vấn")
+    .getByLabel("Ghi chú")
     .fill("Dữ liệu giả để kiểm tra lưu từ giao diện lên Supabase.");
-  await page.getByRole("button", { name: "Lưu kết quả tư vấn" }).click();
+  await page.getByRole("button", { name: "Lưu lần liên hệ" }).click();
   await expect(page.locator(".timeline")).toContainText(
     "Dữ liệu giả để kiểm tra",
   );
@@ -62,9 +64,9 @@ test("đăng nhập thật, tạo hồ sơ, nhận việc và ghi tư vấn; bá
     salePage.getByRole("button", { name: "Nhận việc", exact: true }),
   ).toHaveCount(0);
   await salePage
-    .getByLabel("Nội dung tư vấn")
+    .getByLabel("Ghi chú")
     .fill("Telesale đã nhận việc và liên hệ tài xế mẫu.");
-  await salePage.getByRole("button", { name: "Lưu kết quả tư vấn" }).click();
+  await salePage.getByRole("button", { name: "Lưu lần liên hệ" }).click();
   await expect(salePage.locator(".timeline")).toContainText(
     "Telesale đã nhận việc",
   );
@@ -75,12 +77,12 @@ test("đăng nhập thật, tạo hồ sơ, nhận việc và ghi tư vấn; bá
   await viewerPage.goto("/#/reports");
   await expect(
     viewerPage.getByRole("heading", {
-      name: "Báo cáo tuyển tài xế",
+      name: "Báo cáo",
       exact: true,
     }),
   ).toBeVisible();
   const downloadEvent = viewerPage.waitForEvent("download");
-  await viewerPage.getByRole("button", { name: "Xuất CSV đang lọc" }).click();
+  await viewerPage.getByRole("button", { name: "Xuất CSV" }).click();
   const exportPath = await (await downloadEvent).path();
   const exported = readFileSync(exportPath!, "utf8");
   expect(exported).toContain("Tổng Lead");
@@ -88,20 +90,22 @@ test("đăng nhập thật, tạo hồ sơ, nhận việc và ghi tư vấn; bá
   expect(exported).not.toContain(name);
   await viewerPage.goto("/#/leads");
   await expect(
-    viewerPage.getByRole("heading", { name: "Bạn chưa có quyền truy cập" }),
+    viewerPage.getByRole("heading", {
+      name: "Bạn không có quyền xem trang này",
+    }),
   ).toBeVisible();
   await expect(viewerPage.getByText(phone, { exact: true })).toHaveCount(0);
   await viewerContext.close();
   // Keep an auditable synthetic record, closed so it does not remain work to do.
   await page.reload();
-  await page.getByLabel("Trạng thái tiếp theo").selectOption("Closed");
+  await page.getByLabel("Chuyển phiếu sang").selectOption("Closed");
   await page
-    .getByLabel("Lý do", { exact: true })
+    .getByLabel("Lý do")
     .fill("Hoàn tất kiểm thử giao diện với dữ liệu giả.");
   await page
     .getByRole("button", { name: "Cập nhật phiếu", exact: true })
     .click();
-  await expect(page.locator(".review-notice")).toContainText("Phiếu đã đóng");
+  await expect(page.locator(".callout")).toContainText("Phiếu đã đóng");
   expect(errors).toEqual([]);
 });
 
@@ -113,10 +117,7 @@ test("quản trị, báo cáo và hồ sơ dùng được trên điện thoại"
     path: testInfo.outputPath("dashboard.png"),
     fullPage: true,
   });
-  await page.goto("/#/settings");
-  await page
-    .getByRole("button", { name: "Người dùng & vai trò", exact: true })
-    .click();
+  await page.goto("/#/admin/users");
   await expect(
     page.getByText("admin@lead-sale.local", { exact: true }),
   ).toBeVisible();

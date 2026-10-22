@@ -22,6 +22,20 @@ export interface Source {
   name: string;
   active: boolean;
 }
+/** Extended driver profile (BA X-01). Every field optional; stored as jsonb. */
+export interface LeadProfile {
+  birthYear?: string;
+  gender?: "male" | "female" | "";
+  district?: string;
+  vehicleDetail?: string;
+  hasVehicle?: "yes" | "no" | "";
+  otherApps?: string[];
+  referrer?: string;
+  campaign?: string;
+  callTime?: "morning" | "afternoon" | "evening" | "any" | "";
+  idNumber?: string;
+  documents?: { cccd?: boolean; license?: boolean; registration?: boolean };
+}
 export interface Lead {
   id: string;
   name: string;
@@ -35,6 +49,7 @@ export interface Lead {
   tags: string[];
   note: string;
   archived: boolean;
+  profile?: LeadProfile;
   activatedAt?: string;
   onboardedAt?: string;
   version?: number;
@@ -68,6 +83,8 @@ export interface Assignment {
   round?: number;
   previousId?: string;
   version?: number;
+  /** Next follow-up call agreed with the driver (BA X-03, BR-61). */
+  nextCallAt?: string;
 }
 export interface Activity {
   id: string;
@@ -104,6 +121,7 @@ export interface Appointment {
   previousId?: string;
 }
 export interface Reception {
+  note?: string;
   id: string;
   leadId: string;
   sourceId: string;
@@ -138,7 +156,6 @@ export interface ReportFilters {
   member?: string;
 }
 export interface ReportData {
-  byResultSource?: { id: string; registered: number; onboarded: number }[];
   total: number;
   registered: number;
   onboarded: number;
@@ -175,11 +192,11 @@ export interface Database {
 export type LeadInput = Pick<
   Lead,
   "name" | "phone" | "city" | "vehicle" | "sourceId" | "tags" | "note"
-> & { receivedAt?: string };
+> & { receivedAt?: string; profile?: LeadProfile };
 export type ActivityInput = Pick<
   Activity,
   "channel" | "at" | "outcome" | "decision" | "reason" | "note"
-> & { appointmentAt?: string; place?: string };
+> & { appointmentAt?: string; place?: string; nextCallAt?: string };
 export type Command =
   | { type: "saveLead"; id?: string; input: LeadInput }
   | {
@@ -208,6 +225,7 @@ export type Command =
     }
   | { type: "assign"; leadId: string; assigneeId: string; transfer?: boolean }
   | { type: "accept"; id: string }
+  | { type: "followUp"; id: string; at: string | null }
   | { type: "ticketStatus"; id: string; status: TicketStatus; reason: string }
   | { type: "activity"; assignmentId: string; input: ActivityInput }
   | { type: "appointment"; id: string; status: Appointment["status"] }

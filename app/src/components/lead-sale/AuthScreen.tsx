@@ -1,9 +1,23 @@
-import { useState } from "react";
-import { Truck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { supabase } from "./backend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "./shared";
+
+type TestAccount = {
+  email: string;
+  password: string;
+  role: string;
+};
+
+const testRoleNames: Record<string, string> = {
+  admin: "Quản trị",
+  intake: "Tiếp nhận",
+  leader: "Trưởng nhóm",
+  telesale: "Telesale",
+  viewer: "Xem báo cáo",
+};
+
 export function AuthScreen({
   configured,
   signedIn,
@@ -21,11 +35,29 @@ export function AuthScreen({
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [sent, setSent] = useState(false);
+  const [testAccounts, setTestAccounts] = useState<TestAccount[]>([]);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const controller = new AbortController();
+    void fetch("/__lead/test-accounts", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const accounts = await response.json();
+        if (!controller.signal.aborted && Array.isArray(accounts))
+          setTestAccounts(accounts);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
   return (
     <main className="auth-screen">
       <section className="auth-card">
         <span className="auth-brand">
-          <Truck /> Lead Sale
+          <img src="/ahamove-logo.png" alt="AhaMove" width={120} height={68} />
+          <span>Lead Sale</span>
         </span>
         <h1>
           {!configured
@@ -133,6 +165,32 @@ export function AuthScreen({
             >
               {forgot ? "Quay lại đăng nhập" : "Quên mật khẩu"}
             </Button>
+            {!forgot && testAccounts.length > 0 && (
+              <details className="auth-test-accounts">
+                <summary>Tài khoản dùng thử</summary>
+                <p>Chọn tài khoản để điền sẵn email và mật khẩu.</p>
+                <div className="auth-test-list">
+                  {testAccounts.map((account) => (
+                    <Button
+                      key={account.email}
+                      type="button"
+                      variant="outline"
+                      className="auth-test-account"
+                      disabled={busy}
+                      aria-pressed={email === account.email}
+                      onClick={() => {
+                        setEmail(account.email);
+                        setPassword(account.password);
+                        setMessage("");
+                      }}
+                    >
+                      <strong>{testRoleNames[account.role] ?? account.role}</strong>
+                      <span>{account.email}</span>
+                    </Button>
+                  ))}
+                </div>
+              </details>
+            )}
           </form>
         )}
         {message && (

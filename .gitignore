@@ -7,3 +7,5 @@
 **/test-results/
 **/playwright-report/
 .impeccable/
+.sites/
+.claude/launch.json

@@ -74,7 +74,11 @@ export async function sendCommand(
     version = db.leads.find((l) => l.id === command.id)?.version;
   let ticketId: string | undefined;
   if ("assignmentId" in command) ticketId = command.assignmentId;
-  if (command.type === "accept" || command.type === "ticketStatus")
+  if (
+    command.type === "accept" ||
+    command.type === "ticketStatus" ||
+    command.type === "followUp"
+  )
     ticketId = command.id;
   if (
     command.type === "appointment" ||

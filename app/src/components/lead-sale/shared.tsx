@@ -1,5 +1,17 @@
 import { Link } from "react-router";
-import { ArrowLeft, Inbox, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  Inbox,
+  MoreHorizontal,
+  Search,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Children,
   cloneElement,
@@ -11,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { leadLabels, ticketLabels } from "./domain";
 import { serverNow } from "./dates";
+import type { Database } from "./types";
 
 export const formatDate = (value?: string, time = false) =>
   value && Number.isFinite(Date.parse(value))
@@ -22,11 +35,43 @@ export const formatDate = (value?: string, time = false) =>
         ...(time ? { hour: "2-digit", minute: "2-digit" } : {}),
       }).format(new Date(value))
     : "—";
+export const formatTime = (value: string) =>
+  new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+export const vnDay = (value: string | Date) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
+    new Date(value),
+  );
+export function relativeDeadline(value: string) {
+  const hours = (Date.parse(value) - serverNow().getTime()) / 3600000;
+  if (hours <= 0) return "Đã hết hạn";
+  if (hours < 24) return `Còn ${Math.max(1, Math.round(hours))} giờ`;
+  return `Còn ${Math.round(hours / 24)} ngày`;
+}
 export function localDateTime(value = serverNow()) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 23);
 }
+export const initials = (name = "") =>
+  /^\+?\d/.test(name.trim())
+    ? name.trim().slice(-2)
+    : name
+        .split(" ")
+        .filter(Boolean)
+        .slice(-2)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase();
+export const memberName = (db: Database, id?: string) =>
+  db.members.find((m) => m.id === id)?.name ?? "—";
+export const sourceName = (db: Database, id?: string) =>
+  db.sources.find((s) => s.id === id)?.name ?? "—";
+export const vehicleLabel = (v: string) => (v === "Van" ? "Xe Van" : "Xe máy");
+
 export function Badge({
   status,
   ticket = false,
@@ -35,10 +80,38 @@ export function Badge({
   ticket?: boolean;
 }) {
   return (
-    <span className={`status-badge status-${status.toLowerCase()}`}>
+    <span className={`chip s-${status.toLowerCase()}`}>
       {((ticket ? ticketLabels : leadLabels) as Record<string, string>)[
         status
       ] ?? status}
+    </span>
+  );
+}
+export function Chip({
+  tone = "",
+  children,
+  plain = false,
+}: {
+  tone?: string;
+  children: ReactNode;
+  plain?: boolean;
+}) {
+  return (
+    <span className={`chip ${tone ? `s-${tone}` : ""} ${plain ? "plain" : ""}`}>
+      {children}
+    </span>
+  );
+}
+export function Avatar({
+  name,
+  size = "",
+}: {
+  name?: string;
+  size?: "" | "sm" | "lg";
+}) {
+  return (
+    <span className={`avatar ${size}`} aria-hidden>
+      {initials(name)}
     </span>
   );
 }
@@ -47,41 +120,125 @@ export function PageHeading({
   description,
   action,
   back,
+  backLabel = "Quay lại",
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   action?: ReactNode;
   back?: string;
+  backLabel?: string;
 }) {
   return (
-    <header className="page-heading">
+    <header className="page-head">
       <div>
         {back && (
           <Link className="back-link" to={back}>
-            <ArrowLeft size={15} />
-            Quay lại danh sách
+            <ArrowLeft size={14} />
+            {backLabel}
           </Link>
         )}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>
-      <div className="page-actions">{action}</div>
+      {action && <div className="page-actions">{action}</div>}
     </header>
+  );
+}
+export function Panel({
+  title,
+  aside,
+  children,
+  className = "",
+  bodyless = false,
+}: {
+  title?: ReactNode;
+  aside?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  bodyless?: boolean;
+}) {
+  return (
+    <section className={`panel ${className}`}>
+      {title && (
+        <div className="panel-head">
+          <h2>{title}</h2>
+          {aside}
+        </div>
+      )}
+      {bodyless ? children : <div className="panel-body">{children}</div>}
+    </section>
+  );
+}
+export function Kpi({
+  label,
+  value,
+  hint,
+  tone = "",
+  to,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+  tone?: "" | "red";
+  to?: string;
+}) {
+  const body = (
+    <>
+      <span>{label}</span>
+      <strong className={tone ? `tone-${tone}` : undefined}>{value}</strong>
+      {hint && <small>{hint}</small>}
+    </>
+  );
+  return to ? (
+    <Link className="kpi" to={to}>
+      {body}
+    </Link>
+  ) : (
+    <div className="kpi">{body}</div>
+  );
+}
+export function Bar({
+  label,
+  value,
+  total,
+  tone = "",
+}: {
+  label: string;
+  value: number;
+  total: number;
+  tone?: string;
+}) {
+  const pct = total ? (value / total) * 100 : 0;
+  return (
+    <div className="bar-row">
+      <div>
+        <span>{label}</span>
+        <strong>
+          {value}
+          <small>{Number(pct.toFixed(1))}%</small>
+        </strong>
+      </div>
+      <div className={`bar ${tone}`}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 }
 export function Field({
   label,
   children,
   hint,
+  className = "",
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  className?: string;
 }) {
   const fieldId = useId();
   const labelId = `${fieldId}-label`;
   return (
-    <div className="field">
+    <div className={`field ${className}`}>
       <label id={labelId} htmlFor={fieldId}>
         {label}
       </label>
@@ -104,15 +261,17 @@ export function Empty({
   title = "Chưa có dữ liệu",
   description = "Thử điều chỉnh bộ lọc hoặc tiếp nhận hồ sơ mới.",
   action,
+  icon: Icon = Inbox,
 }: {
   title?: string;
   description?: string;
   action?: ReactNode;
+  icon?: LucideIcon;
 }) {
   return (
     <div className="empty-state">
-      <Inbox size={30} />
-      <h3>{title}</h3>
+      <Icon size={30} />
+      <h2>{title}</h2>
       <p>{description}</p>
       {action}
     </div>
@@ -128,31 +287,36 @@ export function Guard({
   return allowed ? (
     children
   ) : (
-    <Empty
-      title="Bạn chưa có quyền truy cập"
-      description="Chọn chức năng phù hợp với vai trò của bạn."
-      action={
-        <Button asChild variant="outline">
-          <Link to="/">Về tổng quan</Link>
-        </Button>
-      }
-    />
+    <div className="panel">
+      <Empty
+        title="Bạn không có quyền xem trang này"
+        description="Trang này thuộc vai trò khác. Quay về Tổng quan để xem việc của bạn."
+        action={
+          <Button asChild variant="outline">
+            <Link to="/">Về Tổng quan</Link>
+          </Button>
+        }
+      />
+    </div>
   );
 }
 export function SearchBox({
   value,
   onChange,
   placeholder = "Tìm tên, số điện thoại, mã hồ sơ…",
+  className = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  className?: string;
 }) {
   return (
-    <div className="search-box">
-      <Search size={17} />
+    <div className={`search-box ${className}`}>
+      <Search size={16} />
       <input
         aria-label="Tìm kiếm"
+        type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -162,7 +326,7 @@ export function SearchBox({
 }
 export function downloadCsv(filename: string, rows: (string | number)[][]) {
   const content =
-    "\uFEFF" +
+    "﻿" +
     rows
       .map((row) =>
         row
@@ -183,19 +347,42 @@ export function downloadCsv(filename: string, rows: (string | number)[][]) {
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export const textMatches = (q: string, ...values: string[]) =>
-  values
-    .join(" ")
+const fold = (s: string) =>
+  s
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replaceAll("đ", "d")
     .replaceAll("Đ", "D")
-    .toLowerCase()
-    .includes(
-      q
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replaceAll("đ", "d")
-        .toLowerCase()
-        .trim(),
-    );
+    .toLowerCase();
+export const textMatches = (q: string, ...values: string[]) =>
+  fold(values.join(" ")).includes(fold(q).trim());
+
+/** Row-level actions behind a single ⋯ button, as helpdesk tables do. */
+export function RowMenu({
+  items,
+  label,
+}: {
+  label: string;
+  items: { label: string; onSelect: () => void; danger?: boolean }[];
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="row-menu" aria-label={`Thao tác: ${label}`}>
+          <MoreHorizontal size={17} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {items.map((i) => (
+          <DropdownMenuItem
+            key={i.label}
+            onSelect={i.onSelect}
+            variant={i.danger ? "destructive" : "default"}
+          >
+            {i.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

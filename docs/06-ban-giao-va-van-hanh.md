@@ -33,7 +33,7 @@ npm run dev
 
 Máy hiện tại đã cài dependency và cấu hình `.env.local`, không cần chép đè file đó. Nếu máy không có lệnh npm nhưng đã có Node và dependency, chạy `node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173`, hoặc `./Start-LeadSale.ps1`. Mở `http://127.0.0.1:5173`.
 
-Tài khoản mẫu đã cấp trong project: admin, tiếp nhận, trưởng nhóm, 2 Telesale và người xem báo cáo. Thông tin đăng nhập nằm trong **`app/.env.accounts.local`** (JSON; bị gitignore). Thông tin admin riêng ở `.env.admin.local`. Không có mật khẩu mặc định cố định trong mã nguồn.
+Tài khoản mẫu đã cấp trong project: admin, tiếp nhận, trưởng nhóm, 2 Telesale và người xem báo cáo. Thông tin đăng nhập nằm trong **`app/.env.accounts.local`** (JSON; bị gitignore). Thông tin admin riêng ở `.env.admin.local`. Không có mật khẩu mặc định cố định trong mã nguồn. Khi chạy Vite development, mục **Tài khoản dùng thử** ở cuối form đăng nhập mặc định thu gọn; mở và chọn tài khoản để điền sẵn email/mật khẩu từ file local. Bản build production không chứa bộ tài khoản này. Danh sách được nạp qua endpoint chỉ có trong Vite development, với Cache-Control: no-store; sau khi sửa file local chỉ cần tải lại trang đăng nhập.
 
 Chế độ xem thử: `npm run dev:demo`; dùng localStorage riêng và bộ chọn vai trò. Không đưa dữ liệu demo vào Supabase. Bản thường chỉ chạy với phiên Auth và dữ liệu từ máy chủ.
 

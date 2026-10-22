@@ -1,26 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import { calculateReport, latestAssignment, leadLabels } from "./domain";
 import { loadReport } from "./backend";
 import {
   Badge,
+  Bar,
   downloadCsv,
   Empty,
   Field,
   formatDate,
+  Kpi,
+  memberName,
   PageHeading,
+  Panel,
+  sourceName,
+  vnDay,
 } from "./shared";
 import type { ReportData } from "./types";
+
 const percent = (n: number, total: number) =>
   total ? Number(((n / total) * 100).toFixed(2)) : 0;
-const resultSource = (source?: string) =>
-  source === "simulator"
-    ? "Giả lập"
-    : ["manual", "manual_correction"].includes(source ?? "")
-      ? "Xác nhận thủ công"
-      : "Chưa rõ căn cứ (dữ liệu cũ)";
+
 export function Reports() {
   const { db, actor, cloud } = useWorkspace();
   const [from, setFrom] = useState("");
@@ -42,36 +45,26 @@ export function Reports() {
     setLoading(true);
     setError("");
     void loadReport(filters)
-      .then((r) => {
-        if (alive) setReport(r);
-      })
-      .catch((e) => {
-        if (alive) setError(e.message);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
+      .then((r) => alive && setReport(r))
+      .catch((e) => alive && setError(e.message))
+      .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
   }, [cloud, filters, db, invalid]);
-  const summary = invalid
+  const s = invalid
     ? undefined
     : cloud
       ? report
       : calculateReport(db, actor, filters);
   const canDetail = ["admin", "intake", "leader"].includes(actor.role);
-  const day = (s: string) =>
-    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
-      new Date(s),
-    );
   const rows = canDetail
     ? db.leads.filter((l) => {
         const owner = latestAssignment(db, l.id);
         return (
           !l.archived &&
-          (!from || day(l.receivedAt) >= from) &&
-          (!to || day(l.receivedAt) <= to) &&
+          (!from || vnDay(l.receivedAt) >= from) &&
+          (!to || vnDay(l.receivedAt) <= to) &&
           (!source || l.sourceId === source) &&
           (!status || l.status === status) &&
           (!member || (owner?.assigneeId ?? "unassigned") === member) &&
@@ -80,68 +73,65 @@ export function Reports() {
         );
       })
     : [];
+  const filtered = !!(from || to || source || status || member);
+  const exportCsv = () => {
+    if (!s) return;
+    downloadCsv(
+      "bao-cao-lead.csv",
+      canDetail
+        ? [
+            [
+              "Mã hồ sơ",
+              "Tài xế",
+              "SĐT",
+              "Nguồn",
+              "Trạng thái",
+              "Phụ trách gần nhất",
+              "Ngày tiếp nhận",
+              "Ngày đăng ký",
+              "Ngày chạy đơn đầu",
+            ],
+            ...rows.map((l) => [
+              l.id,
+              l.name,
+              l.phone,
+              sourceName(db, l.sourceId),
+              leadLabels[l.status],
+              latestAssignment(db, l.id)
+                ? memberName(db, latestAssignment(db, l.id)?.assigneeId)
+                : "Chưa phân công",
+              formatDate(l.receivedAt),
+              formatDate(l.activatedAt, true),
+              formatDate(l.onboardedAt, true),
+            ]),
+          ]
+        : [
+            ["Chỉ số", "Số lượng"],
+            ["Tổng Lead", s.total],
+            ["Đã đăng ký", s.registered],
+            ["Đã chạy đơn đầu", s.onboarded],
+            ["Lead quá hẹn", s.overdue],
+          ],
+    );
+  };
   return (
     <>
       <PageHeading
-        title="Báo cáo tuyển tài xế"
-        description="Theo ngày tiếp nhận đầu; kết quả chuyển đổi cập nhật đến hiện tại."
+        title="Báo cáo"
+        description="Lọc theo ngày tiếp nhận đầu; kết quả chuyển đổi tính đến hiện tại."
         action={
           <Button
             variant="outline"
-            disabled={loading || invalid || !!error || !summary?.total}
-            onClick={() => {
-              if (!summary) return;
-              downloadCsv(
-                "bao-cao-lead.csv",
-                canDetail
-                  ? [
-                      [
-                        "Mã hồ sơ",
-                        "Tài xế",
-                        "SĐT",
-                        "Nguồn",
-                        "Trạng thái",
-                        "Phụ trách gần nhất",
-                        "Ngày tiếp nhận",
-                        "Ngày đăng ký thực tế",
-                        "Nguồn xác nhận đăng ký",
-                        "Ngày đơn đầu thực tế",
-                        "Nguồn xác nhận đơn đầu",
-                      ],
-                      ...rows.map((l) => [
-                        l.id,
-                        l.name,
-                        l.phone,
-                        db.sources.find((s) => s.id === l.sourceId)?.name ?? "",
-                        leadLabels[l.status],
-                        db.members.find(
-                          (m) =>
-                            m.id === latestAssignment(db, l.id)?.assigneeId,
-                        )?.name ?? "Chưa phân công",
-                        formatDate(l.receivedAt),
-                        formatDate(l.activatedAt, true),
-                        l.activatedAt ? resultSource(l.activatedSource) : "",
-                        formatDate(l.onboardedAt, true),
-                        l.onboardedAt ? resultSource(l.onboardedSource) : "",
-                      ]),
-                    ]
-                  : [
-                      ["Chỉ số", "Số lượng"],
-                      ["Tổng Lead", summary.total],
-                      ["Đã đăng ký", summary.registered],
-                      ["Đã chạy đơn đầu", summary.onboarded],
-                      ["Lead quá hẹn", summary.overdue],
-                    ],
-              );
-            }}
+            disabled={loading || invalid || !!error || !s?.total}
+            onClick={exportCsv}
           >
-            Xuất CSV đang lọc
+            <Download /> Xuất CSV
           </Button>
         }
       />
-      <section className="data-section">
-        <div className="report-filters">
-          <Field label="Tiếp nhận từ ngày">
+      <section className="panel" style={{ marginBottom: 16 }}>
+        <div className="toolbar" style={{ borderBottom: 0 }}>
+          <Field label="Từ ngày">
             <input
               type="date"
               value={from}
@@ -158,17 +148,17 @@ export function Reports() {
           </Field>
           <Field label="Nguồn">
             <select value={source} onChange={(e) => setSource(e.target.value)}>
-              <option value="">Tất cả nguồn</option>
-              {db.sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
+              <option value="">Mọi nguồn</option>
+              {db.sources.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
                 </option>
               ))}
             </select>
           </Field>
           <Field label="Trạng thái Lead">
             <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">Tất cả trạng thái</option>
+              <option value="">Mọi trạng thái</option>
               {Object.entries(leadLabels).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -176,19 +166,39 @@ export function Reports() {
               ))}
             </select>
           </Field>
-          <Field label="Phụ trách gần nhất">
-            <select value={member} onChange={(e) => setMember(e.target.value)}>
-              <option value="">Tất cả nhân viên</option>
-              <option value="unassigned">Chưa phân công</option>
-              {db.members
-                .filter((m) => m.role === "telesale")
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-            </select>
-          </Field>
+          {actor.role !== "telesale" && (
+            <Field label="Nhân viên phụ trách">
+              <select
+                value={member}
+                onChange={(e) => setMember(e.target.value)}
+              >
+                <option value="">Mọi nhân viên</option>
+                <option value="unassigned">Chưa phân công</option>
+                {db.members
+                  .filter((m) => m.role === "telesale")
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          )}
+          {filtered && (
+            <Button
+              variant="ghost"
+              style={{ alignSelf: "flex-end" }}
+              onClick={() => {
+                setFrom("");
+                setTo("");
+                setSource("");
+                setStatus("");
+                setMember("");
+              }}
+            >
+              Xóa bộ lọc
+            </Button>
+          )}
         </div>
       </section>
       {invalid && (
@@ -198,233 +208,209 @@ export function Reports() {
       )}
       {error && (
         <p role="alert" className="form-error">
-          {error}
+          Không tải được báo cáo: {error}
         </p>
       )}
-      {loading && <p role="status">Đang cập nhật báo cáo…</p>}
-      {summary && !error && (
-        <>
-          <div className="stats-strip report-stats" aria-busy={loading}>
-            {[
-              ["Lead trong bộ lọc", summary.total, "Mỗi hồ sơ tính một lần"],
-              [
-                "Đã đăng ký",
-                summary.registered,
-                `${percent(summary.registered, summary.total)}% tổng Lead`,
-              ],
-              [
-                "Đã chạy đơn đầu",
-                summary.onboarded,
-                `${percent(summary.onboarded, summary.total)}% tổng Lead`,
-              ],
-              [
-                "Lead quá hẹn",
-                summary.overdue,
-                `${percent(summary.overdue, summary.total)}% tổng Lead`,
-              ],
-            ].map(([label, count, hint]) => (
-              <div key={label}>
-                <span>{label}</span>
-                <strong>{count}</strong>
-                <small>{hint}</small>
-              </div>
-            ))}
+      {s && !error && (
+        <div aria-busy={loading}>
+          <div className="kpis">
+            <Kpi
+              label="Lead trong bộ lọc"
+              value={s.total}
+              hint="Mỗi hồ sơ tính một lần"
+            />
+            <Kpi
+              label="Đã đăng ký"
+              value={s.registered}
+              hint={`${percent(s.registered, s.total)}% tổng Lead`}
+            />
+            <Kpi
+              label="Đã chạy đơn đầu"
+              value={s.onboarded}
+              hint={`${percent(s.onboarded, s.total)}% tổng Lead`}
+            />
+            <Kpi
+              label="Lead quá hẹn"
+              value={s.overdue}
+              hint={`${percent(s.overdue, s.total)}% tổng Lead`}
+              tone="red"
+            />
           </div>
-          <div className="dashboard-grid reports-grid">
-            <section className="data-section">
-              <div className="section-header">
-                <h2>Chuyển đổi theo nguồn</h2>
-              </div>
-              <div className="table-scroll">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Nguồn</th>
-                      <th>Tổng Lead</th>
-                      <th>Đã đăng ký</th>
-                      <th>Tỷ lệ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {db.sources.map((s) => {
-                      const item = summary.bySource.find((x) => x.id === s.id);
-                      return (
-                        <tr key={s.id}>
-                          <td>{s.name}</td>
-                          <td>{item?.total ?? 0}</td>
-                          <td>{item?.registered ?? 0}</td>
-                          <td>
-                            {percent(item?.registered ?? 0, item?.total ?? 0)}%
-                          </td>
+          {s.total ? (
+            <>
+              <div className="grid-2">
+                <Panel title="Theo nguồn" bodyless>
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Nguồn</th>
+                          <th className="end">Lead</th>
+                          <th className="end">Đăng ký</th>
+                          <th className="end">Tỷ lệ</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-            <section className="data-section">
-              <div className="section-header">
-                <h2>Phễu chuyển đổi</h2>
-                <span>Lũy kế</span>
-              </div>
-              <div className="funnel">
-                {[
-                  ["Đã tiếp nhận", summary.total],
-                  ["Đã đăng ký", summary.registered],
-                  ["Đã chạy đơn", summary.onboarded],
-                ].map(([label, count]) => (
-                  <div className="funnel-row" key={label}>
-                    <div>
-                      <span>{label}</span>
-                      <strong>{count}</strong>
-                    </div>
-                    <div className="funnel-track">
-                      <span
-                        style={{
-                          width: `${percent(Number(count), summary.total)}%`,
-                        }}
-                      />
-                    </div>
+                      </thead>
+                      <tbody>
+                        {db.sources.map((src) => {
+                          const r = s.bySource.find((x) => x.id === src.id);
+                          return (
+                            <tr key={src.id}>
+                              <td>{src.name}</td>
+                              <td className="end">{r?.total ?? 0}</td>
+                              <td className="end">{r?.registered ?? 0}</td>
+                              <td className="end">
+                                {percent(r?.registered ?? 0, r?.total ?? 0)}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
+                </Panel>
+                <Panel
+                  title="Phễu chuyển đổi"
+                  aside={<span>Lũy kế</span>}
+                  bodyless
+                >
+                  <div className="funnel">
+                    <Bar label="Đã tiếp nhận" value={s.total} total={s.total} />
+                    <Bar
+                      label="Đã đăng ký"
+                      value={s.registered}
+                      total={s.total}
+                    />
+                    <Bar
+                      label="Đã chạy đơn đầu"
+                      value={s.onboarded}
+                      total={s.total}
+                    />
+                  </div>
+                </Panel>
               </div>
-            </section>
-          </div>
-          <section className="data-section">
-            <div className="section-header">
-              <h2>Theo nhân viên phụ trách gần nhất</h2>
-            </div>
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Nhân viên</th>
-                    <th>Tổng Lead</th>
-                    <th>Đã đăng ký</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.byMember.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        {db.members.find((x) => x.id === m.id)?.name ??
-                          "Chưa phân công"}
-                      </td>
-                      <td>{m.total}</td>
-                      <td>{m.registered}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-          {summary.byResultSource && (
-            <section className="data-section">
-              <div className="section-header">
-                <h2>Theo nguồn xác nhận kết quả</h2>
-              </div>
-              <div className="table-scroll">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Nguồn xác nhận</th>
-                      <th>Đã đăng ký</th>
-                      <th>Đã chạy đơn đầu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.byResultSource.map((s) => (
-                      <tr key={s.id}>
-                        <td>{resultSource(s.id)}</td>
-                        <td>{s.registered}</td>
-                        <td>{s.onboarded}</td>
-                      </tr>
+              <div className="grid-2">
+                <Panel title="Theo nhân viên phụ trách gần nhất" bodyless>
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Nhân viên</th>
+                          <th className="end">Lead</th>
+                          <th className="end">Đăng ký</th>
+                          <th className="end">Tỷ lệ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {s.byMember
+                          .filter((m) => m.total)
+                          .map((m) => (
+                            <tr key={m.id}>
+                              <td>
+                                {m.id === "unassigned"
+                                  ? "Chưa phân công"
+                                  : memberName(db, m.id)}
+                              </td>
+                              <td className="end">{m.total}</td>
+                              <td className="end">{m.registered}</td>
+                              <td className="end">
+                                {percent(m.registered, m.total)}%
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Panel>
+                <Panel title="Theo trạng thái hồ sơ" bodyless>
+                  <div className="funnel">
+                    {Object.entries(leadLabels).map(([k, v]) => (
+                      <Bar
+                        key={k}
+                        label={v}
+                        value={s.byStatus[k] ?? 0}
+                        total={s.total}
+                      />
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </Panel>
               </div>
-            </section>
+              {canDetail && (
+                <Panel
+                  title="Chi tiết đối chiếu"
+                  aside={<span>{rows.length} hồ sơ</span>}
+                  className="panel-spaced"
+                  bodyless
+                >
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Tài xế</th>
+                          <th>Trạng thái</th>
+                          <th>Nguồn</th>
+                          <th>Phụ trách gần nhất</th>
+                          <th>Tiếp nhận</th>
+                          <th>Đăng ký / Đơn đầu</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((l) => (
+                          <tr key={l.id}>
+                            <td>
+                              <Link
+                                className="record-link"
+                                to={`/leads/${l.id}/show`}
+                              >
+                                {l.name}
+                              </Link>
+                              <small>{l.id}</small>
+                            </td>
+                            <td>
+                              <Badge status={l.status} />
+                            </td>
+                            <td>{sourceName(db, l.sourceId)}</td>
+                            <td>
+                              {latestAssignment(db, l.id)
+                                ? memberName(
+                                    db,
+                                    latestAssignment(db, l.id)?.assigneeId,
+                                  )
+                                : "Chưa phân công"}
+                            </td>
+                            <td>{formatDate(l.receivedAt)}</td>
+                            <td>
+                              {l.activatedAt ? formatDate(l.activatedAt) : "—"}
+                              <small>
+                                {l.onboardedAt
+                                  ? `Đơn đầu ${formatDate(l.onboardedAt)}`
+                                  : ""}
+                              </small>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Panel>
+              )}
+            </>
+          ) : (
+            <div className="panel">
+              <Empty
+                title="Không có dữ liệu trong bộ lọc"
+                description="Mở rộng khoảng ngày hoặc bỏ bớt điều kiện lọc."
+              />
+            </div>
           )}
-          {canDetail && (
-            <section className="data-section">
-              <div className="section-header">
-                <h2>Dữ liệu chi tiết đối chiếu</h2>
-                <span>{rows.length} hồ sơ</span>
-              </div>
-              <div className="table-scroll">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Tài xế</th>
-                      <th>Trạng thái</th>
-                      <th>Nguồn</th>
-                      <th>Phụ trách gần nhất</th>
-                      <th>Tiếp nhận</th>
-                      <th>Mốc kết quả / căn cứ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((l) => (
-                      <tr key={l.id}>
-                        <td>
-                          <Link
-                            className="record-link"
-                            to={`/leads/${l.id}/show`}
-                          >
-                            {l.name}
-                          </Link>
-                          <small>{l.id}</small>
-                        </td>
-                        <td>
-                          <Badge status={l.status} />
-                        </td>
-                        <td>
-                          {db.sources.find((s) => s.id === l.sourceId)?.name}
-                        </td>
-                        <td>
-                          {db.members.find(
-                            (m) =>
-                              m.id === latestAssignment(db, l.id)?.assigneeId,
-                          )?.name ?? "Chưa phân công"}
-                        </td>
-                        <td>{formatDate(l.receivedAt)}</td>
-                        <td>
-                          {l.activatedAt && (
-                            <small>
-                              Đăng ký: {formatDate(l.activatedAt, true)} ·{" "}
-                              {resultSource(l.activatedSource)}
-                            </small>
-                          )}
-                          {l.onboardedAt && (
-                            <small>
-                              Đơn đầu: {formatDate(l.onboardedAt, true)} ·{" "}
-                              {resultSource(l.onboardedSource)}
-                            </small>
-                          )}
-                          {!l.activatedAt &&
-                            !l.onboardedAt &&
-                            "Chưa có mốc xác nhận"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {!rows.length && <Empty />}
-            </section>
-          )}
-          {!summary.total && <Empty />}
-        </>
+        </div>
       )}
-      <details className="metric-definitions">
+      <details className="panel" style={{ marginTop: 16, padding: 16 }}>
         <summary>Cách tính số liệu</summary>
-        <p>
-          Lọc theo ngày tiếp nhận đầu tại Việt Nam, loại hồ sơ lưu trữ. Phễu lũy
-          kế bao gồm Onboarded trong số đã đăng ký. Quá hẹn là lịch chưa xử lý
-          đã qua giờ trên phiếu còn trong hạn. Mỗi Lead tính một lần; quy công
-          cho phiếu được tạo gần nhất, gồm phiếu đã đóng. Quyền báo cáo không mở
-          lại quyền xem hồ sơ cũ.
+        <p className="muted" style={{ margin: 0, maxWidth: "75ch" }}>
+          Lọc theo ngày tiếp nhận đầu (giờ Việt Nam), loại hồ sơ lưu trữ. Mỗi
+          Lead tính một lần. Phễu lũy kế: đã chạy đơn đầu được tính trong số đã
+          đăng ký. Quá hẹn là lịch chưa xác nhận đã qua giờ trên phiếu còn hạn.
+          Quy công cho người trên phiếu được tạo gần nhất, kể cả phiếu đã đóng.
         </p>
       </details>
     </>

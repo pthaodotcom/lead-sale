@@ -1,0 +1,322 @@
+.voice-panel {
+  margin-bottom: 20px;
+}
+.voice-pair {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.voice-pair svg {
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 8px;
+}
+.voice-pair > div {
+  flex: 1 1 200px;
+}
+.voice-pair p {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.voice-panel .panel-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.voice-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.voice-intro p {
+  flex: 1 1 280px;
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.7;
+}
+.voice-link {
+  margin-bottom: 16px;
+}
+.voice-link > label {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 7px;
+}
+.voice-link > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.voice-link input {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface-2);
+  font-size: 12px;
+}
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.voice-ready {
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.voice-ready i {
+  width: 8px;
+  height: 8px;
+  background: #a1a8b4;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.voice-ready.online {
+  color: var(--green);
+}
+.voice-ready.online i {
+  background: var(--green);
+}
+.voice-status {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 15px 17px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+.voice-status.connected {
+  background: var(--green-soft);
+  color: var(--green);
+  border-color: #b7debf;
+}
+.voice-status.ringing,
+.voice-status.connecting {
+  background: var(--navy-soft);
+  color: var(--brand-navy);
+}
+.voice-status.failed {
+  background: var(--red-soft);
+  color: var(--red);
+}
+.voice-status span {
+  font-size: 13px;
+}
+.voice-help {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 12px 0;
+}
+.voice-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+.voice-audio {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: 38px;
+  margin: 15px 0;
+}
+.voice-audio.idle {
+  display: none;
+}
+.voice-receiver {
+  min-height: 100svh;
+  background: #f6f7fa;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+}
+.voice-receiver > header {
+  display: flex;
+  max-width: 980px;
+  width: 100%;
+  margin: auto;
+  padding: 22px 25px;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  gap: 15px;
+}
+.voice-receiver > header img {
+  height: 42px;
+  object-fit: contain;
+}
+.voice-receiver > header span {
+  color: var(--ink-3);
+  font-size: 12px;
+  text-align: right;
+}
+.voice-receiver > main {
+  width: min(460px, calc(100% - 32px));
+  margin: 45px auto;
+  flex: 1;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 36px 26px;
+  box-shadow: var(--shadow);
+}
+.voice-avatar {
+  width: 90px;
+  height: 90px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  margin: 0 auto 23px;
+  background: var(--navy-soft);
+  color: var(--brand-navy);
+}
+.voice-avatar.ringing {
+  animation: voice-ring 1.4s infinite;
+  background: var(--green-soft);
+  color: var(--green);
+}
+.voice-receiver h1 {
+  font-size: 24px;
+  letter-spacing: -0.6px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.voice-receiver main > p {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 14px 0 25px;
+}
+.voice-duration {
+  font-size: 40px;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-navy);
+  margin-bottom: 24px;
+}
+.voice-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  padding: 15px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--green);
+  color: white;
+  cursor: pointer;
+}
+.voice-button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.voice-button.danger {
+  background: var(--red);
+}
+.voice-button.secondary {
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}
+.voice-receiver-actions {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+.voice-listening {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  color: var(--green);
+  padding: 15px;
+  background: var(--green-soft);
+  border-radius: 9px;
+}
+.voice-receiver-error {
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 13px;
+  padding: 13px;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+.voice-receiver .voice-audio {
+  margin: 18px auto;
+}
+.voice-speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-navy);
+  font-size: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.voice-receiver-note {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.8;
+}
+.voice-receiver > footer {
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 20px;
+}
+@keyframes voice-ring {
+  50% {
+    box-shadow: 0 0 0 13px #e5f5ea88;
+  }
+}
+@media (max-width: 600px) {
+  .voice-panel .panel-head {
+    align-items: flex-start;
+    gap: 8px;
+    flex-direction: column;
+  }
+  .voice-link > div > button,
+  .voice-link > div > a {
+    flex: 1;
+  }
+  .voice-receiver > main {
+    margin: 24px auto;
+    padding: 28px 20px;
+  }
+  .voice-receiver h1 {
+    font-size: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-avatar.ringing {
+    animation: none;
+  }
+}

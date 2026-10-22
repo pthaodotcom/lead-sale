@@ -2,15 +2,18 @@
 
 Hệ thống quản lý Lead tài xế dựa trên Atomic CRM, bám yêu cầu Google Doc. Bản tại `app/` đã dùng Supabase Auth, PostgreSQL/RLS và Storage thật; có tiếp nhận/import, phân công, tư vấn, lịch hẹn, nhắc việc/tự đóng trên máy chủ, bàn giao, báo cáo và quản trị. Ngày cập nhật: **21/10/2026**.
 
-Chạy tại `app/` với Node 24+: `npm ci --legacy-peer-deps`, chạy `npm run dev:core` và ở terminal thứ hai `npm run dev`. Web mặc định `http://127.0.0.1:5173`, API nguồn 5180. `.env.local` chứa URL/publishable key; `.env.server.local` riêng chứa cấu hình DB/CA cho máy chủ, không đưa vào Git. Chế độ xem thử độc lập: `npm run dev:demo`.
+Chạy tại `app/` với Node 24+: `npm ci --legacy-peer-deps`, rồi `npm run dev`. Web mặc định `http://127.0.0.1:5173`. `.env.local` chứa URL/publishable key; `.env.server.local` riêng chứa cấu hình DB/CA cho máy chủ, không đưa vào Git. Chế độ xem thử độc lập: `npm run dev:demo`.
 
-**Đã triển khai nguồn tài xế giả lập:** Admin mở **Tài xế giả lập** để tạo/liên kết tài xế và gửi tình huống đăng ký/đơn đầu qua API về Lead Sale. Admin/Tiếp nhận mở **Đối soát nguồn** để xem kết quả. Đã sửa tiếp nhận/sửa hồ sơ, đính chính kết quả/hoạt động/lịch, bàn giao, chat chưa phản hồi, lịch sử chuyển người, lô nhập và retry. [Cách thử, API, kiểm chứng và phần còn phụ thuộc môi trường](docs/08-ket-qua-gia-lap-core-va-khac-phuc.md).
+**22/10/2026 — làm lại theo đặc tả BA:** yêu cầu được định nghĩa lại tại [docs/09-dac-ta-nghiep-vu-ba.md](docs/09-dac-ta-nghiep-vu-ba.md) (quy trình, use case, FR/BR, ma trận menu theo vai trò, danh sách màn hình). Giao diện dựng lại toàn bộ: điều hướng nhóm theo công việc và vai trò, Nhiệm vụ có mục con kèm số đếm, phiếu tư vấn 3 cột, Điều phối giao hàng loạt, Tổng quan riêng cho từng vai trò. **Đã bỏ hệ thống tài xế giả lập** (màn Tài xế giả lập/Đối soát nguồn, server Node 5180, test e2e core); bảng/hàm giả lập trong DB Supabase vẫn còn, không được app dùng — xóa bằng migration riêng khi cần.
 
 Đọc [bàn giao, cấu hình, API và kết quả kiểm chứng](docs/06-ban-giao-va-van-hanh.md). Backend đang dùng nằm tại **`app/backend/supabase/`**; thư mục `app/supabase/` là backend gốc được giữ lại, không chạy migration của thư mục đó vào project Lead Sale.
 
 ## Tài liệu làm việc
 
-- [Kết quả triển khai giả lập core và sửa nghiệp vụ](docs/08-ket-qua-gia-lap-core-va-khac-phuc.md).
+- [Form tài xế tự đăng ký — link công khai, cấu hình và vận hành](docs/11-form-tai-xe-tu-dang-ky.md).
+
+- **[Đặc tả nghiệp vụ BA — bản hiện hành](docs/09-dac-ta-nghiep-vu-ba.md).**
+- [Kết quả triển khai giả lập core và sửa nghiệp vụ](docs/08-ket-qua-gia-lap-core-va-khac-phuc.md) — lịch sử, phần giả lập đã bỏ.
 - [Kế hoạch và quyết định xử lý 41 điểm rà soát](docs/07-ke-hoach-gia-lap-core-va-khac-phuc.md). Gọi/chat thủ công, bỏ Telegram; xem tài liệu 08 để biết phần đã triển khai và giới hạn còn lại.
 - [Yêu cầu, quy tắc, điểm cần chốt và checklist nghiệm thu](docs/01-yeu-cau-de-tai.md).
 - [Đối chiếu Atomic CRM, khoảng thiếu và hướng kỹ thuật](docs/02-doi-chieu-atomic-crm.md).

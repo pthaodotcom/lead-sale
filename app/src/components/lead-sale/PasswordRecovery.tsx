@@ -11,7 +11,10 @@ export function PasswordRecovery() {
   return (
     <main className="auth-screen">
       <section className="auth-card">
-        <span className="auth-brand">Lead Sale</span>
+        <span className="auth-brand">
+          <img src="/ahamove-logo.png" alt="AhaMove" width={120} height={68} />
+          <span>Lead Sale</span>
+        </span>
         <h1>Đặt mật khẩu mới</h1>
         <p>Liên kết khôi phục đã xác thực tài khoản của bạn.</p>
         <form
