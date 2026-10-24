@@ -228,7 +228,7 @@ export function Dashboard() {
 
       {telesale && (
         <div
-          className="panel"
+          className="panel quick-actions-bar"
           style={{
             padding: "12px 16px",
             marginBottom: 16,

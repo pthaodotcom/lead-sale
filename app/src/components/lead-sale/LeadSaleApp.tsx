@@ -46,10 +46,12 @@ export default function LeadSaleApp() {
         layout={Layout}
         dashboard={RootLanding}
         catchAll={NotFound}
+        loginPage={false}
         title="Lead Sale"
         disableTelemetry
       >
         <CustomRoutes>
+          <Route path="/login" element={<Navigate replace to="/" />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/tasks/:id" element={<TicketPage />} />
           <Route path="/dispatch" element={<Dispatch />} />
