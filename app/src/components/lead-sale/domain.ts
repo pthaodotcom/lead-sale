@@ -389,6 +389,28 @@ export function applyCommand(
         });
       break;
     }
+    case "leadNote": {
+      const lead = leadById(command.id);
+      ensure(!lead.archived, "Không thể sửa hồ sơ đã lưu trữ.");
+      const canUpdate =
+        actor.role === "admin" ||
+        actor.role === "intake" ||
+        (actor.role === "telesale" &&
+          db.assignments.some(
+            (t) =>
+              t.leadId === lead.id &&
+              t.assigneeId === actor.id &&
+              t.status !== "Closed",
+          ));
+      ensure(
+        canUpdate,
+        "Chỉ nhân viên phụ trách hồ sơ này được cập nhật ghi chú.",
+      );
+      lead.note = command.note.trim();
+      lead.updatedAt = stamp;
+      log("Cập nhật ghi chú Lead", lead.id, lead.note);
+      break;
+    }
     case "leadStatus": {
       ensure(
         canEditLead(actor),
@@ -672,6 +694,8 @@ export function applyCommand(
         note: input.note.trim(),
         attachments: input.attachments,
         round: ticket.round ?? 1,
+        direction: input.direction ?? (input.channel === "call" ? "outbound" : undefined),
+        durationSeconds: input.durationSeconds,
       };
       db.activities.unshift(activity);
       if (input.appointmentAt) {

@@ -73,6 +73,7 @@ export async function sendCommand(
       "archiveLead",
       "receiveLead",
       "correctMilestone",
+      "leadNote",
     ].includes(command.type)
   )
     version = db.leads.find((l) => l.id === command.id)?.version;
@@ -130,9 +131,9 @@ export async function uploadEvidence(
 ) {
   if (!supabase) {
     if (!demoMode) throw new Error("Chưa kết nối Supabase.");
-    if (!file.size || file.size > 3 * 1024 * 1024)
+    if (!file.size || file.size > 20 * 1024 * 1024)
       throw new Error(
-        "Bản demo dùng tệp tối đa 3 MB; bản máy chủ tối đa 20 MB.",
+        "Tệp cần có dữ liệu và không quá 20 MB.",
       );
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();

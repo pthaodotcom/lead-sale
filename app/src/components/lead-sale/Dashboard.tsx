@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Plus } from "lucide-react";
+import { CalendarDays, Inbox, Phone, PhoneCall, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import {
@@ -27,6 +27,9 @@ import { latestActivity } from "./tasks";
 import { TicketTable } from "./TicketTable";
 import { Reports } from "./Reports";
 import { Settings } from "./Settings";
+import { CallDialog } from "./CallDialog";
+import { CallLogModal } from "./CallLogModal";
+import { AppointmentCreateDialog } from "./AppointmentCreateDialog";
 import type { ReportFilters } from "./types";
 
 // Rate bars: value is a percentage, label shows numerator/denominator.
@@ -108,6 +111,16 @@ export function Dashboard() {
   const { db, actor } = useWorkspace();
   const [filters, setFilters] = useState<ReportFilters>(periodFilters("today"));
   const { analytics, error, loading } = useAnalytics(filters);
+
+  // Telesale interactive controls
+  const [telesaleFilter, setTelesaleFilter] = useState<
+    "all" | "new" | "callback" | "today" | "rebook"
+  >("all");
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [callLogOpen, setCallLogOpen] = useState(false);
+  const [apptDialogOpen, setApptDialogOpen] = useState(false);
+  const [activeTicketId, setActiveTicketId] = useState<string | undefined>();
+
   if (actor.role === "admin") return <Settings />;
   if (actor.role === "viewer") return <Reports />;
   const now = serverNow();
@@ -138,6 +151,26 @@ export function Dashboard() {
       dayVN(a.at) === today &&
       a.status === "scheduled",
   ).length;
+
+  const displayedPending = !telesale
+    ? pending.slice(0, 10)
+    : pending.filter((t) => {
+        if (telesaleFilter === "new") return t.status === "New";
+        if (telesaleFilter === "callback")
+          return (
+            latestActivity(db, t.id)?.outcome === "no_answer" ||
+            needsRebooking(db, t, now)
+          );
+        if (telesaleFilter === "today")
+          return db.appointments.some(
+            (a) =>
+              a.assignmentId === t.id &&
+              dayVN(a.at) === today &&
+              a.status === "scheduled",
+          );
+        if (telesaleFilter === "rebook") return needsRebooking(db, t, now);
+        return true;
+      });
   const totals = analytics?.totals;
   const newToday = db.leads.filter(
     (l) => !l.archived && dayVN(l.receivedAt) === today,
@@ -192,6 +225,86 @@ export function Dashboard() {
       <PeriodFilter value={filters} onChange={setFilters} />
       {error && <p role="alert">{error}</p>}
       {loading && <p role="status">Đang cập nhật số liệu…</p>}
+
+      {telesale && (
+        <div
+          className="panel"
+          style={{
+            padding: "12px 16px",
+            marginBottom: 16,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 10,
+            alignItems: "center",
+            background: "var(--bg-subtle, #f9fafb)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              marginRight: 4,
+            }}
+          >
+            Thao tác nhanh:
+          </span>
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={() => {
+              setActiveTicketId(undefined);
+              setCallDialogOpen(true);
+            }}
+          >
+            <Phone size={14} /> Gọi khách hàng
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setActiveTicketId(undefined);
+              setCallLogOpen(true);
+            }}
+          >
+            <PhoneCall size={14} /> Ghi nhận cuộc gọi & Bằng chứng
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setActiveTicketId(undefined);
+              setApptDialogOpen(true);
+            }}
+          >
+            <CalendarDays size={14} /> Tạo lịch hẹn
+          </Button>
+          <Button
+            type="button"
+            variant={telesaleFilter === "new" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setTelesaleFilter(telesaleFilter === "new" ? "all" : "new")
+            }
+          >
+            <Inbox size={14} /> Xem phiếu mới ({pending.filter((t) => t.status === "New").length})
+          </Button>
+          {telesaleFilter !== "all" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setTelesaleFilter("all")}
+              style={{ fontSize: 12 }}
+            >
+              Đặt lại bộ lọc (Hiện tất cả {pending.length} phiếu)
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className={`kpis ${telesale ? "kpis-2col" : ""}`}>
 
         {intake ? (
@@ -226,27 +339,41 @@ export function Dashboard() {
             <Kpi
               label="Phiếu mới"
               value={pending.filter((t) => t.status === "New").length}
-              hint="Chưa liên hệ"
-              to="/tasks?group=new"
+              hint="Chưa liên hệ · Bấm để lọc"
+              active={telesaleFilter === "new"}
+              onClick={() =>
+                setTelesaleFilter(telesaleFilter === "new" ? "all" : "new")
+              }
             />
             <Kpi
               label="Cần gọi lại"
               value={callBack}
-              hint="Không nghe máy / cần hẹn lại"
-              to="/tasks?group=no_answer"
+              hint="Không nghe máy / cần hẹn lại · Bấm để lọc"
+              active={telesaleFilter === "callback"}
+              onClick={() =>
+                setTelesaleFilter(
+                  telesaleFilter === "callback" ? "all" : "callback",
+                )
+              }
             />
             <Kpi
               label="Lịch hẹn hôm nay"
               value={todayAppointments}
-              hint="Đã lên lịch trong hôm nay"
-              to="/appointments"
+              hint="Đã lên lịch trong hôm nay · Bấm để lọc"
+              active={telesaleFilter === "today"}
+              onClick={() =>
+                setTelesaleFilter(telesaleFilter === "today" ? "all" : "today")
+              }
             />
             <Kpi
               label="Cần hẹn lại"
               value={rebook.length}
               tone={rebook.length ? "red" : ""}
-              hint="Qua 00:00 sau ngày hẹn, chưa đăng ký"
-              to="/tasks?group=overdue"
+              hint="Qua 00:00 sau ngày hẹn, chưa đăng ký · Bấm để lọc"
+              active={telesaleFilter === "rebook"}
+              onClick={() =>
+                setTelesaleFilter(telesaleFilter === "rebook" ? "all" : "rebook")
+              }
             />
           </>
         ) : (
@@ -361,11 +488,71 @@ export function Dashboard() {
       ) : null}
       {!intake && (
         <Panel
-          title="Phiếu cần xử lý"
+          title={
+            telesale
+              ? `Phiếu cần xử lý (${displayedPending.length}${telesaleFilter !== "all" ? ` / ${pending.length} tổng` : ""})`
+              : "Phiếu cần xử lý"
+          }
           aside={<Link to="/tasks">Tất cả nhiệm vụ →</Link>}
           bodyless
         >
-          <TicketTable tickets={pending.slice(0, 5)} />
+          {telesale && (
+            <div
+              className="tabs"
+              style={{
+                padding: "8px 16px 0",
+                borderBottom: "1px solid var(--border, #eee)",
+              }}
+            >
+              <button
+                type="button"
+                className={telesaleFilter === "all" ? "active" : ""}
+                onClick={() => setTelesaleFilter("all")}
+              >
+                Tất cả ({pending.length})
+              </button>
+              <button
+                type="button"
+                className={telesaleFilter === "new" ? "active" : ""}
+                onClick={() => setTelesaleFilter("new")}
+              >
+                Phiếu mới ({pending.filter((t) => t.status === "New").length})
+              </button>
+              <button
+                type="button"
+                className={telesaleFilter === "callback" ? "active" : ""}
+                onClick={() => setTelesaleFilter("callback")}
+              >
+                Cần gọi lại ({callBack})
+              </button>
+              <button
+                type="button"
+                className={telesaleFilter === "today" ? "active" : ""}
+                onClick={() => setTelesaleFilter("today")}
+              >
+                Lịch hẹn hôm nay ({todayAppointments})
+              </button>
+              <button
+                type="button"
+                className={telesaleFilter === "rebook" ? "active" : ""}
+                onClick={() => setTelesaleFilter("rebook")}
+              >
+                Cần hẹn lại ({rebook.length})
+              </button>
+            </div>
+          )}
+          <TicketTable
+            tickets={displayedPending}
+            showActions={true}
+            onOpenCall={(t) => {
+              setActiveTicketId(t.id);
+              setCallDialogOpen(true);
+            }}
+            onOpenCallLog={(t) => {
+              setActiveTicketId(t.id);
+              setCallLogOpen(true);
+            }}
+          />
         </Panel>
       )}
       {intake ? (
@@ -429,6 +616,35 @@ export function Dashboard() {
         >
           <RecentActivityTable activities={recentActivities} />
         </Panel>
+      )}
+
+      {/* Modals for Quick Actions */}
+      {callDialogOpen && (
+        <CallDialog
+          open={callDialogOpen}
+          onOpenChange={setCallDialogOpen}
+          ticketId={activeTicketId}
+          onStartLog={(id) => {
+            setActiveTicketId(id);
+            setCallLogOpen(true);
+          }}
+        />
+      )}
+      {callLogOpen && (
+        <CallLogModal
+          open={callLogOpen}
+          onOpenChange={setCallLogOpen}
+          ticketId={activeTicketId}
+          onSuccess={() => setActiveTicketId(undefined)}
+        />
+      )}
+      {apptDialogOpen && (
+        <AppointmentCreateDialog
+          open={apptDialogOpen}
+          onOpenChange={setApptDialogOpen}
+          ticketId={activeTicketId}
+          onSuccess={() => setActiveTicketId(undefined)}
+        />
       )}
     </>
   );

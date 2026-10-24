@@ -219,6 +219,39 @@ describe("Phân công và hoạt động", () => {
     expect(next.appointments[0].activityId).toBe(next.activities[0].id);
     expect(next.assignments[0].status).toBe("Open");
   });
+  it("ghi nhận cuộc gọi lưu đúng chiều cuộc gọi và thời lượng", () => {
+    const db = makeSeed(now);
+    const next = applyCommand(
+      db,
+      "sale-1",
+      {
+        type: "activity",
+        assignmentId: "PC-0001",
+        input: {
+          ...activity,
+          direction: "inbound",
+          durationSeconds: 155,
+        },
+      },
+      now,
+    );
+    expect(next.activities[0].direction).toBe("inbound");
+    expect(next.activities[0].durationSeconds).toBe(155);
+  });
+  it("chuyên viên phụ trách có quyền cập nhật ghi chú Lead", () => {
+    const db = makeSeed(now);
+    const next = applyCommand(
+      db,
+      "sale-1",
+      {
+        type: "leadNote",
+        id: "LEAD-0001",
+        note: "Tài xế hẹn nộp hồ sơ buổi sáng",
+      },
+      now,
+    );
+    expect(next.leads[0].note).toBe("Tài xế hẹn nộp hồ sơ buổi sáng");
+  });
   it("không tạm ngưng nhân viên còn phiếu hiệu lực", () => {
     expect(() =>
       applyCommand(

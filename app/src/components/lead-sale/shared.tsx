@@ -175,12 +175,16 @@ export function Kpi({
   hint,
   tone = "",
   to,
+  onClick,
+  active = false,
 }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
   tone?: "" | "red";
   to?: string;
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const body = (
     <>
@@ -189,12 +193,24 @@ export function Kpi({
       {hint && <small>{hint}</small>}
     </>
   );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`kpi ${active ? "active ring-2 ring-primary" : ""}`}
+        onClick={onClick}
+        style={{ textAlign: "left", cursor: "pointer", width: "100%", background: active ? "var(--bg-subtle, #f0fdf4)" : undefined }}
+      >
+        {body}
+      </button>
+    );
+  }
   return to ? (
-    <Link className="kpi" to={to}>
+    <Link className={`kpi ${active ? "active ring-2 ring-primary" : ""}`} to={to}>
       {body}
     </Link>
   ) : (
-    <div className="kpi">{body}</div>
+    <div className={`kpi ${active ? "active ring-2 ring-primary" : ""}`}>{body}</div>
   );
 }
 export function Bar({

@@ -4,13 +4,18 @@ import {
   Archive,
   ArrowLeft,
   BookUser,
+  CalendarDays,
   Download,
   FileUp,
   MessageCircle,
   Pencil,
   Phone,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneOutgoing,
   Plus,
   TriangleAlert,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +27,9 @@ import { Evidence } from "./Evidence";
 import { cities, normalizeCity } from "./catalog";
 import { ticketCode } from "./workflow";
 import { LeadCorrections } from "./Corrections";
+import { CallDialog } from "./CallDialog";
+import { CallLogModal } from "./CallLogModal";
+import { AppointmentCreateDialog } from "./AppointmentCreateDialog";
 import {
   Avatar,
   Badge,
@@ -580,6 +588,16 @@ export function LeadShow() {
   const { id } = useParams();
   const { db, actor, run, busy } = useWorkspace();
   const l = db.leads.find((l) => l.id === id);
+
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [callLogOpen, setCallLogOpen] = useState(false);
+  const [apptDialogOpen, setApptDialogOpen] = useState(false);
+  const [leadNote, setLeadNote] = useState(l?.note ?? "");
+
+  useEffect(() => {
+    if (l) setLeadNote(l.note ?? "");
+  }, [l?.note]);
+
   if (!l)
     return (
       <div className="panel">
@@ -609,6 +627,13 @@ export function LeadShow() {
     .sort((a, b) => b.at.localeCompare(a.at));
   const live = db.assignments.find(
     (t) => t.leadId === l.id && t.status !== "Closed",
+  );
+  const myTicket = tickets.find(
+    (t) =>
+      (actor.role === "admin" ||
+        actor.role === "leader" ||
+        t.assigneeId === actor.id) &&
+      t.status !== "Closed",
   );
   const info: [string, ReactNode][] = [
     ["Mã hồ sơ", l.id],
@@ -649,6 +674,65 @@ export function LeadShow() {
           )}
         </div>
       </div>
+
+      {myTicket && !l.archived && (
+        <div
+          className="panel"
+          style={{
+            padding: "12px 16px",
+            marginBottom: 16,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 10,
+            alignItems: "center",
+            background: "var(--bg-subtle, #f9fafb)",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Thao tác Telesale:</span>
+          {myTicket.assigneeId === actor.id && !myTicket.acceptedAt && (
+            <Button
+              size="sm"
+              variant="default"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  { type: "accept", id: myTicket.id },
+                  "Đã nhận việc thành công.",
+                )
+              }
+            >
+              <UserCheck size={14} /> Nhận việc
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => setCallDialogOpen(true)}
+          >
+            <Phone size={14} /> Gọi điện
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setCallLogOpen(true)}
+          >
+            <PhoneCall size={14} /> Ghi nhận cuộc gọi & Bằng chứng
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setApptDialogOpen(true)}
+          >
+            <CalendarDays size={14} /> Tạo lịch hẹn
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link to={`/tasks/${myTicket.id}`}>
+              Mở phiếu ({ticketCode(myTicket)}) →
+            </Link>
+          </Button>
+        </div>
+      )}
+
       <div className="grid-2">
         <div className="col">
           <Panel title="Thông tin hồ sơ" bodyless>
@@ -665,7 +749,7 @@ export function LeadShow() {
           </Panel>
           {!editor && (
             <Panel
-              title="Lịch sử tư vấn"
+              title="Lịch sử liên hệ & cuộc gọi"
               aside={<span>{activities.length} lần liên hệ</span>}
               bodyless
             >
@@ -673,6 +757,12 @@ export function LeadShow() {
                 <div className="timeline">
                   {activities.map((a) => {
                     const t = tickets.find((t) => t.id === a.assignmentId);
+                    const appt = db.appointments.find(
+                      (ap) =>
+                        ap.id === a.appointmentId || ap.activityId === a.id,
+                    );
+                    const callDirection =
+                      a.direction === "inbound" ? "Cuộc gọi đến" : "Cuộc gọi đi";
                     return (
                       <article
                         key={a.id}
@@ -682,7 +772,11 @@ export function LeadShow() {
                           className={`tl-icon ${a.channel === "zalo" ? "zalo" : ""}`}
                         >
                           {a.channel === "call" ? (
-                            <Phone size={15} />
+                            a.direction === "inbound" ? (
+                              <PhoneIncoming size={15} />
+                            ) : (
+                              <PhoneOutgoing size={15} />
+                            )
                           ) : (
                             <MessageCircle size={15} />
                           )}
@@ -690,32 +784,75 @@ export function LeadShow() {
                         <div>
                           <div className="tl-top">
                             <strong>
+                              {a.channel === "call" ? callDirection : "Zalo"} ·{" "}
                               {outcomeLabels[a.outcome]}
                               {a.decision !== "none" &&
                                 ` · ${decisionLabels[a.decision]}`}
                             </strong>
                             <time>{formatDate(a.at, true)}</time>
                           </div>
-                          <small className="muted">
-                            {memberName(db, a.actorId)} ·{" "}
-                            {t ? (
-                              <Link
-                                className="record-link"
-                                to={`/tasks/${t.id}`}
-                              >
-                                {ticketCode(t)}
-                              </Link>
-                            ) : (
-                              a.assignmentId
-                            )}
-                          </small>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              flexWrap: "wrap",
+                              alignItems: "center",
+                              margin: "2px 0 6px",
+                            }}
+                          >
+                            <small className="muted">
+                              Thực hiện: {memberName(db, a.actorId)} ·{" "}
+                              {t ? (
+                                <Link
+                                  className="record-link"
+                                  to={`/tasks/${t.id}`}
+                                >
+                                  {ticketCode(t)}
+                                </Link>
+                              ) : (
+                                a.assignmentId
+                              )}
+                            </small>
+                            {a.durationSeconds ? (
+                              <Chip plain>
+                                Thời lượng:{" "}
+                                {Math.floor(a.durationSeconds / 60)}p{" "}
+                                {a.durationSeconds % 60}s
+                              </Chip>
+                            ) : null}
+                          </div>
+
                           {a.note && <p className="tl-note">{a.note}</p>}
+
+                          {appt && (
+                            <div
+                              style={{
+                                margin: "6px 0",
+                                padding: "4px 8px",
+                                background: "var(--bg-subtle, #f0fdf4)",
+                                borderRadius: 4,
+                                fontSize: 12,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              <CalendarDays size={13} />
+                              <span>
+                                Lịch hẹn: {formatDate(appt.at, true)} tại{" "}
+                                {appt.place}
+                              </span>
+                            </div>
+                          )}
+
                           {!a.voidedAt && (
-                            <Evidence
-                              activity={a}
-                              ticketId={a.assignmentId}
-                              editable={false}
-                            />
+                            <div style={{ marginTop: 6 }}>
+                              <Evidence
+                                activity={a}
+                                ticketId={a.assignmentId}
+                                editable={false}
+                              />
+                            </div>
                           )}
                         </div>
                       </article>
@@ -725,13 +862,41 @@ export function LeadShow() {
               ) : (
                 <Empty
                   title="Chưa có lần liên hệ"
-                  description="Các lần gọi/nhắn Zalo được ghi theo từng phiếu."
+                  description="Bấm 'Ghi nhận cuộc gọi & Bằng chứng' ở trên để bắt đầu liên hệ và ghi nhận kết quả."
                 />
               )}
             </Panel>
           )}
         </div>
         <div className="col">
+          {!editor && myTicket && !l.archived && (
+            <Panel title="Ghi chú hồ sơ Lead">
+              <form
+                className="stack-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  await run(
+                    { type: "leadNote", id: l.id, note: leadNote },
+                    "Đã cập nhật ghi chú Lead.",
+                  );
+                }}
+              >
+                <Textarea
+                  rows={3}
+                  value={leadNote}
+                  onChange={(e) => setLeadNote(e.target.value)}
+                  placeholder="Ghi chú chi tiết về tài xế (nguyện vọng, thời gian chạy, giấy tờ còn thiếu...)"
+                />
+                <Button
+                  size="sm"
+                  type="submit"
+                  disabled={busy || leadNote === (l.note ?? "")}
+                >
+                  Lưu ghi chú
+                </Button>
+              </form>
+            </Panel>
+          )}
           {editor && !l.archived && (
             <Panel title="Cập nhật trạng thái hồ sơ">
               <LeadStatusForm key={`${l.id}-${l.status}`} leadId={l.id} />
@@ -822,6 +987,31 @@ export function LeadShow() {
           )}
         </div>
       </div>
+
+      {/* Telesale Action Modals */}
+      {myTicket && (
+        <>
+          <CallDialog
+            open={callDialogOpen}
+            onOpenChange={setCallDialogOpen}
+            ticketId={myTicket.id}
+            leadId={l.id}
+            onStartLog={() => setCallLogOpen(true)}
+          />
+          <CallLogModal
+            open={callLogOpen}
+            onOpenChange={setCallLogOpen}
+            ticketId={myTicket.id}
+            leadId={l.id}
+          />
+          <AppointmentCreateDialog
+            open={apptDialogOpen}
+            onOpenChange={setApptDialogOpen}
+            ticketId={myTicket.id}
+            leadId={l.id}
+          />
+        </>
+      )}
     </>
   );
 }

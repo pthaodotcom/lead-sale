@@ -105,6 +105,8 @@ export interface Activity {
   attachments?: Attachment[];
   voidedAt?: string;
   voidReason?: string;
+  direction?: "outbound" | "inbound";
+  durationSeconds?: number;
 }
 export interface Attachment {
   dataUrl?: string;
@@ -217,6 +219,8 @@ export type ActivityInput = Pick<
   Activity,
   "channel" | "at" | "outcome" | "decision" | "reason" | "note"
 > & {
+  direction?: "outbound" | "inbound";
+  durationSeconds?: number;
   appointmentAt?: string;
   place?: string;
   nextCallAt?: string;
@@ -272,6 +276,7 @@ export type Command =
   | { type: "reconcileAppointment"; id: string; reason: string }
   | { type: "memberProfile"; id: string; name: string; email: string }
   | { type: "saveLead"; id?: string; input: LeadInput }
+  | { type: "leadNote"; id: string; note: string }
   | {
       type: "leadStatus";
       id: string;

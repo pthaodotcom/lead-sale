@@ -228,6 +228,60 @@ function LogForm({ ticketId }: { ticketId: string }) {
             </button>
           ))}
         </div>
+        {form.channel === "call" && (
+          <div className="grid-2">
+            <Field label="Chiều cuộc gọi">
+              <div className="seg" role="group">
+                <button
+                  type="button"
+                  className={form.direction !== "inbound" ? "active" : ""}
+                  onClick={() => set("direction", "outbound")}
+                >
+                  <PhoneCall size={14} /> Cuộc gọi đi
+                </button>
+                <button
+                  type="button"
+                  className={form.direction === "inbound" ? "active" : ""}
+                  onClick={() => set("direction", "inbound")}
+                >
+                  <Phone size={14} /> Cuộc gọi đến
+                </button>
+              </div>
+            </Field>
+            <Field label="Thời lượng cuộc gọi">
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Input
+                  type="number"
+                  min={0}
+                  max={120}
+                  placeholder="0"
+                  defaultValue={1}
+                  onChange={(e) => {
+                    const mins = Math.max(0, parseInt(e.target.value) || 0);
+                    const currentSecs = (form.durationSeconds ?? 0) % 60;
+                    set("durationSeconds", mins * 60 + currentSecs);
+                  }}
+                  style={{ width: "80px" }}
+                />
+                <span>phút</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  placeholder="30"
+                  defaultValue={30}
+                  onChange={(e) => {
+                    const secs = Math.max(0, parseInt(e.target.value) || 0);
+                    const currentMins = Math.floor((form.durationSeconds ?? 0) / 60);
+                    set("durationSeconds", currentMins * 60 + secs);
+                  }}
+                  style={{ width: "80px" }}
+                />
+                <span>giây</span>
+              </div>
+            </Field>
+          </div>
+        )}
         <Field label="Ngày giờ liên hệ (call date)">
           <Input
             type="datetime-local"
@@ -500,6 +554,13 @@ export function TicketPage() {
           </div>
         </div>
         <div className="page-actions">
+          {l.phone && (
+            <Button asChild size="sm" variant="default">
+              <a href={`tel:${l.phone}`}>
+                <PhoneCall size={14} /> Bấm gọi ngay
+              </a>
+            </Button>
+          )}
           <Badge status={t.status} ticket />
           <Button asChild variant="outline" size="sm">
             <Link to={`/leads/${l.id}/show`}>Mở hồ sơ</Link>
@@ -620,8 +681,12 @@ export function TicketPage() {
                       <div>
                         <div className="tl-top">
                           <strong>
-                            {a.channel === "call" ? "Cuộc gọi" : "Nhắn Zalo"} ·{" "}
-                            {memberName(db, a.actorId)}
+                            {a.channel === "call"
+                              ? a.direction === "inbound"
+                                ? "Cuộc gọi đến"
+                                : "Cuộc gọi đi"
+                              : "Nhắn Zalo"}{" "}
+                            · {memberName(db, a.actorId)}
                           </strong>
                           <time>{formatDate(a.at, true)}</time>
                           {(a.round ?? 1) > 1 && (
@@ -629,6 +694,12 @@ export function TicketPage() {
                           )}
                         </div>
                         <div className="tl-chips">
+                          {a.durationSeconds ? (
+                            <Chip plain>
+                              {Math.floor(a.durationSeconds / 60)}p{" "}
+                              {a.durationSeconds % 60}s
+                            </Chip>
+                          ) : null}
                           <Chip
                             tone={
                               a.outcome === "called" ||
