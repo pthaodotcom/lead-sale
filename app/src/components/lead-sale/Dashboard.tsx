@@ -12,8 +12,8 @@ import {
   PageHeading,
   Panel,
 } from "./shared";
-import { canEditLead, isPending } from "./domain";
-import { dayVN, needsRebooking } from "./workflow";
+import { canEditLead, isPending, outcomeLabels } from "./domain";
+import { dayVN, needsRebooking, ticketCode } from "./workflow";
 import {
   PeriodFilter,
   percent,
@@ -49,6 +49,57 @@ function Rates({ rows }: { rows: { label: string; n: number; d: number }[] }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+function RecentActivityTable({
+  activities,
+}: {
+  activities: {
+    id: string;
+    ticketId: string;
+    subject: string;
+    requesterName: string;
+    requesterPhone: string;
+    specialistName: string;
+    channel: "call" | "zalo";
+    updatedAt: string;
+  }[];
+}) {
+  return (
+    <div className="table-scroll">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Chủ đề</th>
+            <th>Người yêu cầu</th>
+            <th>Chuyên viên</th>
+            <th>Kênh</th>
+            <th>Thời điểm cập nhật</th>
+          </tr>
+        </thead>
+        <tbody>
+          {activities.map((a) => (
+            <tr key={a.id}>
+              <td>
+                <Link className="record-link nowrap" to={`/tasks/${a.ticketId}`}>
+                  {a.subject}
+                </Link>
+              </td>
+              <td>
+                {a.requesterName}
+                <small>{a.requesterPhone}</small>
+              </td>
+              <td>{a.specialistName}</td>
+              <td>{a.channel === "call" ? "Gọi điện" : "Zalo"}</td>
+              <td>{formatDate(a.updatedAt, true)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!activities.length && <Empty title="Chưa có hoạt động gần đây trong kỳ" />}
     </div>
   );
 }
@@ -91,14 +142,31 @@ export function Dashboard() {
   const newToday = db.leads.filter(
     (l) => !l.archived && dayVN(l.receivedAt) === today,
   ).length;
-  const recent = allTickets
-    .filter(
-      (t) =>
-        inPeriod(t.updatedAt, filters) &&
-        db.activities.some((a) => a.assignmentId === t.id),
-    )
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 10);
+  const recentActivities = db.activities
+    .filter((a) => {
+      const t = db.assignments.find((t) => t.id === a.assignmentId);
+      if (!t) return false;
+      if (telesale && t.assigneeId !== actor.id) return false;
+      if (!telesale && !sameTeam(t.teamId)) return false;
+      return inPeriod(a.at, filters);
+    })
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 10)
+    .map((a) => {
+      const t = db.assignments.find((t) => t.id === a.assignmentId)!;
+      const l = db.leads.find((l) => l.id === a.leadId) ?? t.leadSnapshot;
+      return {
+        id: a.id,
+        ticketId: t.id,
+        subject: `${ticketCode(t)} · ${outcomeLabels[a.outcome]}`,
+        requesterName: l?.name ?? "—",
+        requesterPhone: l?.phone ?? "—",
+        specialistName: memberName(db, a.actorId),
+        channel: a.channel,
+        updatedAt: a.at,
+      };
+    });
+
   const value = (n?: number) => (error ? "—" : (n ?? 0));
   return (
     <>
@@ -124,7 +192,8 @@ export function Dashboard() {
       <PeriodFilter value={filters} onChange={setFilters} />
       {error && <p role="alert">{error}</p>}
       {loading && <p role="status">Đang cập nhật số liệu…</p>}
-      <div className="kpis">
+      <div className={`kpis ${telesale ? "kpis-2col" : ""}`}>
+
         {intake ? (
           <>
             <Kpi
@@ -173,7 +242,7 @@ export function Dashboard() {
               to="/appointments"
             />
             <Kpi
-              label="Phiếu cần hẹn lại"
+              label="Cần hẹn lại"
               value={rebook.length}
               tone={rebook.length ? "red" : ""}
               hint="Qua 00:00 sau ngày hẹn, chưa đăng ký"
@@ -201,7 +270,7 @@ export function Dashboard() {
               to="/tasks?group=pending"
             />
             <Kpi
-              label="Phiếu cần hẹn lại"
+              label="Cần hẹn lại"
               value={rebook.length}
               tone={rebook.length ? "red" : ""}
               hint="Qua 00:00 sau ngày hẹn, chưa đăng ký"
@@ -358,7 +427,7 @@ export function Dashboard() {
           title={telesale ? "Hoạt động gần đây" : "Hoạt động gần đây của nhóm"}
           bodyless
         >
-          <TicketTable tickets={recent} />
+          <RecentActivityTable activities={recentActivities} />
         </Panel>
       )}
     </>
