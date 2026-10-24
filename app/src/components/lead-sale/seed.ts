@@ -27,7 +27,7 @@ export function makeSeed(now = new Date()): Database {
   ];
   const sources = [
     { id: "web", name: "Form website", active: true },
-    { id: "facebook", name: "Facebook", active: true },
+    { id: "facebook", name: "Chat mạng xã hội", active: true },
     { id: "hotline", name: "Hotline", active: true },
     { id: "referral", name: "Tài xế giới thiệu", active: true },
   ];
@@ -68,6 +68,15 @@ export function makeSeed(now = new Date()): Database {
         : i === 9
           ? ("Solved" as const)
           : ("Open" as const),
+    sequence: i + 1,
+    leadSnapshot: {
+      id: lead.id,
+      name: lead.name,
+      phone: lead.phone,
+      city: lead.city,
+      vehicle: lead.vehicle,
+      sourceId: lead.sourceId,
+    },
     closeReason: "",
     teamId: "default",
     round: 1,
@@ -101,7 +110,9 @@ export function makeSeed(now = new Date()): Database {
       activityId: a.id,
       actorId: a.actorId,
       at: new Date(now.getTime() + (i - 1) * 86400000 + 3600000).toISOString(),
-      place: "Điểm đăng ký trung tâm",
+      place: "văn phòng HN1",
+      createdAt: ago(1),
+      round: 1,
       status: "scheduled",
     }));
   return {

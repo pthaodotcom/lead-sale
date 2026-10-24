@@ -56,29 +56,36 @@ export function AssignmentDialog({
           }}
         >
           <Field label="Hồ sơ Lead">
-            <select
-              required
-              value={lead}
-              onChange={(e) => setLead(e.target.value)}
-              disabled={!!leadId}
-            >
-              <option value="">Chọn hồ sơ</option>
-              {db.leads
-                .filter(
-                  (l) =>
-                    l.status === "New" &&
-                    !l.archived &&
-                    (l.id === leadId ||
-                      !db.assignments.some(
-                        (t) => t.leadId === l.id && t.status !== "Closed",
-                      )),
-                )
-                .map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name} · {l.phone}
-                  </option>
-                ))}
-            </select>
+            {transfer ? (
+              <p className="readonly-value">
+                {db.leads.find((l) => l.id === lead)?.name} ·{" "}
+                {db.leads.find((l) => l.id === lead)?.phone}
+              </p>
+            ) : (
+              <select
+                required
+                value={lead}
+                onChange={(e) => setLead(e.target.value)}
+                disabled={!!leadId}
+              >
+                <option value="">Chọn hồ sơ</option>
+                {db.leads
+                  .filter(
+                    (l) =>
+                      l.status === "New" &&
+                      !l.archived &&
+                      (l.id === leadId ||
+                        !db.assignments.some(
+                          (t) => t.leadId === l.id && t.status !== "Closed",
+                        )),
+                  )
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} · {l.phone}
+                    </option>
+                  ))}
+              </select>
+            )}
           </Field>
           <Field label="Nhân viên Telesale">
             <select

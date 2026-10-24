@@ -18,9 +18,13 @@ import {
 import type { ClosureReview } from "./types";
 
 const resultLabels: Record<string, string> = {
-  eligible: "Đủ điều kiện phân công lại",
-  follow_up: "Cần theo dõi thêm",
-  closed: "Đề nghị đóng hồ sơ",
+  eligible: "Đủ điều kiện phân công lại → hồ sơ Mới",
+  closed: "Đóng hồ sơ → hồ sơ Đã đóng",
+};
+// Legacy result kept readable for reviews made before 24/10/2026.
+const shownLabels: Record<string, string> = {
+  ...resultLabels,
+  follow_up: "Cần theo dõi thêm (dữ liệu cũ)",
 };
 
 function ReviewRow({ review }: { review: ClosureReview }) {
@@ -51,7 +55,7 @@ function ReviewRow({ review }: { review: ClosureReview }) {
         <div className="stack-form">
           <div>
             <Chip tone="solved">
-              {resultLabels[review.result ?? ""] ?? "Đã rà soát"}
+              {shownLabels[review.result ?? ""] ?? "Đã rà soát"}
             </Chip>
             <p>
               {formatDate(review.reviewedAt, true)} ·{" "}
@@ -133,10 +137,16 @@ export function Handover() {
       new Date(s),
     );
   const count = (s: string) =>
-    db.reviews.filter((r) =>
+    scoped.filter((r) =>
       s === "all" ? true : s === "pending" ? !r.reviewedAt : !!r.reviewedAt,
     ).length;
-  const rows = db.reviews
+  const scoped = db.reviews.filter(
+    (r) =>
+      actor.role !== "leader" ||
+      (db.assignments.find((t) => t.id === r.assignmentId)?.teamId ??
+        "default") === (actor.teamId ?? "default"),
+  );
+  const rows = scoped
     .filter(
       (r) =>
         (state === "all" ||
@@ -145,7 +155,7 @@ export function Handover() {
     )
     .sort((a, b) => b.at.localeCompare(a.at));
   return (
-    <Guard allowed={["admin", "intake", "leader"].includes(actor.role)}>
+    <Guard allowed={["intake", "leader"].includes(actor.role)}>
       <PageHeading
         title="Bàn giao phiếu Closed"
         description="Phiếu đã đóng chuyển về Tiếp nhận để cập nhật hồ sơ. Phiếu Closed không tự làm hồ sơ Closed."

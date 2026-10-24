@@ -16,6 +16,8 @@ export async function loadWorkspace(): Promise<
   Database & { actor: Database["members"][number] }
 > {
   if (!supabase) throw new Error("Chưa cấu hình Supabase.");
+  const sync = await supabase.rpc("lead_sync");
+  if (sync.error) throw new Error(sync.error.message);
   const requestStartedAt = Date.now();
   const { data, error } = await supabase.rpc("lead_snapshot");
   if (error) throw new Error(error.message);
@@ -31,6 +33,8 @@ export async function registerMember(
   name: string,
 ) {
   if (!supabase) throw new Error("Cần kết nối Supabase để tạo tài khoản.");
+  const gate = await supabase.rpc("lead_admin_check");
+  if (gate.error) throw new Error(gate.error.message);
   const separate = createClient(
     import.meta.env.VITE_SUPABASE_URL,
     import.meta.env.VITE_SB_PUBLISHABLE_KEY,
@@ -124,7 +128,26 @@ export async function uploadEvidence(
   actorId: string,
   ticketId: string,
 ) {
-  if (!supabase) throw new Error("Tệp bằng chứng cần chế độ Supabase.");
+  if (!supabase) {
+    if (!demoMode) throw new Error("Chưa kết nối Supabase.");
+    if (!file.size || file.size > 3 * 1024 * 1024)
+      throw new Error(
+        "Bản demo dùng tệp tối đa 3 MB; bản máy chủ tối đa 20 MB.",
+      );
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Không đọc được tệp."));
+      reader.readAsDataURL(file);
+    });
+    return {
+      path: `${actorId}/${ticketId}/${crypto.randomUUID()}`,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      dataUrl,
+    };
+  }
   if (file.size > 20 * 1024 * 1024 || !file.size)
     throw new Error("Tệp cần có dữ liệu và không quá 20 MB.");
   const ext =

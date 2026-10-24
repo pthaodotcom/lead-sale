@@ -20,7 +20,8 @@ import {
   textMatches,
   vehicleLabel,
 } from "./shared";
-import { expiresSoon, inGroup, visibleTickets } from "./tasks";
+import { expiresSoon, visibleTickets } from "./tasks";
+import { cities, normalizeCity } from "./catalog";
 
 export function Dispatch() {
   const { db, actor, perform } = useWorkspace();
@@ -28,6 +29,9 @@ export function Dispatch() {
   const [member, setMember] = useState("");
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [city, setCity] = useState("");
+  const [direction, setDirection] = useState(1);
+  const [result, setResult] = useState("");
   const now = serverNow().getTime();
   const queue = db.leads
     .filter(
@@ -47,8 +51,12 @@ export function Dispatch() {
             t.leadId === l.id && isLive(t) && Date.parse(t.expiresAt) > now,
         ),
     )
-    .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
-  const rows = queue.filter((l) => textMatches(q, l.name, l.phone, l.city));
+    .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt) * direction);
+  const rows = queue.filter(
+    (l) =>
+      (!city || normalizeCity(l.city) === city) &&
+      textMatches(q, l.id, l.name, l.phone, l.city),
+  );
   const team = db.members.filter(
     (m) =>
       m.role === "telesale" &&
@@ -58,7 +66,7 @@ export function Dispatch() {
   );
   const tickets = visibleTickets(db, actor);
   const load = (id: string) =>
-    tickets.filter((t) => t.assigneeId === id && inGroup(db, t, "pending"))
+    db.assignments.filter((t) => t.assigneeId === id && t.status !== "Closed")
       .length;
   const maxLoad = Math.max(1, ...team.map((m) => load(m.id)));
   const expiring = tickets
@@ -79,6 +87,12 @@ export function Dispatch() {
       }
     }
     if (ok) toast.success(`Đã tạo ${ok} phiếu cho ${memberName(db, member)}.`);
+    setResult(
+      `Đã giao ${ok}/${picked.length} hồ sơ cho ${memberName(db, member)}` +
+        (ok < picked.length
+          ? `; ${picked.length - ok} hồ sơ lỗi, xem thông báo.`
+          : "."),
+    );
     setPicked([]);
     setBusy(false);
   };
@@ -99,8 +113,18 @@ export function Dispatch() {
               className="grow"
               value={q}
               onChange={setQ}
-              placeholder="Tìm tên, SĐT, thành phố…"
+              placeholder="Tìm mã, tên, SĐT…"
             />
+            <select
+              aria-label="Lọc thành phố điều phối"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            >
+              <option value="">Mọi thành phố</option>
+              {cities.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
             <select
               aria-label="Chuyên viên nhận"
               value={member}
@@ -125,6 +149,11 @@ export function Dispatch() {
                   : "Giao việc"}
             </Button>
           </div>
+          {result && (
+            <p className="callout ok" role="status" style={{ margin: 12 }}>
+              {result}
+            </p>
+          )}
           {rows.length ? (
             <div className="table-scroll">
               <table className="data-table">
@@ -142,10 +171,22 @@ export function Dispatch() {
                         }
                       />
                     </th>
-                    <th>Tài xế</th>
-                    <th>Thành phố / Xe</th>
+                    <th>Mã hồ sơ</th>
+                    <th>Họ tên</th>
+                    <th>SĐT</th>
+                    <th>Thành phố</th>
+                    <th>Phương tiện</th>
                     <th>Nguồn</th>
-                    <th>Tiếp nhận</th>
+                    <th
+                      aria-sort={direction === 1 ? "ascending" : "descending"}
+                    >
+                      <button
+                        className="sort-heading"
+                        onClick={() => setDirection(-direction)}
+                      >
+                        Thời gian tiếp nhận {direction === 1 ? "↑" : "↓"}
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,24 +216,15 @@ export function Dispatch() {
                             to={`/leads/${l.id}/show`}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {l.name}
+                            {l.id}
                           </Link>
-                          <small>{l.phone}</small>
                         </td>
-                        <td>
-                          {l.city}
-                          <small>{vehicleLabel(l.vehicle)}</small>
-                        </td>
+                        <td>{l.name}</td>
+                        <td>{l.phone}</td>
+                        <td>{normalizeCity(l.city)}</td>
+                        <td>{vehicleLabel(l.vehicle)}</td>
                         <td>{sourceName(db, l.sourceId)}</td>
-                        <td>
-                          {formatDate(l.receivedAt)}
-                          <small>
-                            {Math.floor(
-                              (now - Date.parse(l.receivedAt)) / 86400000,
-                            )}{" "}
-                            ngày chờ
-                          </small>
-                        </td>
+                        <td>{formatDate(l.receivedAt, true)}</td>
                       </tr>
                     );
                   })}
@@ -209,8 +241,8 @@ export function Dispatch() {
         </section>
         <div className="col">
           <Panel
-            title="Tải của nhóm"
-            aside={<span>Phiếu chưa giải quyết</span>}
+            title="Phiếu phân công chưa đóng"
+            aside={<span>Tồn hiện tại</span>}
             bodyless
           >
             <div className="workload">

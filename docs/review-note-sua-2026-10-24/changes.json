@@ -1,0 +1,739 @@
+[
+  {
+    "id": "C-01",
+    "role": "Chung",
+    "title": "Tách rõ ba loại trạng thái",
+    "images": [],
+    "request": "Ghi chú sử dụng trạng thái hồ sơ, phiếu và lịch hẹn ở nhiều màn hình.",
+    "change": "Hồ sơ: Mới / Đã đăng ký / Đã chạy đơn đầu / Đã đóng. Phiếu: Chưa liên hệ / Đang tư vấn / Đã giải quyết / Đã đóng. Lịch hẹn: Đã lên lịch / Chờ cập nhật kết quả / Thành công / Thất bại / Đã hủy. “Cần hẹn lại” là nhóm công việc, không thay thế trạng thái phiếu.",
+    "accept": "Một phiếu Open có thể thuộc nhóm Cần hẹn lại trong khi lịch hẹn đang Chờ cập nhật kết quả; giao diện không tự đổi hồ sơ sang Đã đóng.",
+    "files": [
+      "types.ts",
+      "domain.ts",
+      "shared.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "C-02",
+    "role": "Chung",
+    "title": "Bộ lọc thời gian và sắp xếp",
+    "images": [
+      "TS-02",
+      "TL-02",
+      "TL-07",
+      "TL-08",
+      "IN-08"
+    ],
+    "request": "Tổng quan và báo cáo cần lọc hôm nay, 7 ngày, tháng này, khoảng ngày; cột thời gian có tăng/giảm.",
+    "change": "Dùng giờ Việt Nam; khoảng ngày gồm cả hai đầu. Hiện rõ trường thời gian dùng để lọc. Cột tạo, cập nhật, tiếp nhận, lịch hẹn, hạn xử lý có nút sắp xếp với chiều hiện tại. Đề xuất mặc định hôm nay cho dashboard và tháng này cho báo cáo.",
+    "accept": "Chọn 24/10–24/10 bao gồm 00:00:00 đến trước 00:00 ngày 25/10; khoảng đảo ngày báo lỗi; đổi chiều không mất bộ lọc.",
+    "files": [
+      "dates.ts",
+      "Dashboard.tsx",
+      "Reports.tsx",
+      "Assignments.tsx",
+      "Operations.tsx",
+      "Appointments.tsx"
+    ],
+    "decision": "Q-09"
+  },
+  {
+    "id": "C-03",
+    "role": "Chung",
+    "title": "Đồng bộ thành phố, nhân viên, nơi hẹn",
+    "images": [
+      "TS-09",
+      "TS-15",
+      "TL-06",
+      "TL-07"
+    ],
+    "request": "Đủ HCM, HN, Đà Nẵng; đủ Chuyên viên 1 và 2; nơi hẹn là danh sách sáu văn phòng.",
+    "change": "Dùng danh mục dùng chung: Hà Nội / Hồ Chí Minh / Đà Nẵng; chuẩn hóa HN/HCM/ĐN về mã chung. Dropdown nhân viên lấy tài khoản Telesale đang hoạt động trong nhóm; dữ liệu mẫu đủ hai chuyên viên. Nơi hẹn: văn phòng HN1, HN2, HCM1, HCM2, ĐN1, ĐN2.",
+    "accept": "Địa phương chưa có hồ sơ vẫn xuất hiện trong bộ lọc; Chuyên viên 2 chọn được khi cùng nhóm và hoạt động; nơi hẹn không nhận chuỗi tùy ý.",
+    "files": [
+      "Leads.tsx",
+      "AssignmentDialog.tsx",
+      "Appointments.tsx",
+      "Assignments.tsx",
+      "seed.ts"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "C-04",
+    "role": "Chung",
+    "title": "Mã phiếu dễ đọc",
+    "images": [
+      "TS-05",
+      "TS-06"
+    ],
+    "request": "Đơn giản hóa mã phiếu.",
+    "change": "Đề xuất mã hiển thị PC-000001 tăng tuần tự, duy nhất; giữ ID kỹ thuật và liên kết cũ. Dùng cùng mã trên bảng, tìm kiếm, lịch sử và báo cáo.",
+    "accept": "Tạo đồng thời không trùng mã; hồ sơ cũ mở được theo liên kết cũ; tìm theo PC-000001 trả đúng phiếu.",
+    "files": [
+      "Assignments.tsx",
+      "types.ts",
+      "shared.tsx",
+      "backend/supabase"
+    ],
+    "decision": "Q-10"
+  },
+  {
+    "id": "C-05",
+    "role": "Chung",
+    "title": "Áp dụng quyền tại máy chủ",
+    "images": [],
+    "request": "Admin không làm nghiệp vụ Lead; các vai trò chỉ xem và thao tác đúng phạm vi.",
+    "change": "Đồng bộ menu, route, lệnh nghiệp vụ, dữ liệu trả về và quyền tải bằng chứng. Tiếp nhận chỉ xem hồ sơ và bàn giao; Telesale phạm vi cá nhân; Trưởng nhóm phạm vi nhóm. Chỉ ẩn menu chưa đáp ứng yêu cầu.",
+    "accept": "Đăng nhập Admin rồi gọi trực tiếp lệnh phân công bị từ chối; Telesale không đọc phiếu hay bằng chứng của người khác qua URL hoặc API.",
+    "files": [
+      "Layout.tsx",
+      "LeadSaleApp.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-04, Q-06"
+  },
+  {
+    "id": "C-06",
+    "role": "Chung",
+    "title": "Phạm vi bỏ tích hợp",
+    "images": [
+      "TS-06",
+      "TS-07",
+      "TS-16",
+      "IN-07"
+    ],
+    "request": "Bỏ cuộc gọi Internet và Hộp thư; liên hệ ngoài web, tải ghi âm/ảnh chat thủ công.",
+    "change": "Loại bỏ các điểm vào chức năng bị bỏ trong giao diện nghiệp vụ. Dữ liệu lịch sử đang có được giữ. Việc bỏ API giao tiếp với dịch vụ ngoài không đồng nghĩa bỏ API nội bộ lưu dữ liệu. Core giả lập và đối soát là điểm xung đột phạm vi cần chốt riêng.",
+    "accept": "Người dùng hoàn tất tiếp nhận, gọi ngoài web, ghi nhận, đính kèm và rà soát mà không cần kết nối hotline/Messenger.",
+    "files": [
+      "Layout.tsx",
+      "Assignments.tsx",
+      "Leads.tsx",
+      "CoreSimulator.tsx"
+    ],
+    "decision": "Q-04"
+  },
+  {
+    "id": "TS-01",
+    "role": "Telesale",
+    "title": "Bốn chỉ số tổng quan",
+    "images": [
+      "TS-01",
+      "TS-02"
+    ],
+    "request": "Thay dải chỉ số theo ảnh mẫu.",
+    "change": "Hiện Phiếu mới (chưa liên hệ), Cần gọi lại (không nghe máy/hẹn lại), Lịch hẹn hôm nay, Phiếu quá hạn. Chỉ đếm dữ liệu của người đăng nhập; nhấn chỉ số mở danh sách tương ứng. Số trong ảnh là minh họa.",
+    "accept": "Đăng nhập Chuyên viên 1 không đếm dữ liệu Chuyên viên 2; số trên thẻ khớp danh sách mở ra.",
+    "files": [
+      "Dashboard.tsx"
+    ],
+    "decision": "Q-07, Q-09"
+  },
+  {
+    "id": "TS-02",
+    "role": "Telesale",
+    "title": "Dòng phiếu cần xử lý",
+    "images": [
+      "TS-03"
+    ],
+    "request": "Bỏ chữ Chưa liên hệ cạnh số điện thoại.",
+    "change": "Dòng tên và số điện thoại không lặp nhãn trạng thái; giữ một badge trạng thái ở cột dành riêng và phần hạn còn lại.",
+    "accept": "Mỗi phiếu hiển thị số điện thoại một lần và badge trạng thái một lần; nhấn phiếu đến đúng chi tiết.",
+    "files": [
+      "Dashboard.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-03",
+    "role": "Telesale",
+    "title": "Hoạt động gần đây",
+    "images": [
+      "TS-04"
+    ],
+    "request": "Bổ sung lịch sử hoạt động gần đây, trường tương tự bảng nhiệm vụ.",
+    "change": "Dùng cấu trúc bảng phiếu chuẩn: mã phiếu, số điện thoại, người yêu cầu, chuyên viên, thời điểm tạo, cập nhật, kết quả gần nhất, trạng thái, hạn xử lý; ưu tiên cập nhật mới nhất. Mỗi dòng đại diện phiếu vừa thay đổi; xem chi tiết để đọc từng lần liên hệ.",
+    "accept": "Ghi nhận một lần liên hệ làm phiếu xuất hiện đầu bảng; thời điểm cập nhật và kết quả khớp chi tiết. Chỉ xem hoạt động cá nhân.",
+    "files": [
+      "Dashboard.tsx",
+      "Assignments.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-04",
+    "role": "Telesale",
+    "title": "Nhóm Cần hẹn lại lúc 00:00",
+    "images": [
+      "TS-05"
+    ],
+    "request": "Đổi Quá hạn thành Cần hẹn lại; hẹn ngày D chưa đăng ký thì chuyển nhóm vào 00:00 D+1.",
+    "change": "Đổi tên nhóm và các nhóm con thành Cần hẹn lại, Lần 1/2/3. Đến 00:00 hôm sau, lịch chưa hủy và chưa có kết quả đăng ký khiến phiếu vào nhóm; vẫn giữ Open và hạn 14 ngày. Đề xuất không tăng số lần thất bại trước mốc 08:00.",
+    "accept": "Hẹn 10:00 ngày 24/10: lúc 23:59 chưa vào nhóm chỉ vì quá giờ hẹn; 00:00 ngày 25/10 vào nhóm nếu chưa đăng ký; lịch hủy không tạo yêu cầu hẹn lại.",
+    "files": [
+      "Assignments.tsx",
+      "domain.ts",
+      "dates.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-01, Q-07"
+  },
+  {
+    "id": "TS-05",
+    "role": "Telesale",
+    "title": "Bảng nhiệm vụ đủ chín cột",
+    "images": [
+      "TS-05"
+    ],
+    "request": "Đổi Tài xế thành Người yêu cầu và đổi thứ tự các trường.",
+    "change": "Thứ tự: Mã phiếu → Số điện thoại → Người yêu cầu → Chuyên viên → Thời điểm tạo → Thời điểm cập nhật → Kết quả gần nhất → Trạng thái phiếu → Hạn xử lý. Thêm sắp xếp các cột thời gian; bảng có cuộn ngang khi cần.",
+    "accept": "Không ghép thời gian tạo vào mã phiếu hay ghép hạn vào trạng thái; đủ chín cột, đúng thứ tự, không cắt mất thao tác mở phiếu.",
+    "files": [
+      "Assignments.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-06",
+    "role": "Telesale",
+    "title": "Đầu trang chi tiết và bỏ cuộc gọi Internet",
+    "images": [
+      "TS-06",
+      "TS-07"
+    ],
+    "request": "Bỏ mã phiếu và tên chuyên viên ở dòng dưới tên; bỏ khối cuộc gọi Internet cả ở phiếu và hồ sơ.",
+    "change": "Đầu trang giữ tên, số điện thoại và thông tin phục vụ tư vấn; bỏ dòng mã phiếu/chuyên viên được chỉ rõ. Loại bỏ khối Cuộc gọi Internet, tạo link, nhật ký kỹ thuật của khối đó. Vẫn có lịch sử gọi/Zalo do người dùng ghi nhận.",
+    "accept": "Chi tiết phiếu và hồ sơ đều không còn khối Internet; mở tệp ghi âm đính kèm vẫn hoạt động.",
+    "files": [
+      "Assignments.tsx",
+      "Leads.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-07",
+    "role": "Telesale",
+    "title": "Tách ghi chú liên hệ và danh sách lịch hẹn",
+    "images": [
+      "TS-08",
+      "TS-12"
+    ],
+    "request": "Tách lịch sử chăm sóc thành hai phần.",
+    "change": "Một khu Ghi chú liên hệ chứa cuộc gọi/Zalo, người ghi, thời điểm, kết quả, quyết định, nội dung và tệp; khu Danh sách lịch hẹn chứa thời gian, nơi hẹn, trạng thái và lịch đổi/hủy. Đề xuất hai khu có tiêu đề rõ, không trộn sự kiện trong cùng timeline.",
+    "accept": "Ghi một cuộc gọi và tạo lịch sinh đúng một bản ghi ở mỗi khu; mở khu ghi chú không lẫn thẻ lịch hẹn.",
+    "files": [
+      "Assignments.tsx",
+      "Leads.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-08",
+    "role": "Telesale",
+    "title": "Bỏ hủy kết quả nhập nhầm; bắt buộc bằng chứng",
+    "images": [
+      "TS-08"
+    ],
+    "request": "Bỏ tính năng hủy kết quả nhập nhầm; đính kèm ghi âm/ảnh chat bắt buộc.",
+    "change": "Bỏ thao tác hủy hoạt động và chặn lệnh tương ứng trong luồng này. Tệp được chọn trước khi lưu kết quả; máy chủ xác nhận liên kết tệp thành công rồi mới ghi nhận kết quả hoàn chỉnh. Gọi điện yêu cầu ghi âm, Zalo yêu cầu ảnh chat; ngoại lệ không nghe máy/sai số cần duyệt.",
+    "accept": "Không có tệp thì không lưu; upload lỗi giữ nội dung form để thử lại; tệp thành công gắn đúng lần liên hệ, không tạo hoạt động mồ côi hoặc lưu trùng khi thử lại.",
+    "files": [
+      "Assignments.tsx",
+      "Evidence.tsx",
+      "Corrections.tsx",
+      "backend.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-03"
+  },
+  {
+    "id": "TS-09",
+    "role": "Telesale",
+    "title": "Kết quả liên hệ có Activated",
+    "images": [
+      "TS-09"
+    ],
+    "request": "Thêm Activated trong Kết quả liên hệ.",
+    "change": "Thêm lựa chọn Activated — Đã đăng ký thành công. Đề xuất chỉ ghi nhận lời xác nhận của chuyên viên, không tự cập nhật trạng thái hồ sơ; Tiếp nhận xác minh rồi cập nhật mốc đăng ký. Không yêu cầu lịch hẹn mới khi chọn kết quả này.",
+    "accept": "Lựa chọn xuất hiện trong form, lịch sử và kết quả gần nhất; không tạo lịch hẹn trống; tác động lên hồ sơ theo quyết định Q-02.",
+    "files": [
+      "types.ts",
+      "domain.ts",
+      "Assignments.tsx",
+      "Reports.tsx",
+      "backend/supabase"
+    ],
+    "decision": "Q-02"
+  },
+  {
+    "id": "TS-10",
+    "role": "Telesale",
+    "title": "Nơi hẹn dạng dropdown",
+    "images": [
+      "TS-09"
+    ],
+    "request": "Chọn một trong sáu văn phòng được nêu.",
+    "change": "Áp dụng danh mục C-03 ở cả tạo hẹn và hẹn lại. Lịch cũ có địa điểm nhập tay vẫn đọc được; địa điểm mới chọn từ danh sách. Không tự ép nơi hẹn theo thành phố khi chưa có quy định.",
+    "accept": "Đủ sáu văn phòng; hẹn lại chọn được văn phòng khác và lịch cũ giữ nguyên địa điểm lịch sử.",
+    "files": [
+      "Assignments.tsx",
+      "Appointments.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-11",
+    "role": "Telesale",
+    "title": "Xóa khối Phiếu phân công trong ảnh",
+    "images": [
+      "TS-10"
+    ],
+    "request": "“Xóa mục này” trỏ tới ảnh khối Phiếu phân công.",
+    "change": "Xóa cả card có Tạo lúc, Cập nhật, Người giao, Nhận việc và thanh đếm KNM/quá hẹn được chụp trong TS-10. Mã, thời gian tạo/cập nhật vẫn có ở bảng nhiệm vụ; dữ liệu phục vụ quy tắc và lịch sử vẫn lưu.",
+    "accept": "Không còn card TS-10 tại chi tiết; việc xóa card không làm mất khả năng hiển thị cột nhiệm vụ hay chạy quy tắc quá hạn.",
+    "files": [
+      "Assignments.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-12",
+    "role": "Telesale",
+    "title": "Trạng thái phiếu và bố cục xử lý",
+    "images": [
+      "TS-11",
+      "TS-12"
+    ],
+    "request": "Đủ Chưa liên hệ, Đang tư vấn, Đã giải quyết; bắt buộc cập nhật trạng thái; chuyển Tài xế và Xử lý phiếu cùng phía Ghi nhận liên hệ.",
+    "change": "Dùng nhãn chuẩn C-01; New là trạng thái ban đầu, Open cho đang chăm sóc, Solved là Đã giải quyết; Closed vẫn giữ theo vòng đời gốc. Đưa Thông tin tài xế và Xử lý phiếu về cột thao tác bên trái cùng Ghi nhận liên hệ. Đề xuất lưu liên hệ và trạng thái hợp lệ trong một lần xác nhận.",
+    "accept": "Không lưu kết quả mới nếu chưa chọn trạng thái hợp lệ; chuyên viên không tự Closed; không cho quay về Chưa liên hệ khi đã có lịch sử; form hẹp xếp dọc theo cùng thứ tự.",
+    "files": [
+      "Assignments.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-08"
+  },
+  {
+    "id": "TS-13",
+    "role": "Telesale",
+    "title": "Cột lịch hẹn cá nhân",
+    "images": [
+      "TS-13"
+    ],
+    "request": "Bỏ Chuyên viên 1 vì là lịch cá nhân.",
+    "change": "Thứ tự Thời gian hẹn → Địa điểm hẹn → Tên và SĐT tài xế → Trạng thái. Ở Cần xử lý trạng thái là Đã lên lịch; ở Đã xử lý hiển thị kết quả thực tế. Không hiển thị cột chuyên viên trong màn cá nhân.",
+    "accept": "Chuyên viên 1 chỉ thấy lịch mình, không có cột tên chính mình; lịch Chờ cập nhật kết quả không bị gắn nhãn Đã lên lịch.",
+    "files": [
+      "Appointments.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TS-14",
+    "role": "Telesale",
+    "title": "Vòng đời lịch hẹn theo ngày",
+    "images": [
+      "TS-14"
+    ],
+    "request": "Quá giờ hẹn chuyển Đã xử lý/Chờ cập nhật kết quả; 08:00 hôm sau thành công/thất bại; đổi hẹn thì lịch cũ Đã hủy.",
+    "change": "Áp dụng quy tắc R-01 ở phần dưới. Thành công căn cứ hồ sơ Activated hoặc Onboarded; thất bại khi không có kết quả ở mốc chốt. Lịch bị hủy không được tác vụ thời gian ghi đè. Telesale không còn tự chốt Đã đến/Không đến để thay kết quả đối soát.",
+    "accept": "Kiểm thử trước giờ hẹn, đúng giờ, 00:00, 07:59, 08:00; khởi động lại tác vụ không chốt hai lần; lịch mới không bị kết quả của lịch đã hủy ghi đè.",
+    "files": [
+      "Appointments.tsx",
+      "types.ts",
+      "domain.ts",
+      "dates.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-01, Q-05"
+  },
+  {
+    "id": "TS-15",
+    "role": "Telesale",
+    "title": "Bộ lọc và đầu trang hồ sơ",
+    "images": [
+      "TS-15",
+      "TS-16"
+    ],
+    "request": "Thêm HCM, Đà Nẵng; dòng dưới tên chỉ mã hồ sơ và trạng thái Mới; bỏ Internet.",
+    "change": "Dùng danh mục C-03. Đầu trang thể hiện mã hồ sơ và badge trạng thái hiện tại. “Mới” trong ảnh là dữ liệu mẫu, đề xuất không cố định chữ Mới khi hồ sơ đã đăng ký/chạy đơn.",
+    "accept": "Hồ sơ Activated hiển thị đúng Đã đăng ký; chưa có hồ sơ ở Đà Nẵng vẫn lọc chọn được Đà Nẵng.",
+    "files": [
+      "Leads.tsx"
+    ],
+    "decision": "Q-10"
+  },
+  {
+    "id": "TS-16",
+    "role": "Telesale",
+    "title": "Bảng thông tin hồ sơ và lịch sử tư vấn",
+    "images": [
+      "TS-17"
+    ],
+    "request": "Bỏ Lần tiếp nhận, Người phụ trách; thông tin dạng bảng; lịch sử tất cả phiếu chuyên viên từng tư vấn hồ sơ.",
+    "change": "Bảng thông tin gồm Mã hồ sơ, SĐT, Họ tên, Khu vực đăng ký, Phương tiện, Thời gian tiếp nhận hồ sơ, Nguồn Lead, Trạng thái đăng ký. Bỏ tab Lần tiếp nhận và card Người phụ trách trong phạm vi được nêu. Lịch sử cá nhân gom các phiếu đã từng tư vấn cùng Lead, vẫn phân biệt mã phiếu.",
+    "accept": "Với hai phiếu của Chuyên viên 1 và một phiếu Chuyên viên 2, lịch sử cá nhân chỉ gồm hai phiếu của Chuyên viên 1; quyền xem sau khi phiếu Closed phải được chốt Q-06.",
+    "files": [
+      "Leads.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-06"
+  },
+  {
+    "id": "TS-17",
+    "role": "Telesale",
+    "title": "Bỏ báo cáo riêng của chuyên viên",
+    "images": [],
+    "request": "Chuyên viên chỉ cần dashboard tổng quan.",
+    "change": "Gỡ menu Báo cáo, liên kết Xem báo cáo và quyền mở route báo cáo cho Telesale. Tổng quan cá nhân giữ các số liệu đã xác định.",
+    "accept": "Đăng nhập Telesale không thấy menu và truy cập /reports trực tiếp không mở báo cáo.",
+    "files": [
+      "Layout.tsx",
+      "Dashboard.tsx",
+      "LeadSaleApp.tsx",
+      "Reports.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TL-01",
+    "role": "Trưởng nhóm",
+    "title": "Tổng quan nhóm và bộ lọc",
+    "images": [
+      "TL-01",
+      "TL-02"
+    ],
+    "request": "Đổi tổng quan theo ảnh: Lead mới hôm nay, Chưa phân công, Phiếu đang mở, Phiếu quá hạn.",
+    "change": "Hiện bốn KPI theo phạm vi nhóm và thêm bộ lọc C-02. Đề xuất Phiếu đang mở ở thẻ này chỉ đếm Open như chú thích trong ảnh; chỉ số tồn chưa Closed nằm ở TL-03. Ghi rõ dữ liệu theo kỳ hay tồn tại thời điểm hiện tại.",
+    "accept": "KPI nhóm không cộng dữ liệu nhóm khác; Chưa phân công mở ra hàng đợi đủ điều kiện; ảnh minh họa không được dùng làm dữ liệu thật.",
+    "files": [
+      "Dashboard.tsx"
+    ],
+    "decision": "Q-07, Q-09"
+  },
+  {
+    "id": "TL-02",
+    "role": "Trưởng nhóm",
+    "title": "Hiệu suất chuyển đổi theo chuyên viên, nguồn, thành phố",
+    "images": [
+      "TL-02"
+    ],
+    "request": "Tên Hiệu suất chuyển đổi thành công theo chuyên viên; ghi Số lead được giao/Số lead đã chạy đơn đầu; thêm chuyển đổi theo nguồn, thành phố.",
+    "change": "Đề xuất tỷ lệ đúng chiều = số Lead đã chạy đơn đầu / số Lead được giao × 100%. Biểu đồ nguồn/thành phố dùng cùng định nghĩa chuyển đổi; tooltip hiện tử số và mẫu số. Quy tắc quy công khi chuyển chuyên viên cần chốt.",
+    "accept": "Giao 10 Lead, 2 chạy đơn đầu hiển thị 20%, không phải 500%; mẫu số 0 hiển thị —; kết quả khớp bảng báo cáo.",
+    "files": [
+      "Dashboard.tsx",
+      "Reports.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-09"
+  },
+  {
+    "id": "TL-03",
+    "role": "Trưởng nhóm",
+    "title": "Tồn phiếu theo chuyên viên",
+    "images": [
+      "TL-03",
+      "TL-07"
+    ],
+    "request": "Đổi Tải nhóm thành số phiếu đã phân công còn tồn; tính tất cả phiếu chưa Closed đến hiện tại.",
+    "change": "Tên đề xuất Phiếu phân công chưa đóng. Đếm New + Open + Solved, không giới hạn phiếu tạo trong ngày; hiển thị từng chuyên viên và tổng nhóm. Không dùng nhãn Phiếu đang mở nếu khiến người dùng hiểu chỉ Open.",
+    "accept": "Giao hôm qua 5 phiếu chưa Closed, hôm nay 2 phiếu chưa Closed thì tồn là 7; chuyển một Solved sang Closed còn 6.",
+    "files": [
+      "Dashboard.tsx",
+      "Operations.tsx",
+      "domain.ts"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TL-04",
+    "role": "Trưởng nhóm",
+    "title": "Bố cục tổng quan và hoạt động nhóm",
+    "images": [
+      "TL-03",
+      "TL-04",
+      "TL-05"
+    ],
+    "request": "Bỏ Phễu chuyển đổi, Lead theo nguồn; thêm lịch sử mọi chuyên viên; bỏ nhãn Chưa liên hệ cạnh SĐT.",
+    "change": "Loại hai widget cũ; thay bằng biểu đồ tỷ lệ chuyển đổi TL-02 và bảng Hoạt động gần đây của nhóm theo cấu trúc TS-03. Dòng Phiếu cần xử lý áp dụng TS-02.",
+    "accept": "Có hoạt động của hai chuyên viên cùng nhóm; không có nhân viên nhóm khác; không còn widget số lượng Lead theo nguồn cũ.",
+    "files": [
+      "Dashboard.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TL-05",
+    "role": "Trưởng nhóm",
+    "title": "Nhiệm vụ và chuyển người phụ trách",
+    "images": [
+      "TL-06"
+    ],
+    "request": "Nhiệm vụ sửa tương tự Telesale; popup bỏ mũi tên Hồ sơ Lead; thêm Chuyên viên 2.",
+    "change": "Kế thừa bảng, mã, lịch sử, dropdown, bố cục TS-04 đến TS-12 theo đúng quyền Trưởng nhóm. Trong popup chuyển việc, hồ sơ hiện dạng chỉ đọc không mũi tên; dropdown người nhận lấy danh sách cùng nhóm đủ hai chuyên viên. Trưởng nhóm được chuyển/đóng phiếu, không tự ghi liên hệ thay chuyên viên nếu chưa được cấp quyền.",
+    "accept": "Chuyển từ chuyên viên 1 sang 2 giữ lịch sử và không tạo hai phiếu đang quản lý cùng Lead; giá trị Hồ sơ Lead không đổi được trong popup chuyển.",
+    "files": [
+      "Assignments.tsx",
+      "AssignmentDialog.tsx",
+      "domain.ts"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TL-06",
+    "role": "Trưởng nhóm",
+    "title": "Điều phối và bảng hồ sơ",
+    "images": [
+      "TL-07"
+    ],
+    "request": "Đủ chuyên viên/thành phố; đổi Tải nhóm; cột hồ sơ theo yêu cầu; sắp xếp thời gian.",
+    "change": "Bảng Mã hồ sơ → Họ tên → SĐT → Thành phố → Phương tiện → Nguồn → Thời gian tiếp nhận. Nhân viên chọn từ danh sách C-03; tồn phiếu theo TL-03; cột tiếp nhận có tăng/giảm. Giữ cơ chế chọn nhiều hồ sơ và giao việc nếu màn đang triển khai có chức năng này.",
+    "accept": "Chọn Chuyên viên 2 và nhiều hồ sơ đủ điều kiện có bản tổng kết số giao được/lỗi; không giao lại Lead đã có phiếu chưa Closed; sắp xếp đúng thời gian.",
+    "files": [
+      "Operations.tsx",
+      "AssignmentDialog.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "TL-07",
+    "role": "Trưởng nhóm",
+    "title": "Lịch hẹn và hồ sơ đồng bộ",
+    "images": [
+      "TS-13",
+      "TS-14",
+      "TS-17"
+    ],
+    "request": "Chỉnh lịch hẹn và hồ sơ tương tự chuyên viên.",
+    "change": "Áp dụng vòng đời và cột lịch hẹn mới nhưng Trưởng nhóm xem lịch toàn nhóm; đề xuất giữ cột Chuyên viên và bộ lọc để phân biệt người phụ trách. Hồ sơ dùng cùng bảng thông tin tám trường; lịch sử theo phạm vi nhóm. Việc bỏ cột chuyên viên được chỉ rõ là vì màn cá nhân, cần duyệt khi áp dụng cho nhóm.",
+    "accept": "Hai lịch cùng tài xế/giờ của hai chuyên viên vẫn phân biệt được; không đọc dữ liệu nhóm khác.",
+    "files": [
+      "Appointments.tsx",
+      "Leads.tsx"
+    ],
+    "decision": "Q-06, Q-10"
+  },
+  {
+    "id": "TL-08",
+    "role": "Trưởng nhóm",
+    "title": "Ba báo cáo quản lý",
+    "images": [
+      "TL-08"
+    ],
+    "request": "Hiệu suất làm việc, kết quả liên hệ theo chuyên viên và chuyển đổi Lead; có lọc thời gian, chuyên viên/nguồn/thành phố.",
+    "change": "Xây ba bảng theo R-03; tách đơn vị đếm phiếu và Lead. Kết quả liên hệ dùng kết quả hợp lệ gần nhất của mỗi phiếu, không đếm mỗi lần gọi thành một phiếu. Xuất file hoặc bản in có tiêu đề, thời gian, bộ lọc nếu được duyệt bổ sung.",
+    "accept": "Một phiếu gọi ba lần chỉ được đếm một trong báo cáo theo phiếu; tỷ lệ dùng cùng mẫu số đã duyệt; tổng bảng bằng tổng chi tiết mở từ chỉ số.",
+    "files": [
+      "Reports.tsx",
+      "types.ts",
+      "domain.ts",
+      "backend.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-09, Q-10"
+  },
+  {
+    "id": "TL-09",
+    "role": "Trưởng nhóm",
+    "title": "Bàn giao Closed theo quyền giám sát",
+    "images": [],
+    "request": "Tiếp nhận ghi Tương tự bên Trưởng nhóm, nhưng tab Trưởng nhóm không mô tả riêng Bàn giao.",
+    "change": "Đề xuất Trưởng nhóm xem danh sách phiếu đã đóng, căn cứ và tiến độ rà soát của nhóm; Tiếp nhận thực hiện quyết định Mới/Đóng. Cột mã phiếu, mã hồ sơ, tên/SĐT, chuyên viên, thời điểm đóng, lý do, kết quả rà soát.",
+    "accept": "Trưởng nhóm xem đúng nhóm, không có nút cập nhật trạng thái Lead; Tiếp nhận quyết định xong thì danh sách nhóm phản ánh kết quả.",
+    "files": [
+      "Operations.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-08"
+  },
+  {
+    "id": "IN-01",
+    "role": "Tiếp nhận",
+    "title": "Tổng quan tiếp nhận",
+    "images": [
+      "IN-01",
+      "IN-02"
+    ],
+    "request": "Đổi dải KPI theo ảnh; thay Lượt trùng SĐT bằng Tổng số hồ sơ Lead.",
+    "change": "Bốn KPI: Lead mới hôm nay, Tổng số hồ sơ Lead, Chờ bàn giao, Chờ cập nhật hồ sơ. Đề xuất Chờ bàn giao là Lead Mới đủ điều kiện chưa được phân công; Chờ cập nhật là số hồ sơ phân biệt có bàn giao Closed chưa rà soát.",
+    "accept": "Không còn KPI Lượt trùng SĐT; hai phiếu Closed của cùng hồ sơ không làm tăng Chờ cập nhật thành hai hồ sơ nếu đã chọn đơn vị hồ sơ.",
+    "files": [
+      "Dashboard.tsx"
+    ],
+    "decision": "Q-07"
+  },
+  {
+    "id": "IN-02",
+    "role": "Tiếp nhận",
+    "title": "Biểu đồ nguồn và lịch sử cập nhật",
+    "images": [
+      "IN-03",
+      "IN-04"
+    ],
+    "request": "Giữ Đang được tư vấn; thay các khối còn lại bằng Lead theo nguồn; thêm lịch sử cập nhật hồ sơ.",
+    "change": "Giữ thống kê Đang được tư vấn; thay Phễu chuyển đổi và phân bổ cũ bằng biểu đồ cột Hotline/Chat MXH/Website/Giới thiệu. Lịch sử cập nhật: mã hồ sơ, tên/SĐT, người sửa, thời điểm, nội dung thay đổi, trạng thái trước/sau.",
+    "accept": "Một hồ sơ đổi trạng thái sinh một dòng lịch sử có người/thời gian; biểu đồ đếm theo nguồn tiếp nhận đã quy định, không nhân theo số lần nhận trùng.",
+    "files": [
+      "Dashboard.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-09"
+  },
+  {
+    "id": "IN-03",
+    "role": "Tiếp nhận",
+    "title": "Hồ sơ chỉ hiển thị nghiệp vụ tiếp nhận",
+    "images": [
+      "IN-05"
+    ],
+    "request": "Không cần phiếu đóng/mở, lịch sử tư vấn; chỉ thông tin hồ sơ.",
+    "change": "Chi tiết có bảng tám trường chuẩn và khối cập nhật trạng thái; không có tab phiếu hay lịch sử tư vấn, card người phụ trách, khối Internet. Căn cứ bàn giao xem ở màn Bàn giao Closed. Lịch sử chỉnh sửa hồ sơ vẫn giữ vì đã được yêu cầu ở IN-02.",
+    "accept": "Tiếp nhận mở hồ sơ không bị lẫn số phiếu, trạng thái phiếu, lịch sử gọi; vẫn xem và chỉnh thông tin hồ sơ theo quyền.",
+    "files": [
+      "Leads.tsx",
+      "Layout.tsx"
+    ],
+    "decision": ""
+  },
+  {
+    "id": "IN-04",
+    "role": "Tiếp nhận",
+    "title": "Đủ thao tác trạng thái hồ sơ",
+    "images": [
+      "IN-05"
+    ],
+    "request": "Chọn thao tác đủ Mới, Đã đăng ký, Đã chạy đơn đầu.",
+    "change": "Dropdown hiển thị đầy đủ mục tiêu Mới / Đã đăng ký / Đã chạy đơn đầu; Đóng được thực hiện trong rà soát Closed. Hiển thị đủ lựa chọn không đồng nghĩa cho phép mọi chuyển trạng thái; quay lùi mốc thành công cần căn cứ/quyền đã chốt.",
+    "accept": "New → Activated → Onboarded lưu đúng mốc, lịch sử và người cập nhật; thao tác không hợp lệ có thông báo lý do; không âm thầm xóa mốc đăng ký.",
+    "files": [
+      "Leads.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-08"
+  },
+  {
+    "id": "IN-05",
+    "role": "Tiếp nhận",
+    "title": "Rà soát Closed chỉ hai kết quả",
+    "images": [
+      "IN-06"
+    ],
+    "request": "Đủ điều kiện phân công lại → Mới; Đóng hồ sơ → Đóng.",
+    "change": "Bỏ Cần theo dõi thêm; đổi Đề nghị đóng hồ sơ thành Đóng hồ sơ. Khi Hoàn tất rà soát, lưu kết quả và cập nhật trạng thái Lead trong cùng giao dịch. Căn cứ bắt buộc; chỉ sau thành công mới đưa vào hàng đợi phân công lại.",
+    "accept": "Đủ điều kiện làm Lead New và xuất hiện hàng đợi; Đóng làm Closed và không xuất hiện; lỗi ghi hồ sơ không được đánh dấu rà soát hoàn tất. Hồ sơ đã có mốc thành công xử lý theo Q-08.",
+    "files": [
+      "Operations.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-08"
+  },
+  {
+    "id": "IN-06",
+    "role": "Tiếp nhận",
+    "title": "Bỏ Hộp thư",
+    "images": [
+      "IN-07"
+    ],
+    "request": "Có thể bỏ Hộp thư vì không muốn dùng API.",
+    "change": "Đề xuất bỏ Hộp thư và kết nối hotline/chat ngoài; tiếp nhận bằng form/nhập danh sách đang có. Giữ giá trị nguồn Hotline/Chat MXH/Website/Giới thiệu để chọn thủ công. Phân biệt Hộp thư với Thông báo nội bộ và Đối soát nguồn.",
+    "accept": "Tiếp nhận hồ sơ nguồn Chat MXH thủ công được; không còn yêu cầu kết nối Messenger. Không tự xóa toàn bộ thông báo nội bộ.",
+    "files": [
+      "Layout.tsx",
+      "Leads.tsx",
+      "ImportLeads.tsx"
+    ],
+    "decision": "Q-04"
+  },
+  {
+    "id": "IN-07",
+    "role": "Tiếp nhận",
+    "title": "Hai báo cáo nguồn tiếp nhận",
+    "images": [
+      "IN-08"
+    ],
+    "request": "Tỷ trọng hồ sơ theo bốn nguồn; trạng thái hồ sơ theo nguồn, thêm số SĐT sai; lọc thời gian.",
+    "change": "R-03 quy định hai bảng/biểu đồ: tỷ trọng theo nguồn và ma trận Nguồn × New/Activated/Onboarded/Closed/SĐT sai. SĐT sai là cờ chất lượng riêng, có thể trùng Closed, không cộng thành trạng thái thứ năm.",
+    "accept": "Tổng bốn trạng thái bằng tổng hồ sơ của nguồn tại thời điểm xem; cột SĐT sai được chú thích có thể giao nhau; các tỷ trọng theo nguồn cộng 100% nếu đủ danh mục.",
+    "files": [
+      "Reports.tsx",
+      "domain.ts",
+      "types.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-09"
+  },
+  {
+    "id": "AD-01",
+    "role": "Admin",
+    "title": "Phạm vi Admin chỉ quản trị",
+    "images": [],
+    "request": "Công việc Admin không liên quan Lead.",
+    "change": "Trang mặc định là quản lý người dùng; chỉ các mục Tài khoản người dùng, Vai trò & phân quyền, Tài khoản của tôi. Bỏ quyền nghiệp vụ Lead/phân công/lịch/báo cáo/đối soát/giả lập khỏi vai trò Admin nghiệp vụ; dữ liệu và công cụ kỹ thuật hiện có không bị xóa.",
+    "accept": "Admin đăng nhập mở quản trị, không thấy Lead và không thể gọi lệnh nghiệp vụ bằng URL/API; quyền mới được kiểm ở máy chủ.",
+    "files": [
+      "Layout.tsx",
+      "LeadSaleApp.tsx",
+      "domain.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-04"
+  },
+  {
+    "id": "AD-02",
+    "role": "Admin",
+    "title": "Quản lý vòng đời tài khoản",
+    "images": [],
+    "request": "Tạo, cập nhật thông tin, khóa/mở khóa, đặt lại mật khẩu.",
+    "change": "Có danh sách tìm kiếm, form tạo và sửa họ tên/email/vai trò/nhóm theo khả năng hệ thống; khóa/mở khóa có kết quả rõ; đặt lại mật khẩu qua cơ chế đã chọn. Tài khoản Admin đầu tiên khởi tạo khi triển khai; người dùng không tự đăng ký.",
+    "accept": "Admin tạo tài khoản khác mà không đổi phiên đăng nhập hiện tại; tài khoản khóa không dùng được phiên cũ để thao tác; reset mật khẩu có kết quả xác nhận và không lộ mật khẩu.",
+    "files": [
+      "Settings.tsx",
+      "backend.ts",
+      "AuthScreen.tsx",
+      "backend/supabase"
+    ],
+    "decision": "Q-10"
+  },
+  {
+    "id": "AD-03",
+    "role": "Admin",
+    "title": "Vai trò và ma trận quyền",
+    "images": [],
+    "request": "Gán vai trò, quy định quyền chức năng theo vai trò.",
+    "change": "Bốn vai trò chính Admin/Tiếp nhận/Trưởng nhóm/Telesale. Màn hình có ma trận chức năng và thao tác xem/tạo/sửa/phân công/xác nhận/báo cáo. Đề xuất bản đầu dùng quyền chuẩn cố định để gán vai trò; nếu cần Admin sửa từng ô thì phải có mô hình quyền tương ứng. Vai trò Xem báo cáo cũ chưa được NOTE SỬA nhắc tới.",
+    "accept": "Đổi vai trò làm quyền thực tế đổi; không cho nhân viên tự nâng quyền; không cho vô tình khóa Admin cuối cùng.",
+    "files": [
+      "Settings.tsx",
+      "domain.ts",
+      "types.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-10"
+  },
+  {
+    "id": "AD-04",
+    "role": "Admin",
+    "title": "Phân tách danh mục nghiệp vụ khỏi quyền Admin",
+    "images": [],
+    "request": "Admin chỉ làm tài khoản/phân quyền trong khi bản hiện tại có Nguồn Lead, Nhóm và nhãn trạng thái.",
+    "change": "Ẩn các chức năng danh mục nghiệp vụ khỏi menu Admin theo phạm vi mới; dùng bộ danh mục khởi tạo chung cho ba thành phố, sáu văn phòng và bốn nguồn. Nếu cần cho người dùng sửa danh mục thì phải chỉ định vai trò chịu trách nhiệm; chưa tự chuyển quyền cho Trưởng nhóm.",
+    "accept": "Admin không còn chức năng sửa nguồn/trạng thái Lead; màn nghiệp vụ vẫn có đầy đủ dropdown dù không còn màn quản trị danh mục.",
+    "files": [
+      "Settings.tsx",
+      "seed.ts",
+      "backend/supabase"
+    ],
+    "decision": "Q-10"
+  }
+]

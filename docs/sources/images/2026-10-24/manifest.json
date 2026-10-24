@@ -1,0 +1,371 @@
+[
+  {
+    "tabId": "t.0",
+    "tabTitle": "quy trình làm việc",
+    "imageId": "kix.s8a3f2idp2r1",
+    "label": "BASE-0-01",
+    "name": "base-0-01.png",
+    "sha256": "fdd6046a34ca0296c4f02897f8f019903ead01792f3e1715a7833fa0e49296d2",
+    "bytes": 26245
+  },
+  {
+    "tabId": "t.0",
+    "tabTitle": "quy trình làm việc",
+    "imageId": "kix.m1kgggof9kan",
+    "label": "BASE-0-02",
+    "name": "base-0-02.png",
+    "sha256": "02fe611ae04287920d6475eb81b2aab6f0a7660cd2b8e2e961ac8472f56e843c",
+    "bytes": 81343
+  },
+  {
+    "tabId": "t.0",
+    "tabTitle": "quy trình làm việc",
+    "imageId": "kix.8n18jo89p60",
+    "label": "BASE-0-03",
+    "name": "base-0-03.png",
+    "sha256": "be177ad6a27de38b69eac1903d9b086c67fce6c37e11cd2eb42dc64af0b151ee",
+    "bytes": 519230
+  },
+  {
+    "tabId": "t.0",
+    "tabTitle": "quy trình làm việc",
+    "imageId": "kix.3rcxf7q8gcnv",
+    "label": "BASE-0-04",
+    "name": "base-0-04.png",
+    "sha256": "e58b35597a09a45f7b9599863d00e38f6739e5080c1880642283614c41c70705",
+    "bytes": 17114
+  },
+  {
+    "tabId": "t.c8gv4ptck7xl",
+    "tabTitle": "BFD",
+    "imageId": "kix.ngb28amtzlpb",
+    "label": "BASE-1-01",
+    "name": "base-1-01.png",
+    "sha256": "630bbd75cc7a397a175cbeb629a17c35926225c741b56abf62ebdbab440c31f0",
+    "bytes": 68947
+  },
+  {
+    "tabId": "t.krrgqymy76wk",
+    "tabTitle": "yêu cầu của thầy t nhó",
+    "imageId": "kix.fm230bkq5fis",
+    "label": "BASE-2-01",
+    "name": "base-2-01.png",
+    "sha256": "fd25859a62f0b67ae79ff81efa74da7585027d8c8cfef43172c540cb619eb4ec",
+    "bytes": 46968
+  },
+  {
+    "tabId": "t.krrgqymy76wk",
+    "tabTitle": "yêu cầu của thầy t nhó",
+    "imageId": "kix.4bjd8gmn8567",
+    "label": "BASE-2-02",
+    "name": "base-2-02.png",
+    "sha256": "ea8a11b512516a8859b8b21d0ed85602911ea6f76ec9b196a3f32795fce6fd8d",
+    "bytes": 60567
+  },
+  {
+    "tabId": "t.ui5s7g2dk4rc",
+    "tabTitle": "NHỜ THẢO",
+    "imageId": "kix.o1bgby87b0",
+    "label": "BASE-3-01",
+    "name": "base-3-01.png",
+    "sha256": "79570a6540733c9a9095d7e713457050c5b4597318e390867f1d7ed896e227a4",
+    "bytes": 54441
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.toncpdkrec84",
+    "label": "TS-01",
+    "name": "ts-01.png",
+    "sha256": "a6cfef2fbff48fcc742b837155f1f1881516a997c5d78872871e53b3c8e51e5d",
+    "bytes": 24816
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.nbozpun4ad47",
+    "label": "TS-02",
+    "name": "ts-02.png",
+    "sha256": "326117161d0463a7b514fef2cf97e79f22b808a885da724c6f228066034e9eb1",
+    "bytes": 31436
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.q9t885255amq",
+    "label": "TS-03",
+    "name": "ts-03.png",
+    "sha256": "72ca4890f343873e33ec01f2858d5f4d342a1cf274e07ad0670049b323faafce",
+    "bytes": 24995
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.41gnym7xabrf",
+    "label": "TS-04",
+    "name": "ts-04.png",
+    "sha256": "ba85748e3778a3df9aa557615a320608ecb7685cd62e2b7ea35ba58a7256d437",
+    "bytes": 49899
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.553iwhewgqyg",
+    "label": "TS-05",
+    "name": "ts-05.png",
+    "sha256": "1ca7fb7910623f534397947d8c174051b2388395eb9f55d6b952944b189db65a",
+    "bytes": 104770
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.9fjslnj09xtt",
+    "label": "TS-06",
+    "name": "ts-06.png",
+    "sha256": "b589cced94c0b27ef040a450be99e193cd0e2ffb81e20b6f8a13919d79529d12",
+    "bytes": 82644
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.7dpcm4fxmgdg",
+    "label": "TS-07",
+    "name": "ts-07.png",
+    "sha256": "9233c127d312d5e9b892a38c9492a34cbe7225d6822490d85dba8664c3aae6b1",
+    "bytes": 43529
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.wg6jesmtf1rp",
+    "label": "TS-08",
+    "name": "ts-08.png",
+    "sha256": "caf9bc18066873f5b44ae2dbe7f8fb3bcde3c6211e8a6adfd7dcc408fef3de7a",
+    "bytes": 67015
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.gyrpw5cn41v2",
+    "label": "TS-09",
+    "name": "ts-09.png",
+    "sha256": "5d48ca549e2a8e4bfdd107d74fb26ccad1e783de511887603d279d7adf0f2440",
+    "bytes": 53038
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.vjitq9remhyd",
+    "label": "TS-10",
+    "name": "ts-10.png",
+    "sha256": "d4031543eaede61ca9c8f0c68e8ef3cc47354aaf6f951d1725c3384affb3a73b",
+    "bytes": 21905
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.uqut7l2u334r",
+    "label": "TS-11",
+    "name": "ts-11.png",
+    "sha256": "ca694c57b35a7408a79bb1d5d34a5fe7dac5f11ddfb3950d3aab23c619dd6623",
+    "bytes": 9595
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.hg1mu1yf3vj4",
+    "label": "TS-12",
+    "name": "ts-12.png",
+    "sha256": "45a8406fbeba77b014032df4c3d9004ac5093a8c56f491fc46eb90f4e4e47c68",
+    "bytes": 127758
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.r4yhoewmi6zv",
+    "label": "TS-13",
+    "name": "ts-13.png",
+    "sha256": "146ed1b5b120f14407156db7564b2079227c5f6dfa83bdfe82dca8985186005d",
+    "bytes": 22707
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.qc6575y9vtjh",
+    "label": "TS-14",
+    "name": "ts-14.png",
+    "sha256": "2d79a47ee470a1ef0eece12a579bb1abda69657e4ab5f9ea28b123d5ae76a01e",
+    "bytes": 158071
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.way7gplhkf1h",
+    "label": "TS-15",
+    "name": "ts-15.png",
+    "sha256": "992e69b59d1ecd80a5b10b0268a920316a6f87e26bc56f91317914456fbd2b21",
+    "bytes": 84766
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.e5yimmh58y2p",
+    "label": "TS-16",
+    "name": "ts-16.png",
+    "sha256": "d2c8b0243feeb542ed2273d8ccffd40faf2eda6fa4f0e8a43882e5a10612a276",
+    "bytes": 71300
+  },
+  {
+    "tabId": "t.a4j92hqjms9j",
+    "tabTitle": "CHUYÊN VIÊN TELESALE",
+    "imageId": "kix.vrd12h5qazeb",
+    "label": "TS-17",
+    "name": "ts-17.png",
+    "sha256": "fd5752c2c39ea96775c80d86326f1358ef7c3457a8307666be7477084bd2d8a4",
+    "bytes": 48584
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.k6e6dwtsy0n4",
+    "label": "TL-01",
+    "name": "tl-01.png",
+    "sha256": "644ddef6a74f332fc7acca519e3c6b1383cd90c0cecf403d1636c0d78bd36130",
+    "bytes": 23773
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.tmly5y5wlm1f",
+    "label": "TL-02",
+    "name": "tl-02.png",
+    "sha256": "00badf6e34e1fd85323b27c57d49d0cf41b530e9eb39f65b7befd71f424c2d46",
+    "bytes": 43274
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.xz2m04a473kl",
+    "label": "TL-03",
+    "name": "tl-03.png",
+    "sha256": "db6e2262727f57e38a57be84a7863c32b5089eade4a994dcbbc9b1126c22ce90",
+    "bytes": 101078
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.o4euu6pjnh01",
+    "label": "TL-04",
+    "name": "tl-04.png",
+    "sha256": "ba85748e3778a3df9aa557615a320608ecb7685cd62e2b7ea35ba58a7256d437",
+    "bytes": 49899
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.ymak80evfqa9",
+    "label": "TL-05",
+    "name": "tl-05.png",
+    "sha256": "fa3226726317c8df13ecc721f27cdf4bdf56b57f84b81fb07d0fa530f3c5b35f",
+    "bytes": 29688
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.nbalktqu95en",
+    "label": "TL-06",
+    "name": "tl-06.png",
+    "sha256": "4951952824b851d04f25023615e81aac5b672c16af21557f15c4a9a02bf9b52a",
+    "bytes": 77315
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.fagvuerj91va",
+    "label": "TL-07",
+    "name": "tl-07.png",
+    "sha256": "c135102d28f3e38540e444eb8b7657c9baac7e87b41a1ef19222e11012ad823d",
+    "bytes": 63993
+  },
+  {
+    "tabId": "t.5sluq4kb16xk",
+    "tabTitle": "Trường nhóm",
+    "imageId": "kix.us8rnl15ja2j",
+    "label": "TL-08",
+    "name": "tl-08.png",
+    "sha256": "643efd2253279e05fdb24041ec5d306823a8f4783a6acd0387860ed6fa85cdb2",
+    "bytes": 164141
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.qq35rinda98j",
+    "label": "IN-01",
+    "name": "in-01.png",
+    "sha256": "693d7d739d43be00008a9e0286d65a0322f0e23345e1c25f004867a38623c16c",
+    "bytes": 19344
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.ot1b7rjltoz1",
+    "label": "IN-02",
+    "name": "in-02.png",
+    "sha256": "5e1b777d555b7d3f0ca4f3f779fb1296fe262e40ccda94b08be161ee4fe2573a",
+    "bytes": 34788
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.c9opvk7zkjbs",
+    "label": "IN-03",
+    "name": "in-03.png",
+    "sha256": "313e6e0d97d8c0f9eb11ebd711b3e6f08007f1006507cb41e772ce3e64a554eb",
+    "bytes": 60697
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.rn4k5kf1t3is",
+    "label": "IN-04",
+    "name": "in-04.png",
+    "sha256": "e3869dba6b3a25fd25b1bf91d57dcd4251a6a4f61b40281754f6a9c4029ff7cc",
+    "bytes": 36621
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.1loo6f3kjw73",
+    "label": "IN-05",
+    "name": "in-05.png",
+    "sha256": "89a054ae7e76a5b258af8b2dca7f8f9f7d6c76bc8a487c920b572eaeb0a4e2c3",
+    "bytes": 26042
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.g21pjrec4qyi",
+    "label": "IN-06",
+    "name": "in-06.png",
+    "sha256": "23e6fd400be51ed1ed835d98f2f6bd0b9ff7e1eaef22804a1e7219110aa7f7f3",
+    "bytes": 13716
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.e8kaub6yul7h",
+    "label": "IN-07",
+    "name": "in-07.png",
+    "sha256": "72fe0bcd7adcfa3ad42f7534da6397ca452ad3245a92e53d1a79e2f796a7d5f5",
+    "bytes": 151069
+  },
+  {
+    "tabId": "t.1c2qqrsfc6jm",
+    "tabTitle": "Tiếp nhận viên",
+    "imageId": "kix.mskpa0n68vgd",
+    "label": "IN-08",
+    "name": "in-08.png",
+    "sha256": "643efd2253279e05fdb24041ec5d306823a8f4783a6acd0387860ed6fa85cdb2",
+    "bytes": 164141
+  }
+]

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useWorkspace } from "./context";
 import { roleLabels, leadLabels } from "./domain";
-import { registerMember } from "./backend";
+import { registerMember, supabase } from "./backend";
 import {
   Avatar,
   Badge,
@@ -123,14 +123,28 @@ function MemberDialog({
   const [role, setRole] = useState<Role>(member.role);
   const [teamId, setTeamId] = useState(member.teamId ?? "default");
   const [active, setActive] = useState(member.active);
+  const [name, setName] = useState(member.name);
   return (
     <FormDialog
       open
       onOpenChange={(v) => !v && onClose()}
       title={`Sửa người dùng · ${member.name}`}
       description={member.email}
-      onSubmit={() =>
-        run(
+      onSubmit={async () => {
+        if (
+          name.trim() !== member.name &&
+          !(await run(
+            {
+              type: "memberProfile",
+              id: member.id,
+              name,
+              email: member.email ?? "",
+            },
+            "Đã cập nhật tên hiển thị.",
+          ))
+        )
+          return false;
+        return run(
           {
             type: "member",
             id: member.id,
@@ -139,9 +153,18 @@ function MemberDialog({
             ...(teamId !== (member.teamId ?? "default") ? { teamId } : {}),
           },
           "Đã cập nhật người dùng.",
-        )
-      }
+        );
+      }}
     >
+      <Field label="Họ tên hiển thị">
+        <input
+          required
+          minLength={2}
+          maxLength={120}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </Field>
       <Field label="Vai trò">
         <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
           {Object.entries(roleLabels).map(([k, v]) => (
@@ -341,9 +364,17 @@ function Users() {
                         label={m.name}
                         items={[
                           {
-                            label: "Sửa vai trò, nhóm…",
+                            label: "Sửa thông tin, vai trò, nhóm, khóa…",
                             onSelect: () => setEditing(m),
                           },
+                          ...(cloud && m.email
+                            ? [
+                                {
+                                  label: "Gửi liên kết đặt lại mật khẩu",
+                                  onSelect: () => void resetPassword(m.email!),
+                                },
+                              ]
+                            : []),
                         ]}
                       />
                     )}
@@ -767,11 +798,103 @@ function Audit() {
   );
 }
 
+async function resetPassword(email: string) {
+  try {
+    if (!supabase) throw new Error("Chưa kết nối Supabase.");
+    const gate = await supabase.rpc("lead_admin_check");
+    if (gate.error) throw gate.error;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) throw error;
+    toast.success("Đã gửi liên kết đặt lại mật khẩu tới email người dùng.");
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
+
+const matrix = [
+  ["Tài khoản & phân quyền", "Quản lý", "—", "—", "—"],
+  [
+    "Hồ sơ Lead",
+    "—",
+    "Tiếp nhận / cập nhật",
+    "Xem trong nhóm",
+    "Xem hồ sơ đang phụ trách",
+  ],
+  ["Phân công / chuyển / đóng phiếu", "—", "—", "Trong nhóm", "—"],
+  [
+    "Ghi nhận liên hệ & bằng chứng",
+    "—",
+    "—",
+    "Xem trong nhóm",
+    "Phiếu của mình",
+  ],
+  [
+    "Lịch hẹn",
+    "—",
+    "Đối soát kết quả",
+    "Xem nhóm",
+    "Đặt / đổi / hủy lịch của mình",
+  ],
+  ["Bàn giao Closed", "—", "Rà soát, cập nhật hồ sơ", "Giám sát nhóm", "—"],
+  [
+    "Báo cáo",
+    "—",
+    "Nguồn tiếp nhận",
+    "Hiệu suất / chuyển đổi",
+    "Chỉ tổng quan cá nhân",
+  ],
+];
+
+function Roles() {
+  return (
+    <>
+      <SectionHead
+        title="Vai trò & phân quyền"
+        description="Quyền chuẩn theo vai trò, áp dụng tại máy chủ. Gán vai trò ở mục Người dùng."
+      />
+      <section className="panel">
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Chức năng</th>
+                <th>Quản trị viên</th>
+                <th>Tiếp nhận</th>
+                <th>Trưởng nhóm</th>
+                <th>Telesale</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matrix.map((row) => (
+                <tr key={row[0]}>
+                  {row.map((c, i) => (
+                    <td key={i}>{c}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted report-note">
+          Vai trò Xem báo cáo cũ được giữ cho tài khoản đang có; chỉ xem báo
+          cáo, không sửa nghiệp vụ. Không khóa được tài khoản quản trị của chính
+          mình.
+        </p>
+      </section>
+    </>
+  );
+}
+
+// Catalog screens are no longer part of the Admin scope (NOTE SỬA AD-04);
+// kept exported so the code is preserved for a future owner role.
+export const catalogSections = { Sources, Statuses };
+
 const sections = [
   { id: "users", label: "Người dùng", group: "Tài khoản", el: Users },
+  { id: "roles", label: "Vai trò & phân quyền", group: "Tài khoản", el: Roles },
   { id: "teams", label: "Nhóm Telesale", group: "Tài khoản", el: Teams },
-  { id: "sources", label: "Nguồn Lead", group: "Danh mục", el: Sources },
-  { id: "statuses", label: "Trạng thái Lead", group: "Danh mục", el: Statuses },
   { id: "audit", label: "Nhật ký thao tác", group: "Hệ thống", el: Audit },
 ];
 
@@ -784,7 +907,7 @@ export function Settings() {
     <Guard allowed={actor.role === "admin"}>
       <div className="settings">
         <nav className="settings-nav" aria-label="Mục cài đặt">
-          <h1>Cài đặt</h1>
+          <h1>Quản trị</h1>
           {[...new Set(sections.map((s) => s.group))].map((g) => (
             <div key={g}>
               <p>{g}</p>

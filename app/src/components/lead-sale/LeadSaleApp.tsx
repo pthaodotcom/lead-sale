@@ -16,7 +16,6 @@ import { Reports } from "./Reports";
 import { Settings } from "./Settings";
 import { Empty } from "./shared";
 import { Notices } from "./Notices";
-import { InboxPage } from "./Inbox";
 import "./lead-sale.css";
 
 // Keep Atomic CRM's Admin/router/UI foundation; domain commands use Supabase.
@@ -46,7 +45,7 @@ export default function LeadSaleApp() {
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/tasks/:id" element={<TicketPage />} />
           <Route path="/dispatch" element={<Dispatch />} />
-          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/inbox" element={<Navigate replace to="/" />} />
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/leads" element={<LeadsList />} />
           <Route path="/leads/create" element={<LeadForm key="create" />} />

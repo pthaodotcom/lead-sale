@@ -1,3 +1,5 @@
+import { normalizeCity, offices } from "./catalog";
+import { dayVN, settleAppointments, validateEvidence } from "./workflow";
 import type {
   ActivityInput,
   Assignment,
@@ -31,6 +33,7 @@ export const ticketLabels = {
   Closed: "Đã đóng",
 };
 export const outcomeLabels = {
+  activated: "Activated — Đã đăng ký thành công",
   called: "Đã liên hệ",
   no_answer: "Không nghe máy",
   unresponsive: "Chat chưa phản hồi",
@@ -50,15 +53,15 @@ export const reasonLabels = {
   ineligible: "Không đủ điều kiện",
 };
 export const canEditLead = (actor: Member) =>
-  actor.active && ["admin", "intake"].includes(actor.role);
+  actor.active && actor.role === "intake";
 export const canAssign = (actor: Member) =>
-  actor.active && ["admin", "leader"].includes(actor.role);
+  actor.active && actor.role === "leader";
 export const canWork = (actor: Member, ticket: Assignment) =>
   actor.active &&
   ticket.status !== "Closed" &&
   Date.parse(ticket.expiresAt) > serverNow().getTime() &&
-  (actor.role === "admin" ||
-    (actor.role === "telesale" && ticket.assigneeId === actor.id));
+  actor.role === "telesale" &&
+  ticket.assigneeId === actor.id;
 export const isLive = (ticket: Assignment) => ticket.status !== "Closed";
 export const isPending = (ticket: Assignment, now = serverNow()) =>
   (ticket.status === "New" || ticket.status === "Open") &&
@@ -81,7 +84,8 @@ export function canReadLead(
   now = serverNow(),
 ) {
   if (!actor.active || actor.role === "viewer") return false;
-  if (["admin", "intake"].includes(actor.role)) return true;
+  if (actor.role === "admin") return false;
+  if (actor.role === "intake") return true;
   const t = latestAssignment(db, leadId);
   if (actor.role === "leader")
     return (
@@ -124,6 +128,7 @@ export function calculateReport(
       !l.archived &&
       (!filters.from || day(l.receivedAt) >= filters.from) &&
       (!filters.to || day(l.receivedAt) <= filters.to) &&
+      (!filters.city || normalizeCity(l.city) === filters.city) &&
       (!filters.source || l.sourceId === filters.source) &&
       (!filters.status || l.status === filters.status) &&
       (!filters.member || (t?.assigneeId ?? "unassigned") === filters.member) &&
@@ -199,7 +204,7 @@ export function validateLead(
     ...input,
     name: input.name.trim(),
     phone: normalizePhone(input.phone),
-    city: input.city.trim(),
+    city: normalizeCity(input.city.trim()),
     note: input.note.trim(),
     tags: [...new Set(input.tags.map((t) => t.trim()).filter(Boolean))],
   };
@@ -280,7 +285,16 @@ export function applyCommand(
     });
   const cancelAppointments = (ticketId: string) => {
     for (const a of db.appointments.filter(
-      (a) => a.assignmentId === ticketId && a.status === "scheduled",
+      (a) =>
+        a.assignmentId === ticketId &&
+        a.status === "scheduled" &&
+        Date.parse(a.at) > now.getTime() &&
+        !db.leads.some(
+          (l) =>
+            l.id === a.leadId &&
+            l.activatedAt &&
+            dayVN(l.activatedAt) === dayVN(a.at),
+        ),
     ))
       a.status = "cancelled";
   };
@@ -302,9 +316,24 @@ export function applyCommand(
       });
   };
   const writable = (ticket: Assignment) =>
-    actor.role === "admin" ||
-    (actor.role === "telesale" && ticket.assigneeId === actor.id);
-  // Preview expiry is evaluated on access; the future backend must schedule this independently.
+    actor.role === "telesale" && ticket.assigneeId === actor.id;
+  settleAppointments(db, now);
+  if (
+    actor.role === "admin" &&
+    ![
+      "member",
+      "memberProfile",
+      "memberCreate",
+      "noticeRead",
+      "expire",
+    ].includes(command.type)
+  )
+    fail("Quản trị viên chỉ quản lý tài khoản và phân quyền.");
+  if (command.type === "voidActivity" || command.type === "attachment")
+    fail(
+      "Lưu bằng chứng cùng lần liên hệ; không hỗ trợ hủy kết quả nhập nhầm.",
+    );
+  // Preview expiry is evaluated on access; cloud jobs run independently.
   for (const ticket of db.assignments) {
     if (
       isLive(ticket) &&
@@ -495,6 +524,16 @@ export function applyCommand(
       }
       const ticket: Assignment = {
         id: id("PC"),
+        sequence:
+          Math.max(0, ...db.assignments.map((t, i) => t.sequence ?? i + 1)) + 1,
+        leadSnapshot: {
+          id: lead.id,
+          name: lead.name,
+          phone: lead.phone,
+          city: lead.city,
+          vehicle: lead.vehicle,
+          sourceId: lead.sourceId,
+        },
         leadId: lead.id,
         assigneeId: command.assigneeId,
         assignedBy: actorId,
@@ -573,6 +612,8 @@ export function applyCommand(
         "Nhận việc trước khi ghi tư vấn.",
       );
       const input: ActivityInput = command.input;
+      validateEvidence(input);
+      ensure(leadById(ticket.leadId).status === "New", "Chỉ tư vấn hồ sơ Mới.");
       ensure(
         !(input.channel === "zalo" && input.outcome === "no_answer") &&
           !(input.channel === "call" && input.outcome === "unresponsive"),
@@ -602,15 +643,19 @@ export function applyCommand(
         "Chọn lý do tài xế không đồng ý.",
       );
       ensure(
-        input.outcome === "called" || input.decision === "none",
+        ["called", "activated"].includes(input.outcome) ||
+          input.decision === "none",
         "Không ghi quyết định khi chưa liên hệ được tài xế.",
       );
       if (input.appointmentAt)
         ensure(
           input.decision === "agreed" &&
+            input.outcome === "called" &&
+            input.ticketStatus === "Open" &&
             new Date(input.appointmentAt) > now &&
             new Date(input.appointmentAt) < new Date(ticket.expiresAt) &&
-            input.place?.trim(),
+            input.place &&
+            offices.includes(input.place),
           "Lịch hẹn cần ngày giờ trong tương lai, địa điểm và quyết định Đồng ý.",
         );
       const activity = {
@@ -625,13 +670,16 @@ export function applyCommand(
         reason:
           input.decision === "declined" ? input.reason : ("none" as const),
         note: input.note.trim(),
+        attachments: input.attachments,
         round: ticket.round ?? 1,
       };
       db.activities.unshift(activity);
       if (input.appointmentAt) {
         ensure(
           !db.appointments.some(
-            (a) => a.assignmentId === ticket.id && a.status === "scheduled",
+            (a) =>
+              a.assignmentId === ticket.id &&
+              ["scheduled", "waiting"].includes(a.status),
           ),
           "Phiếu đã có lịch hẹn. Dùng Hẹn lại để giữ lịch sử.",
         );
@@ -644,6 +692,8 @@ export function applyCommand(
           at: new Date(input.appointmentAt).toISOString(),
           place: input.place!.trim(),
           status: "scheduled",
+          createdAt: stamp,
+          round: ticket.round ?? 1,
         });
       }
       const totals = counts(db, ticket.id);
@@ -655,6 +705,9 @@ export function applyCommand(
         input.outcome === "wrong_phone"
           ? "Solved"
           : "Open";
+      if (input.ticketStatus === "Solved") ticket.status = "Solved";
+      if (input.outcome === "wrong_phone")
+        leadById(ticket.leadId).wrongPhone = true;
       ticket.updatedAt = stamp;
       if (ticket.status === "Solved") cancelAppointments(ticket.id);
       // BR-61: a new contact replaces (or clears) the follow-up call.
@@ -701,8 +754,8 @@ export function applyCommand(
         "Bạn không có quyền cập nhật lịch hẹn này.",
       );
       ensure(
-        appointment.status === "scheduled" &&
-          ["attended", "missed", "cancelled"].includes(command.status),
+        ["scheduled", "waiting"].includes(appointment.status) &&
+          command.status === "cancelled",
         "Lịch hẹn đã được xử lý hoặc kết quả không hợp lệ.",
       );
       if (command.status === "missed")
@@ -741,16 +794,16 @@ export function applyCommand(
       ensure(
         writable(ticket) &&
           isPending(ticket) &&
-          appointment.status === "scheduled",
+          ["scheduled", "waiting", "failed"].includes(appointment.status),
         "Bạn không có quyền hẹn lại lịch này.",
       );
       ensure(
         new Date(command.at) > now &&
           new Date(command.at) < new Date(ticket.expiresAt) &&
-          command.place.trim(),
+          offices.includes(command.place),
         "Ngày giờ hẹn phải trong tương lai, trong hạn phiếu và có địa điểm.",
       );
-      appointment.status = "cancelled";
+      if (appointment.status !== "failed") appointment.status = "cancelled";
       db.appointments.unshift({
         ...appointment,
         id: id("HEN"),
@@ -758,6 +811,10 @@ export function applyCommand(
         place: command.place.trim(),
         status: "scheduled",
         previousId: appointment.id,
+        createdAt: stamp,
+        resultAt: undefined,
+        resultCutoff: undefined,
+        resultReason: undefined,
       });
       log("Hẹn lại", appointment.id, command.at);
       break;
@@ -788,6 +845,25 @@ export function applyCommand(
           JSON.stringify({ before: review, reason: command.reason }),
         );
       }
+      ensure(
+        ["eligible", "closed"].includes(command.result ?? ""),
+        "Chỉ chọn Đủ điều kiện phân công lại hoặc Đóng hồ sơ.",
+      );
+      const reviewedLead = leadById(review.leadId);
+      ensure(
+        !db.assignments.some(
+          (t) => t.leadId === review.leadId && t.status !== "Closed",
+        ),
+        "Hồ sơ đang có phiếu hiệu lực; không thể đổi kết quả rà soát.",
+      );
+      ensure(
+        !reviewedLead.activatedAt &&
+          !reviewedLead.onboardedAt &&
+          !["Activated", "Onboarded"].includes(reviewedLead.status),
+        "Hồ sơ đã thành công; không được xóa mốc bằng rà soát Closed.",
+      );
+      reviewedLead.status = command.result === "eligible" ? "New" : "Closed";
+      reviewedLead.updatedAt = stamp;
       Object.assign(review, {
         reviewedAt: stamp,
         reviewedBy: actorId,
@@ -1011,6 +1087,84 @@ export function applyCommand(
       log("Cập nhật nguồn Lead", command.id ?? name, name);
       break;
     }
+    case "memberCreate": {
+      ensure(actor.role === "admin", "Chỉ quản trị được tạo tài khoản.");
+      ensure(
+        command.name.trim().length >= 2 &&
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(command.email),
+        "Tên hoặc email không hợp lệ.",
+      );
+      ensure(
+        !db.members.some(
+          (m) => m.email?.toLowerCase() === command.email.toLowerCase(),
+        ),
+        "Email đã tồn tại.",
+      );
+      db.members.push({
+        id: id("USER"),
+        name: command.name.trim(),
+        email: command.email.trim(),
+        role: "viewer",
+        active: false,
+        teamId: "default",
+      });
+      break;
+    }
+    case "memberProfile": {
+      ensure(actor.role === "admin", "Chỉ quản trị được sửa tài khoản.");
+      const member =
+        db.members.find((m) => m.id === command.id) ??
+        fail("Không tìm thấy tài khoản.");
+      ensure(
+        command.name.trim().length >= 2 &&
+          (!command.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(command.email)),
+        "Tên hoặc email không hợp lệ.",
+      );
+      ensure(
+        !db.members.some(
+          (m) =>
+            !!command.email &&
+            m.id !== member.id &&
+            m.email?.toLowerCase() === command.email.toLowerCase(),
+        ),
+        "Email đã được sử dụng.",
+      );
+      member.name = command.name.trim();
+      if (command.email) member.email = command.email.trim();
+      log("Cập nhật thông tin tài khoản", member.id, member.name);
+      break;
+    }
+    case "reconcileAppointment": {
+      ensure(actor.role === "intake", "Chỉ tiếp nhận được đối soát kết quả.");
+      const ap =
+        db.appointments.find((a) => a.id === command.id) ??
+        fail("Không tìm thấy lịch.");
+      ensure(
+        ap.status === "failed" && command.reason.trim(),
+        "Chỉ đối soát lịch thất bại và cần căn cứ.",
+      );
+      const lead = leadById(ap.leadId);
+      ensure(
+        lead.activatedAt &&
+          dayVN(lead.activatedAt) === dayVN(ap.at) &&
+          new Date(lead.activatedAt).getTime() <=
+            new Date(ap.resultCutoff ?? stamp).getTime(),
+        "Chưa có mốc đăng ký hợp lệ trước thời điểm chốt.",
+      );
+      ap.resultHistory = [
+        ...(ap.resultHistory ?? []),
+        { status: ap.status, at: stamp, reason: command.reason },
+      ];
+      ap.status = "succeeded";
+      ap.resultReason = command.reason;
+      ap.resultAt = stamp;
+      for (const a of db.activities.filter((a) => a.appointmentId === ap.id)) {
+        a.voidedAt = stamp;
+        a.voidReason = "Đối soát kết quả đến muộn: " + command.reason;
+      }
+      log("Đối soát lịch hẹn", ap.id, command.reason);
+      break;
+    }
     case "member": {
       ensure(
         actor.role === "admin",
@@ -1034,6 +1188,11 @@ export function applyCommand(
         member.id,
         `${member.role}/${member.active} → ${command.role}/${command.active}`,
       );
+      if (command.teamId && command.teamId !== member.teamId)
+        ensure(
+          !db.assignments.some((t) => t.assigneeId === member.id && isLive(t)),
+          "Chuyển phiếu trước khi đổi nhóm.",
+        );
       member.role = command.role;
       member.active = command.active;
       if (command.teamId) member.teamId = command.teamId;

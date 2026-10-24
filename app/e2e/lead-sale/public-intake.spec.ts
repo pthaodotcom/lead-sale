@@ -66,16 +66,17 @@ test("tài xế tự đăng ký, hồ sơ xuất hiện trong CRM và không tr�
       (reception: { leadId: string }) => reception.leadId === first.id,
     ),
   ).toHaveLength(2);
-  await page.goto(`/#/leads/${first.id}/show`);
-  await page.getByRole("button", { name: "Lần tiếp nhận" }).click();
-  await expect(page.getByRole("table")).toContainText("Tên đăng ký lần hai");
-  await expect(page.getByRole("table")).toContainText("Tài xế tự đăng ký");
   expect(errors).toEqual([]);
 });
 
 test("form có thể điền trên điện thoại và có link chia sẻ trong CRM", async ({
   page,
 }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Tài khoản" }).click();
+  await page
+    .getByRole("menuitemradio", { name: /Lê Ngọc Anh · Tiếp nhận/ })
+    .click();
   await page.goto("/#/leads");
   await expect(page.getByLabel("Đường link form tài xế")).toHaveValue(
     /#\/dang-ky-tai-xe$/,

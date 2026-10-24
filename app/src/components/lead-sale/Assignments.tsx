@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import {
   AlarmClock,
   ArrowLeft,
   CalendarDays,
-  ClipboardList,
   MapPin,
   MessageCircle,
   Phone,
@@ -17,9 +16,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useWorkspace } from "./context";
 import { AssignmentDialog } from "./AssignmentDialog";
-import { Evidence } from "./Evidence";
-import { ActivityCorrection } from "./Corrections";
-import { AppointmentActions, appointmentLabels } from "./Appointments";
+import { Evidence, EvidenceUpload } from "./Evidence";
+import {
+  AppointmentActions,
+  appointmentLabels,
+  appointmentTone,
+} from "./Appointments";
+import { TicketTable } from "./TicketTable";
+import { ticketCode } from "./workflow";
+import { offices } from "./catalog";
 import {
   Avatar,
   Badge,
@@ -50,21 +55,11 @@ import {
   reasonLabels,
   ticketLabels,
 } from "./domain";
-import {
-  expiresSoon,
-  inGroup,
-  latestActivity,
-  taskGroups,
-  visibleTickets,
-  type TaskGroup,
-} from "./tasks";
-import type { ActivityInput, TicketStatus } from "./types";
-import { serverNow } from "./dates";
-import { VoicePanel } from "./VoicePanel";
+import { inGroup, taskGroups, visibleTickets, type TaskGroup } from "./tasks";
+import type { ActivityInput, Attachment, TicketStatus } from "./types";
 
 export function TasksPage() {
   const { db, actor } = useWorkspace();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const group = (params.get("group") ?? "pending") as TaskGroup;
   const [q, setQ] = useState("");
@@ -79,7 +74,7 @@ export function TasksPage() {
       return (
         inGroup(db, t, selected.id) &&
         (!deadline || vnDay(t.expiresAt) <= deadline) &&
-        textMatches(q, t.id, l?.name ?? "", l?.phone ?? "")
+        textMatches(q, t.id, ticketCode(t), l?.name ?? "", l?.phone ?? "")
       );
     })
     .sort((a, b) =>
@@ -158,87 +153,7 @@ export function TasksPage() {
               onChange={(e) => setDeadline(e.target.value)}
             />
           </div>
-          {rows.length ? (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Tài xế</th>
-                    <th>Phiếu</th>
-                    {leader && <th>Chuyên viên</th>}
-                    <th>Kết quả gần nhất</th>
-                    <th>Trạng thái</th>
-                    <th>Hạn xử lý</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((t) => {
-                    const l = db.leads.find((l) => l.id === t.leadId)!;
-                    const last = latestActivity(db, t.id);
-                    const c = counts(db, t.id);
-                    return (
-                      <tr
-                        key={t.id}
-                        className="clickable"
-                        onClick={() => navigate(`/tasks/${t.id}`)}
-                      >
-                        <td>
-                          <Link
-                            className="record-link"
-                            to={`/tasks/${t.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {l.name}
-                          </Link>
-                          <small>{l.phone}</small>
-                        </td>
-                        <td>
-                          {t.id}
-                          <small>Tạo {formatDate(t.createdAt)}</small>
-                        </td>
-                        {leader && <td>{memberName(db, t.assigneeId)}</td>}
-                        <td>
-                          {last ? outcomeLabels[last.outcome] : "Chưa liên hệ"}
-                          <small>
-                            {c.noAnswer
-                              ? `Không nghe ${c.noAnswer}/3`
-                              : c.overdue
-                                ? `Quá hẹn ${c.overdue}/3`
-                                : last && last.decision !== "none"
-                                  ? decisionLabels[last.decision]
-                                  : t.acceptedAt
-                                    ? "Đã nhận việc"
-                                    : "Chưa nhận việc"}
-                          </small>
-                        </td>
-                        <td>
-                          <Badge status={t.status} ticket />
-                        </td>
-                        <td>
-                          {formatDate(t.expiresAt)}
-                          <small
-                            className={
-                              expiresSoon(t) ? "warning-text" : undefined
-                            }
-                          >
-                            {t.status === "Closed"
-                              ? t.closeReason || "Đã đóng"
-                              : relativeDeadline(t.expiresAt)}
-                          </small>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <Empty
-              icon={ClipboardList}
-              title="Không có phiếu trong mục này"
-              description="Chọn mục khác ở bên trái hoặc xóa bộ lọc."
-            />
-          )}
+          <TicketTable tickets={rows} />
         </section>
       </div>
     </Guard>
@@ -259,6 +174,8 @@ const blankForm = (): ActivityInput => ({
 function LogForm({ ticketId }: { ticketId: string }) {
   const { run, busy } = useWorkspace();
   const [form, setForm] = useState<ActivityInput>(blankForm);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const set = <K extends keyof ActivityInput>(
     key: K,
     value: ActivityInput[K],
@@ -275,11 +192,17 @@ function LogForm({ ticketId }: { ticketId: string }) {
         e.preventDefault();
         if (
           await run(
-            { type: "activity", assignmentId: ticketId, input: form },
-            "Đã ghi nhận lần liên hệ.",
+            {
+              type: "activity",
+              assignmentId: ticketId,
+              input: { ...form, attachments },
+            },
+            "Đã ghi nhận lần liên hệ và trạng thái phiếu.",
           )
-        )
+        ) {
           setForm(blankForm());
+          setAttachments([]);
+        }
       }}
     >
       <div className="panel-head">
@@ -301,6 +224,7 @@ function LogForm({ ticketId }: { ticketId: string }) {
               onClick={() => {
                 set("channel", key);
                 set("outcome", "called");
+                setAttachments([]);
               }}
             >
               <Icon size={15} /> {label}
@@ -387,12 +311,17 @@ function LogForm({ ticketId }: { ticketId: string }) {
               />
             </Field>
             <Field label="Nơi hẹn (decision place)">
-              <Input
+              <select
+                aria-label="Nơi hẹn"
                 required={!!form.appointmentAt}
                 value={form.place}
                 onChange={(e) => set("place", e.target.value)}
-                placeholder="Điểm đăng ký / địa chỉ"
-              />
+              >
+                <option value="">Chọn văn phòng</option>
+                {offices.map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
             </Field>
           </div>
         )}
@@ -405,8 +334,39 @@ function LogForm({ ticketId }: { ticketId: string }) {
             placeholder="Nội dung đã trao đổi, việc cần theo dõi…"
           />
         </Field>
-        <Button type="submit" disabled={busy}>
-          <Save /> Lưu lần liên hệ
+        {form.outcome === "activated" && (
+          <p className="muted" style={{ margin: 0 }}>
+            Ghi nhận lời xác nhận của chuyên viên; Tiếp nhận xác minh và cập
+            nhật trạng thái hồ sơ.
+          </p>
+        )}
+        <Field label="Trạng thái phiếu sau liên hệ *">
+          <select
+            required
+            aria-label="Trạng thái phiếu sau liên hệ"
+            value={form.ticketStatus ?? ""}
+            onChange={(e) =>
+              set("ticketStatus", e.target.value as TicketStatus)
+            }
+          >
+            <option value="">Chọn trạng thái</option>
+            <option value="Open">Đang tư vấn</option>
+            <option value="Solved">Đã giải quyết</option>
+          </select>
+        </Field>
+        <EvidenceUpload
+          ticketId={ticketId}
+          channel={form.channel}
+          outcome={form.outcome}
+          value={attachments}
+          onChange={setAttachments}
+          onBusy={setUploading}
+        />
+        <Button
+          type="submit"
+          disabled={busy || uploading || !attachments.length}
+        >
+          <Save /> {uploading ? "Đang tải bằng chứng…" : "Lưu lần liên hệ"}
         </Button>
       </div>
     </form>
@@ -456,7 +416,7 @@ function TicketActions({ ticketId }: { ticketId: string }) {
           <option value="">Chọn trạng thái</option>
           {options.map((s) => (
             <option key={s} value={s}>
-              {s === "Open" ? "Mở lại (Open)" : `${ticketLabels[s]} (${s})`}
+              {s === "Open" ? "Đang tư vấn (mở lại)" : ticketLabels[s]}
             </option>
           ))}
         </select>
@@ -481,7 +441,7 @@ function TicketActions({ ticketId }: { ticketId: string }) {
 
 export function TicketPage() {
   const { id } = useParams();
-  const { db, actor, run, cloud, busy } = useWorkspace();
+  const { db, actor, run, busy } = useWorkspace();
   const t = db.assignments.find((t) => t.id === id);
   const [, force] = useState(0);
   useEffect(() => {
@@ -520,10 +480,6 @@ export function TicketPage() {
   const c = counts(db, t.id);
   const activities = db.activities.filter((a) => a.assignmentId === t.id);
   const appointments = db.appointments.filter((a) => a.assignmentId === t.id);
-  const timeline = [
-    ...activities.map((a) => ({ kind: "activity" as const, at: a.at, a })),
-    ...appointments.map((p) => ({ kind: "appt" as const, at: p.at, p })),
-  ].sort((x, y) => y.at.localeCompare(x.at));
   return (
     <Guard allowed={allowed}>
       <Link className="back-link" to="/tasks">
@@ -538,8 +494,6 @@ export function TicketPage() {
               <Phone size={14} />
               <a href={`tel:${l.phone}`}>{l.phone}</a>
             </span>
-            <span>Phiếu {t.id}</span>
-            <span>Chuyên viên: {memberName(db, t.assigneeId)}</span>
             <span>
               <AlarmClock size={14} />
               {t.status === "Closed"
@@ -567,163 +521,40 @@ export function TicketPage() {
           không ghi nhận thêm.
         </p>
       )}
-      <VoicePanel leadId={l.id} ticketId={t.id} canCall={editable} />
-      <div className="ticket-grid">
-        {editable ? (
-          <LogForm key={`${t.id}-${t.round}`} ticketId={t.id} />
-        ) : (
-          <section className="panel log-form">
-            <div className="panel-head">
-              <h2>Ghi nhận liên hệ</h2>
-            </div>
-            {mustAccept ? (
-              <div className="panel-body stack-form">
-                <p className="muted" style={{ margin: 0 }}>
-                  Nhận việc để bắt đầu gọi và ghi kết quả cho phiếu này.
-                </p>
-                <Button
-                  disabled={busy}
-                  onClick={() =>
-                    void run({ type: "accept", id: t.id }, "Đã nhận việc.")
-                  }
-                >
-                  <UserCheck /> Nhận việc
-                </Button>
-              </div>
-            ) : (
-              <p className="locked-note">
-                {t.status === "Solved"
-                  ? "Phiếu đã giải quyết. Mở lại phiếu (cột phải) để ghi nhận thêm."
-                  : t.status === "Closed" || !isPending(t)
-                    ? "Phiếu đã đóng hoặc hết hạn, không ghi nhận thêm."
-                    : "Chỉ chuyên viên được giao mới ghi nhận liên hệ trên phiếu này."}
-              </p>
-            )}
-          </section>
-        )}
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Lịch sử chăm sóc</h2>
-            <span>
-              {activities.length} lần liên hệ · {appointments.length} lịch hẹn
-            </span>
-          </div>
-          {timeline.length ? (
-            <div className="timeline">
-              {timeline.map((item) =>
-                item.kind === "activity" ? (
-                  <article
-                    key={item.a.id}
-                    className={`tl-item ${item.a.voidedAt ? "voided" : ""}`}
-                  >
-                    <span
-                      className={`tl-icon ${item.a.voidedAt ? "void" : item.a.channel === "zalo" ? "zalo" : ""}`}
-                    >
-                      {item.a.channel === "call" ? (
-                        <Phone size={15} />
-                      ) : (
-                        <MessageCircle size={15} />
-                      )}
-                    </span>
-                    <div>
-                      <div className="tl-top">
-                        <strong>
-                          {item.a.channel === "call" ? "Cuộc gọi" : "Nhắn Zalo"}{" "}
-                          · {memberName(db, item.a.actorId)}
-                        </strong>
-                        <time>{formatDate(item.a.at, true)}</time>
-                        {(item.a.round ?? 1) > 1 && (
-                          <Chip plain>Đợt {item.a.round}</Chip>
-                        )}
-                      </div>
-                      <div className="tl-chips">
-                        <Chip
-                          tone={
-                            item.a.outcome === "called"
-                              ? "new"
-                              : item.a.outcome === "wrong_phone"
-                                ? "missed"
-                                : "open"
-                          }
-                        >
-                          {outcomeLabels[item.a.outcome]}
-                        </Chip>
-                        {item.a.decision !== "none" && (
-                          <Chip
-                            tone={
-                              item.a.decision === "agreed" ? "solved" : "closed"
-                            }
-                          >
-                            {decisionLabels[item.a.decision]}
-                          </Chip>
-                        )}
-                        {item.a.reason !== "none" && (
-                          <Chip plain>{reasonLabels[item.a.reason]}</Chip>
-                        )}
-                      </div>
-                      {item.a.note && <p className="tl-note">{item.a.note}</p>}
-                      <div className="tl-extra">
-                        {cloud && (
-                          <Evidence
-                            activity={item.a}
-                            ticketId={t.id}
-                            editable={canWork(actor, t) && !item.a.voidedAt}
-                          />
-                        )}
-                        {(actor.role === "admin" ||
-                          (actor.role === "telesale" &&
-                            t.assigneeId === actor.id)) && (
-                          <ActivityCorrection activity={item.a} />
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                ) : (
-                  <article key={item.p.id} className="tl-item">
-                    <span className="tl-icon appt">
-                      <CalendarDays size={15} />
-                    </span>
-                    <div>
-                      <div className="tl-top">
-                        <strong>Lịch hẹn đăng ký</strong>
-                        <time>{formatDate(item.p.at, true)}</time>
-                        <Chip
-                          tone={
-                            item.p.status === "scheduled" &&
-                            Date.parse(item.p.at) < serverNow().getTime()
-                              ? "late"
-                              : item.p.status
-                          }
-                        >
-                          {item.p.status === "scheduled" &&
-                          Date.parse(item.p.at) < serverNow().getTime()
-                            ? "Quá giờ, chờ xác nhận"
-                            : appointmentLabels[item.p.status]}
-                        </Chip>
-                      </div>
-                      <div className="tl-chips">
-                        <span className="muted">
-                          <MapPin size={13} style={{ display: "inline" }} />{" "}
-                          {item.p.place}
-                        </span>
-                      </div>
-                      <div className="tl-extra">
-                        <AppointmentActions appointment={item.p} />
-                      </div>
-                    </div>
-                  </article>
-                ),
-              )}
-            </div>
+      <div className="ticket-grid two">
+        <div className="stack">
+          {editable ? (
+            <LogForm key={`${t.id}-${t.round}`} ticketId={t.id} />
           ) : (
-            <Empty
-              icon={PhoneCall}
-              title="Chưa có lần liên hệ nào"
-              description="Gọi hoặc nhắn Zalo cho tài xế, rồi ghi kết quả ở cột bên trái."
-            />
+            <section className="panel log-form">
+              <div className="panel-head">
+                <h2>Ghi nhận liên hệ</h2>
+              </div>
+              {mustAccept ? (
+                <div className="panel-body stack-form">
+                  <p className="muted" style={{ margin: 0 }}>
+                    Nhận việc để bắt đầu gọi và ghi kết quả cho phiếu này.
+                  </p>
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      void run({ type: "accept", id: t.id }, "Đã nhận việc.")
+                    }
+                  >
+                    <UserCheck /> Nhận việc
+                  </Button>
+                </div>
+              ) : (
+                <p className="locked-note">
+                  {t.status === "Solved"
+                    ? "Phiếu đã giải quyết. Mở lại phiếu (cột phải) để ghi nhận thêm."
+                    : t.status === "Closed" || !isPending(t)
+                      ? "Phiếu đã đóng hoặc hết hạn, không ghi nhận thêm."
+                      : "Chỉ chuyên viên được giao mới ghi nhận liên hệ trên phiếu này."}
+                </p>
+              )}
+            </section>
           )}
-        </section>
-        <div className="ticket-side stack">
           <Panel title="Tài xế">
             <div className="info-row">
               <span>Mã hồ sơ</span>
@@ -754,44 +585,6 @@ export function TicketPage() {
               <strong>{formatDate(l.receivedAt)}</strong>
             </div>
           </Panel>
-          <Panel title="Phiếu phân công">
-            <div className="info-row">
-              <span>Tạo lúc</span>
-              <strong>{formatDate(t.createdAt, true)}</strong>
-            </div>
-            <div className="info-row">
-              <span>Cập nhật</span>
-              <strong>{formatDate(t.updatedAt, true)}</strong>
-            </div>
-            <div className="info-row">
-              <span>Người giao</span>
-              <strong>{memberName(db, t.assignedBy)}</strong>
-            </div>
-            <div className="info-row">
-              <span>Nhận việc</span>
-              <strong>
-                {t.acceptedAt ? formatDate(t.acceptedAt, true) : "Chưa nhận"}
-              </strong>
-            </div>
-            <div className="bar-row" style={{ marginTop: 10 }}>
-              <div>
-                <span>Không nghe máy</span>
-                <strong>{c.noAnswer}/3</strong>
-              </div>
-              <div className="bar thin amber">
-                <span style={{ width: `${Math.min(c.noAnswer, 3) * 33.4}%` }} />
-              </div>
-            </div>
-            <div className="bar-row" style={{ marginTop: 10 }}>
-              <div>
-                <span>Quá hẹn</span>
-                <strong>{c.overdue}/3</strong>
-              </div>
-              <div className="bar thin amber">
-                <span style={{ width: `${Math.min(c.overdue, 3) * 33.4}%` }} />
-              </div>
-            </div>
-          </Panel>
           {permitted && t.status !== "Closed" && (
             <Panel title="Xử lý phiếu">
               <TicketActions ticketId={t.id} />
@@ -802,6 +595,139 @@ export function TicketPage() {
               )}
             </Panel>
           )}
+        </div>
+        <div className="stack">
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Ghi chú liên hệ</h2>
+              <span>{activities.length} lần liên hệ</span>
+            </div>
+            {activities.length ? (
+              <div className="timeline">
+                {[...activities]
+                  .sort((x, y) => y.at.localeCompare(x.at))
+                  .map((a) => (
+                    <article
+                      key={a.id}
+                      className={`tl-item ${a.voidedAt ? "voided" : ""}`}
+                    >
+                      <span
+                        className={`tl-icon ${a.voidedAt ? "void" : a.channel === "zalo" ? "zalo" : ""}`}
+                      >
+                        {a.channel === "call" ? (
+                          <Phone size={15} />
+                        ) : (
+                          <MessageCircle size={15} />
+                        )}
+                      </span>
+                      <div>
+                        <div className="tl-top">
+                          <strong>
+                            {a.channel === "call" ? "Cuộc gọi" : "Nhắn Zalo"} ·{" "}
+                            {memberName(db, a.actorId)}
+                          </strong>
+                          <time>{formatDate(a.at, true)}</time>
+                          {(a.round ?? 1) > 1 && (
+                            <Chip plain>Đợt {a.round}</Chip>
+                          )}
+                        </div>
+                        <div className="tl-chips">
+                          <Chip
+                            tone={
+                              a.outcome === "called" ||
+                              a.outcome === "activated"
+                                ? "new"
+                                : a.outcome === "wrong_phone"
+                                  ? "missed"
+                                  : "open"
+                            }
+                          >
+                            {outcomeLabels[a.outcome]}
+                          </Chip>
+                          {a.decision !== "none" && (
+                            <Chip
+                              tone={
+                                a.decision === "agreed" ? "solved" : "closed"
+                              }
+                            >
+                              {decisionLabels[a.decision]}
+                            </Chip>
+                          )}
+                          {a.reason !== "none" && (
+                            <Chip plain>{reasonLabels[a.reason]}</Chip>
+                          )}
+                        </div>
+                        {a.note && <p className="tl-note">{a.note}</p>}
+                        {a.voidedAt ? (
+                          <p className="muted">Đã đính chính: {a.voidReason}</p>
+                        ) : (
+                          <div className="tl-extra">
+                            <Evidence
+                              activity={a}
+                              ticketId={t.id}
+                              editable={false}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+              </div>
+            ) : (
+              <Empty
+                icon={PhoneCall}
+                title="Chưa có lần liên hệ nào"
+                description="Gọi hoặc nhắn Zalo ngoài web, rồi ghi kết quả kèm ghi âm/ảnh chat."
+              />
+            )}
+          </section>
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Danh sách lịch hẹn</h2>
+              <span>{appointments.length} lịch hẹn</span>
+            </div>
+            {appointments.length ? (
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Thời gian hẹn</th>
+                      <th>Địa điểm hẹn</th>
+                      <th>Trạng thái</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...appointments]
+                      .sort((x, y) => y.at.localeCompare(x.at))
+                      .map((p) => (
+                        <tr key={p.id}>
+                          <td>{formatDate(p.at, true)}</td>
+                          <td>
+                            <MapPin size={13} style={{ display: "inline" }} />{" "}
+                            {p.place}
+                          </td>
+                          <td>
+                            <Chip tone={appointmentTone(p.status)}>
+                              {appointmentLabels[p.status]}
+                            </Chip>
+                          </td>
+                          <td className="end">
+                            <AppointmentActions appointment={p} />
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty
+                icon={CalendarDays}
+                title="Chưa có lịch hẹn"
+                description="Lịch hẹn được tạo khi tài xế Đồng ý và có ngày giờ hẹn."
+              />
+            )}
+          </section>
         </div>
       </div>
     </Guard>

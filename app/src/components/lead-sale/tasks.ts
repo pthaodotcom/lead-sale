@@ -1,5 +1,6 @@
 import { canReadLead, counts, isPending } from "./domain";
 import { serverNow } from "./dates";
+import { needsRebooking } from "./workflow";
 import type { Assignment, Database, Member } from "./types";
 
 // Sub-queues of "Nhiệm vụ" (BA §6.6, BR-50). Counts are tickets and may overlap.
@@ -11,9 +12,10 @@ export const taskGroups = [
   { id: "no_answer", name: "Không nghe máy" },
   { id: "no_answer_1", name: "Không nghe lần 1", child: true },
   { id: "no_answer_2", name: "Không nghe lần 2", child: true },
-  { id: "overdue", name: "Quá hẹn đăng ký" },
-  { id: "overdue_1", name: "Quá hẹn lần 1", child: true },
-  { id: "overdue_2", name: "Quá hẹn lần 2", child: true },
+  { id: "overdue", name: "Cần hẹn lại" },
+  { id: "overdue_1", name: "Cần hẹn lại lần 1", child: true },
+  { id: "overdue_2", name: "Cần hẹn lại lần 2", child: true },
+  { id: "overdue_3", name: "Cần hẹn lại lần 3", child: true },
   { id: "recent", name: "Cập nhật gần đây", divider: true },
   { id: "solved", name: "Đã giải quyết" },
   { id: "closed", name: "Phiếu đã đóng" },
@@ -35,16 +37,6 @@ export function latestActivity(db: Database, ticketId: string) {
     .sort((a, b) => b.at.localeCompare(a.at))[0];
 }
 
-export function hasLateAppointment(db: Database, ticketId: string) {
-  const now = serverNow().getTime();
-  return db.appointments.some(
-    (a) =>
-      a.assignmentId === ticketId &&
-      a.status === "scheduled" &&
-      Date.parse(a.at) < now,
-  );
-}
-
 export function inGroup(db: Database, t: Assignment, key: TaskGroup) {
   const c = counts(db, t.id);
   if (key === "closed") return t.status === "Closed";
@@ -59,9 +51,13 @@ export function inGroup(db: Database, t: Assignment, key: TaskGroup) {
   if (key === "no_answer") return c.noAnswer > 0;
   if (key === "no_answer_1") return c.noAnswer === 1;
   if (key === "no_answer_2") return c.noAnswer === 2;
-  if (key === "overdue") return c.overdue > 0 || hasLateAppointment(db, t.id);
-  if (key === "overdue_1") return c.overdue === 1;
-  if (key === "overdue_2") return c.overdue === 2;
+  // 00:00 after the appointment day; failures are only counted at 08:00.
+  if (key.startsWith("overdue")) {
+    if (!needsRebooking(db, t, serverNow())) return false;
+    return (
+      key === "overdue" || Math.max(1, c.overdue) === Number(key.slice(-1))
+    );
+  }
   return false;
 }
 

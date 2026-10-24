@@ -1,0 +1,72 @@
+[
+  {
+    "id": "Q-01",
+    "title": "Khoảng 00:00–08:00 và cách đếm hẹn lại",
+    "problem": "Phiếu vào Cần hẹn lại lúc 00:00 nhưng lịch chỉ chốt thất bại 08:00; tài xế có thể được cập nhật thành công trong khoảng này.",
+    "proposal": "00:00 chỉ đánh dấu cần kiểm tra/hẹn lại; 08:00 mới tăng một lần thất bại. Nếu có dữ liệu thành công thì bỏ cờ và không tính thất bại. Cần quyết định có cho tạo lịch mới trước 08:00 hay không.",
+    "impact": "Nhóm nhiệm vụ, số lần quá hẹn, tự Solved và KPI."
+  },
+  {
+    "id": "Q-02",
+    "title": "Activated trong kết quả liên hệ có đổi hồ sơ không?",
+    "problem": "Telesale trước đây chỉ xem hồ sơ, nay được yêu cầu chọn Activated trong form.",
+    "proposal": "Cho chuyên viên ghi nhận kết quả Activated kèm bằng chứng; Tiếp nhận xác minh và đổi trạng thái hồ sơ. Nếu muốn đổi ngay phải duyệt mở rộng quyền và quy tắc mốc đăng ký.",
+    "impact": "Phân quyền, chốt lịch 08:00, báo cáo chuyển đổi."
+  },
+  {
+    "id": "Q-03",
+    "title": "Bằng chứng bắt buộc cho trường hợp nào?",
+    "problem": "Không nghe máy/sai SĐT có thể không có file ghi âm; ghi chú yêu cầu đính kèm bắt buộc.",
+    "proposal": "Bắt buộc ghi âm khi trao đổi điện thoại, ảnh khi chat. Với KNM/sai SĐT cho phép ảnh nhật ký cuộc gọi kèm căn cứ. Không bắt buộc đồng thời cả ghi âm và ảnh. Xác nhận ngoại lệ và PDF có được chấp nhận hay không.",
+    "impact": "Luồng lưu kết quả và khả năng làm việc thực tế."
+  },
+  {
+    "id": "Q-04",
+    "title": "Admin mới và core giả lập hiện có",
+    "problem": "NOTE SỬA giới hạn Admin vào tài khoản/phân quyền và bỏ Hộp thư; PRODUCT.md hiện giao Admin thao tác giả lập/đối soát.",
+    "proposal": "Bản nghiệp vụ ẩn và chặn Admin với Lead/giả lập/đối soát. Giữ công cụ kỹ thuật và dữ liệu để dùng ngoài luồng nghiệp vụ nếu vẫn cần demo. Việc gỡ toàn bộ core giả lập cần quyết định riêng, không suy ra từ câu không muốn dùng API.",
+    "impact": "Phạm vi sản phẩm, màn hình Admin, nguồn cập nhật kết quả đăng ký."
+  },
+  {
+    "id": "Q-05",
+    "title": "Kết quả đến muộn, kết quả có sẵn và hết hạn phiếu",
+    "problem": "Dữ liệu đến sau 08:00; hồ sơ đã đăng ký trước ngày hẹn; phiếu hết hạn 14 ngày khi lịch đang chờ kết quả.",
+    "proposal": "Lưu trạng thái/căn cứ lúc chốt. Dữ liệu muộn có cơ chế rà soát và đính chính có lịch sử; không tự ghi đè lịch Đã hủy. Chỉ tính thành công phù hợp ngày đăng ký thực tế và lịch được đối chiếu. Phiếu hết hạn vẫn cho hệ thống đối soát lịch cũ nhưng chặn tư vấn mới.",
+    "impact": "Tránh đánh giá sai lịch hẹn hoặc tự mở lại phiếu đã Closed."
+  },
+  {
+    "id": "Q-06",
+    "title": "Lịch sử cá nhân khi phiếu đã đóng hoặc chuyển người",
+    "problem": "Nguồn gốc nói Closed hết quyền quản lý; NOTE SỬA muốn xem lịch sử tất cả phiếu từng tư vấn hồ sơ.",
+    "proposal": "Nếu được duyệt: chuyên viên chỉ đọc lịch sử các phiếu của chính mình, không sửa và không xem lịch sử người nhận mới. Quyền đọc dữ liệu hồ sơ hiện tại sau chuyển giao cần chốt riêng; không mở toàn bộ Lead chỉ để xem lịch sử cũ.",
+    "impact": "Quyền dữ liệu tại máy chủ và quyền tải bằng chứng."
+  },
+  {
+    "id": "Q-07",
+    "title": "Định nghĩa các KPI dễ nhầm",
+    "problem": "Phiếu quá hạn có thể là quá giờ hẹn, sau ngày hẹn hoặc hết hạn 14 ngày; Chờ bàn giao và Cần gọi lại chưa có công thức rõ.",
+    "proposal": "Cần gọi lại = hợp của phiếu KNM và Cần hẹn lại còn xử lý, đếm DISTINCT phiếu. Phiếu quá hạn ở dashboard đề xuất dùng phiếu cần hẹn lại sau 00:00, ghi rõ nhãn; phiếu hết hạn 14 ngày là số liệu khác. Chờ bàn giao = Lead Mới đủ điều kiện chưa phân công. Xin duyệt đơn vị đếm ở từng KPI.",
+    "impact": "Thẻ dashboard và khớp số khi mở danh sách."
+  },
+  {
+    "id": "Q-08",
+    "title": "Bắt buộc trạng thái và vòng đời cũ",
+    "problem": "Chưa rõ chọn trạng thái mỗi lần liên hệ hay chỉ khi xử lý cuối; ngưỡng KNM trong tài liệu gốc vừa <3 vừa >3 bỏ sót đúng lần 3; rà soát có thể kéo Lead thành công về Mới.",
+    "proposal": "Chọn trạng thái hợp lệ khi lưu liên hệ, lưu cùng giao dịch; tự Solved ở lần thất bại thứ 3 như code hiện tại là phương án đề xuất để duyệt, không lấy dấu >3 trong nguồn làm cùng nghĩa. Giữ 14 ngày và Closed theo quy trình gốc trừ khi được đổi. Tiếp nhận không được xóa mốc thành công bằng rà soát thông thường.",
+    "impact": "Chuyển trạng thái, đếm lần, quyền đóng/mở và bàn giao."
+  },
+  {
+    "id": "Q-09",
+    "title": "Công thức báo cáo, lọc kỳ và quy công chuyển việc",
+    "problem": "Công thức nguồn ghi ngược, chưa rõ chọn theo ngày tiếp nhận/ngày giao/ngày chuyển đổi, chưa rõ ai được tính chuyển đổi khi Lead chuyển người.",
+    "proposal": "Dùng R-03; phiếu theo ngày tạo phiếu, báo cáo nguồn/Lead theo ngày tiếp nhận, chuyển đổi tính lũy kế đến lúc xem. Quy công chuyển đổi đề xuất cho phiếu phụ trách tại thời điểm đạt mốc; tổng nhóm dùng DISTINCT Lead. Chốt quy tắc SĐT sai và “liên hệ thành công” trước khi viết truy vấn.",
+    "impact": "Không thể nghiệm thu đúng số liệu nếu chưa chốt."
+  },
+  {
+    "id": "Q-10",
+    "title": "Các lựa chọn triển khai còn lại",
+    "problem": "Chưa chốt quyền chỉnh ma trận từng ô, vai trò viewer cũ, chủ quản danh mục, cách reset mật khẩu, định dạng xuất báo cáo, mã phiếu và phạm vi bỏ cột ở màn nhóm.",
+    "proposal": "Bản tối thiểu: quyền chuẩn cố định theo bốn vai trò; không thêm chức năng sửa ma trận tùy ý; danh mục khởi tạo; mã PC-000001; reset qua luồng Auth sẵn có; chưa thêm định dạng xuất mới. Ở lịch nhóm giữ cột chuyên viên. Đầu hồ sơ hiển thị trạng thái thực tế, không cố định Mới. Vai trò viewer giữ ngoài ma trận duyệt đến khi xác nhận bỏ/giữ.",
+    "impact": "Tránh mở rộng phạm vi hoặc làm sai thông tin."
+  }
+]

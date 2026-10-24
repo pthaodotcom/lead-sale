@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
   Archive,
@@ -18,7 +18,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "./context";
 import { AssignmentDialog } from "./AssignmentDialog";
 import { IntakeLink } from "./IntakeLink";
-import { VoicePanel } from "./VoicePanel";
+import { Evidence } from "./Evidence";
+import { cities, normalizeCity } from "./catalog";
+import { ticketCode } from "./workflow";
 import { LeadCorrections } from "./Corrections";
 import {
   Avatar,
@@ -33,7 +35,6 @@ import {
   memberName,
   PageHeading,
   Panel,
-  relativeDeadline,
   SearchBox,
   sourceName,
   textMatches,
@@ -75,7 +76,7 @@ export function LeadsList() {
       (l) =>
         (!status || l.status === status) &&
         (!source || l.sourceId === source) &&
-        (!city || l.city === city) &&
+        (!city || normalizeCity(l.city) === city) &&
         (!vehicle || l.vehicle === vehicle) &&
         textMatches(q, l.name, l.phone, l.id, ...l.tags),
     )
@@ -163,7 +164,7 @@ export function LeadsList() {
             }}
           >
             <option value="">Mọi thành phố</option>
-            {[...new Set(db.leads.map((l) => l.city))].sort().map((c) => (
+            {cities.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
@@ -439,16 +440,11 @@ export function LeadForm() {
               />
             </Field>
             <datalist id="cities">
-              {[
-                ...new Set([
-                  "Hồ Chí Minh",
-                  "Hà Nội",
-                  "Đà Nẵng",
-                  ...db.leads.map((l) => l.city),
-                ]),
-              ].map((c) => (
-                <option key={c}>{c}</option>
-              ))}
+              {[...new Set([...cities, ...db.leads.map((l) => l.city)])].map(
+                (c) => (
+                  <option key={c}>{c}</option>
+                ),
+              )}
             </datalist>
             <Field label="Loại phương tiện *">
               <select
@@ -512,7 +508,7 @@ export function LeadForm() {
 }
 
 const transitionsOf: Record<LeadStatus, LeadStatus[]> = {
-  New: ["Activated", "Closed"],
+  New: ["Activated"],
   Activated: ["Onboarded"],
   Onboarded: [],
   Closed: ["New"],
@@ -521,7 +517,7 @@ const transitionLabel: Record<LeadStatus, string> = {
   Activated: "Xác nhận đã đăng ký (Activated)",
   Onboarded: "Xác nhận đã chạy đơn đầu (Onboarded)",
   Closed: "Đóng hồ sơ (Closed)",
-  New: "Mở lại hồ sơ (New)",
+  New: "Mới (New)",
 };
 
 function LeadStatusForm({ leadId }: { leadId: string }) {
@@ -554,9 +550,14 @@ function LeadStatusForm({ leadId }: { leadId: string }) {
           onChange={(e) => setStatus(e.target.value as LeadStatus)}
         >
           <option value="">Chọn thao tác</option>
-          {transitionsOf[l.status].map((s) => (
-            <option key={s} value={s}>
+          {(["New", "Activated", "Onboarded"] as LeadStatus[]).map((s) => (
+            <option
+              key={s}
+              value={s}
+              disabled={!transitionsOf[l.status].includes(s)}
+            >
               {transitionLabel[s]}
+              {l.status === s ? " — hiện tại" : ""}
             </option>
           ))}
         </select>
@@ -593,7 +594,6 @@ function LeadStatusForm({ leadId }: { leadId: string }) {
 export function LeadShow() {
   const { id } = useParams();
   const { db, actor, run, busy } = useWorkspace();
-  const [tab, setTab] = useState("tickets");
   const l = db.leads.find((l) => l.id === id);
   if (!l)
     return (
@@ -610,17 +610,31 @@ export function LeadShow() {
     );
   if (!canReadLead(db, actor, l.id))
     return <Guard allowed={false}>{null}</Guard>;
+  const editor = canEditLead(actor);
+  // Telesale only sees the tickets they handled; leader sees the team's.
   const tickets = db.assignments
-    .filter((t) => t.leadId === l.id)
+    .filter(
+      (t) =>
+        t.leadId === l.id &&
+        (actor.role !== "telesale" || t.assigneeId === actor.id),
+    )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const activities = db.activities
-    .filter((a) => a.leadId === l.id)
+    .filter((a) => tickets.some((t) => t.id === a.assignmentId))
     .sort((a, b) => b.at.localeCompare(a.at));
-  const receptions = db.receptions
-    .filter((r) => r.leadId === l.id)
-    .sort((a, b) => b.at.localeCompare(a.at));
-  const live = tickets.find((t) => t.status !== "Closed");
-  const editor = canEditLead(actor);
+  const live = db.assignments.find(
+    (t) => t.leadId === l.id && t.status !== "Closed",
+  );
+  const info: [string, ReactNode][] = [
+    ["Mã hồ sơ", l.id],
+    ["SĐT", l.phone],
+    ["Họ tên", l.name],
+    ["Khu vực đăng ký", normalizeCity(l.city)],
+    ["Phương tiện", vehicleLabel(l.vehicle)],
+    ["Thời gian tiếp nhận hồ sơ", formatDate(l.receivedAt, true)],
+    ["Nguồn Lead", sourceName(db, l.sourceId)],
+    ["Trạng thái đăng ký", <Badge key="s" status={l.status} />],
+  ];
   return (
     <>
       <Link className="back-link" to="/leads">
@@ -632,13 +646,7 @@ export function LeadShow() {
         <div>
           <h1>{l.name}</h1>
           <div className="meta">
-            <a href={`tel:${l.phone}`}>
-              <Phone size={13} style={{ display: "inline" }} /> {l.phone}
-            </a>
             <span>{l.id}</span>
-            <span>
-              {l.city} · {vehicleLabel(l.vehicle)}
-            </span>
             <Badge status={l.status} />
             {l.archived && <Chip plain>Đã lưu trữ</Chip>}
           </div>
@@ -656,274 +664,90 @@ export function LeadShow() {
           )}
         </div>
       </div>
-      <VoicePanel leadId={l.id} canCall={editor && !l.archived} />
       <div className="grid-2">
-        <section className="panel">
-          <div className="milestones">
-            <div className="milestone done">
-              <span>Tiếp nhận đầu</span>
-              <strong>{formatDate(l.receivedAt, true)}</strong>
-            </div>
-            <div className={`milestone ${l.activatedAt ? "done" : ""}`}>
-              <span>Hoàn tất đăng ký</span>
-              <strong>
-                {l.activatedAt ? formatDate(l.activatedAt, true) : "Chưa"}
-              </strong>
-            </div>
-            <div className={`milestone ${l.onboardedAt ? "done" : ""}`}>
-              <span>Chạy đơn đầu</span>
-              <strong>
-                {l.onboardedAt ? formatDate(l.onboardedAt, true) : "Chưa"}
-              </strong>
-            </div>
-          </div>
-          <div className="tabs">
-            {[
-              ["tickets", "Phiếu phân công", tickets.length],
-              ["activity", "Lịch sử tư vấn", activities.length],
-              ["receptions", "Lần tiếp nhận", receptions.length || 1],
-              ["info", "Thông tin", undefined],
-            ].map(([k, label, n]) => (
-              <button
-                key={k as string}
-                className={tab === k ? "active" : ""}
-                onClick={() => setTab(k as string)}
-              >
-                {label}
-                {n !== undefined && <span className="count">{n}</span>}
-              </button>
-            ))}
-          </div>
-          {tab === "tickets" &&
-            (tickets.length ? (
-              <div className="table-scroll">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Phiếu</th>
-                      <th>Chuyên viên</th>
-                      <th>Tạo / Hạn</th>
-                      <th>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tickets.map((t) => (
-                      <tr key={t.id}>
-                        <td>
-                          <Link className="record-link" to={`/tasks/${t.id}`}>
-                            {t.id}
-                          </Link>
-                          {t.closeReason && <small>{t.closeReason}</small>}
-                        </td>
-                        <td>{memberName(db, t.assigneeId)}</td>
-                        <td>
-                          {formatDate(t.createdAt, true)}
-                          <small>Hạn {formatDate(t.expiresAt, true)}</small>
-                        </td>
-                        <td>
-                          <Badge status={t.status} ticket />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty
-                title="Chưa được phân công"
-                description="Trưởng nhóm giao hồ sơ này trong mục Điều phối."
-              />
-            ))}
-          {tab === "activity" &&
-            (activities.length ? (
-              <div className="timeline">
-                {activities.map((a) => (
-                  <article
-                    key={a.id}
-                    className={`tl-item ${a.voidedAt ? "voided" : ""}`}
-                  >
-                    <span
-                      className={`tl-icon ${a.channel === "zalo" ? "zalo" : ""}`}
-                    >
-                      {a.channel === "call" ? (
-                        <Phone size={15} />
-                      ) : (
-                        <MessageCircle size={15} />
-                      )}
-                    </span>
-                    <div>
-                      <div className="tl-top">
-                        <strong>
-                          {outcomeLabels[a.outcome]}
-                          {a.decision !== "none" &&
-                            ` · ${decisionLabels[a.decision]}`}
-                        </strong>
-                        <time>{formatDate(a.at, true)}</time>
-                      </div>
-                      <small className="muted">
-                        {memberName(db, a.actorId)} · phiếu {a.assignmentId}
-                      </small>
-                      {a.note && <p className="tl-note">{a.note}</p>}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <Empty
-                title="Chưa có lần liên hệ"
-                description="Các lần gọi/nhắn Zalo được ghi theo từng phiếu."
-              />
-            ))}
-          {tab === "receptions" && (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Thời điểm</th>
-                    <th>Nguồn</th>
-                    <th>Người tiếp nhận</th>
-                    <th>Nội dung tiếp nhận</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(receptions.length
-                    ? receptions
-                    : [
-                        {
-                          id: "first",
-                          at: l.receivedAt,
-                          sourceId: l.sourceId,
-                          actorId: "",
-                          note: "",
-                        },
-                      ]
-                  ).map((r) => (
-                    <tr key={r.id}>
-                      <td>{formatDate(r.at, true)}</td>
-                      <td>{sourceName(db, r.sourceId)}</td>
-                      <td>
-                        {r.actorId === "public-form"
-                          ? "Tài xế tự đăng ký"
-                          : r.actorId
-                            ? memberName(db, r.actorId)
-                            : "—"}
-                      </td>
-                      <td style={{ minWidth: 240, whiteSpace: "normal" }}>
-                        {r.note || "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {tab === "info" && (
-            <div className="panel-body">
-              <dl className="info-grid">
-                <div>
-                  <dt>Nguồn tiếp nhận đầu</dt>
-                  <dd>{sourceName(db, l.sourceId)}</dd>
-                </div>
-                <div>
-                  <dt>Nhãn</dt>
-                  <dd>
-                    {l.tags.length ? (
-                      <span className="row-actions">
-                        {l.tags.map((t) => (
-                          <span className="tag" key={t}>
-                            {t}
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      "Chưa có"
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Cập nhật cuối</dt>
-                  <dd>{formatDate(l.updatedAt, true)}</dd>
-                </div>
-                <div>
-                  <dt>Ghi chú hồ sơ</dt>
-                  <dd>{l.note || "—"}</dd>
-                </div>
-                <div>
-                  <dt>Quận / huyện</dt>
-                  <dd>{l.profile?.district || "Chưa cung cấp"}</dd>
-                </div>
-                <div>
-                  <dt>Tình trạng xe</dt>
-                  <dd>
-                    {l.profile?.hasVehicle === "yes"
-                      ? "Đã có xe"
-                      : l.profile?.hasVehicle === "no"
-                        ? "Chưa có xe"
-                        : "Chưa cung cấp"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Khung giờ tiện nghe máy</dt>
-                  <dd>
-                    {
-                      {
-                        morning: "Buổi sáng (8–12h)",
-                        afternoon: "Buổi chiều (13–17h)",
-                        evening: "Buổi tối (17–20h)",
-                        any: "Bất kỳ lúc nào",
-                        "": "Chưa cung cấp",
-                      }[l.profile?.callTime ?? ""]
-                    }
-                  </dd>
-                </div>
-                <div>
-                  <dt>Giấy tờ đã có</dt>
-                  <dd>
-                    {(
-                      [
-                        ["cccd", "CCCD"],
-                        ["license", "Giấy phép lái xe"],
-                        ["registration", "Đăng ký xe"],
-                      ] as const
-                    )
-                      .filter(([key]) => l.profile?.documents?.[key])
-                      .map(([, label]) => label)
-                      .join(", ") || "Chưa cung cấp"}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          )}
-        </section>
         <div className="col">
-          <Panel title="Người phụ trách">
-            {live ? (
-              <>
-                <div className="person" style={{ marginBottom: 10 }}>
-                  <Avatar name={memberName(db, live.assigneeId)} />
-                  <div>
-                    <strong>{memberName(db, live.assigneeId)}</strong>
-                    <div className="muted" style={{ fontSize: 13 }}>
-                      Phiếu {live.id} · {relativeDeadline(live.expiresAt)}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <Badge status={live.status} ticket />
-                  <Button asChild variant="link" size="sm">
-                    <Link to={`/tasks/${live.id}`}>Mở phiếu</Link>
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <p className="muted" style={{ margin: 0 }}>
-                {l.status === "New" && !l.archived
-                  ? "Chưa có phiếu đang hiệu lực — hồ sơ nằm trong hàng chờ phân công."
-                  : "Không có phiếu đang hiệu lực."}
-              </p>
-            )}
+          <Panel title="Thông tin hồ sơ" bodyless>
+            <table className="data-table profile-table">
+              <tbody>
+                {info.map(([k, v]) => (
+                  <tr key={k}>
+                    <th scope="row">{k}</th>
+                    <td>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Panel>
-          {editor && !l.archived && transitionsOf[l.status].length > 0 && (
+          {!editor && (
+            <Panel
+              title="Lịch sử tư vấn"
+              aside={<span>{activities.length} lần liên hệ</span>}
+              bodyless
+            >
+              {activities.length ? (
+                <div className="timeline">
+                  {activities.map((a) => {
+                    const t = tickets.find((t) => t.id === a.assignmentId);
+                    return (
+                      <article
+                        key={a.id}
+                        className={`tl-item ${a.voidedAt ? "voided" : ""}`}
+                      >
+                        <span
+                          className={`tl-icon ${a.channel === "zalo" ? "zalo" : ""}`}
+                        >
+                          {a.channel === "call" ? (
+                            <Phone size={15} />
+                          ) : (
+                            <MessageCircle size={15} />
+                          )}
+                        </span>
+                        <div>
+                          <div className="tl-top">
+                            <strong>
+                              {outcomeLabels[a.outcome]}
+                              {a.decision !== "none" &&
+                                ` · ${decisionLabels[a.decision]}`}
+                            </strong>
+                            <time>{formatDate(a.at, true)}</time>
+                          </div>
+                          <small className="muted">
+                            {memberName(db, a.actorId)} ·{" "}
+                            {t ? (
+                              <Link
+                                className="record-link"
+                                to={`/tasks/${t.id}`}
+                              >
+                                {ticketCode(t)}
+                              </Link>
+                            ) : (
+                              a.assignmentId
+                            )}
+                          </small>
+                          {a.note && <p className="tl-note">{a.note}</p>}
+                          {!a.voidedAt && (
+                            <Evidence
+                              activity={a}
+                              ticketId={a.assignmentId}
+                              editable={false}
+                            />
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <Empty
+                  title="Chưa có lần liên hệ"
+                  description="Các lần gọi/nhắn Zalo được ghi theo từng phiếu."
+                />
+              )}
+            </Panel>
+          )}
+        </div>
+        <div className="col">
+          {editor && !l.archived && (
             <Panel title="Cập nhật trạng thái hồ sơ">
               <LeadStatusForm key={`${l.id}-${l.status}`} leadId={l.id} />
             </Panel>
@@ -948,6 +772,67 @@ export function LeadShow() {
                 <Archive />
                 {l.archived ? "Khôi phục hồ sơ" : "Lưu trữ hồ sơ"}
               </Button>
+            </Panel>
+          )}
+          {editor && (
+            <Panel title="Lịch sử cập nhật hồ sơ" bodyless>
+              {db.audit.some((a) => a.target === l.id) ? (
+                <div className="timeline">
+                  {db.audit
+                    .filter((a) => a.target === l.id)
+                    .map((a) => (
+                      <article key={a.id} className="tl-item">
+                        <span className="tl-icon">
+                          <Pencil size={14} />
+                        </span>
+                        <div>
+                          <div className="tl-top">
+                            <strong>{a.action}</strong>
+                            <time>{formatDate(a.at, true)}</time>
+                          </div>
+                          <small className="muted">
+                            {memberName(db, a.actorId)}
+                          </small>
+                          {a.detail && <p className="tl-note">{a.detail}</p>}
+                        </div>
+                      </article>
+                    ))}
+                </div>
+              ) : (
+                <Empty title="Chưa có cập nhật" />
+              )}
+            </Panel>
+          )}
+          {!editor && tickets.length > 0 && (
+            <Panel title="Phiếu đã tư vấn" bodyless>
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Mã phiếu</th>
+                      <th>Chuyên viên</th>
+                      <th>Thời điểm tạo</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tickets.map((t) => (
+                      <tr key={t.id}>
+                        <td>
+                          <Link className="record-link" to={`/tasks/${t.id}`}>
+                            {ticketCode(t)}
+                          </Link>
+                        </td>
+                        <td>{memberName(db, t.assigneeId)}</td>
+                        <td>{formatDate(t.createdAt, true)}</td>
+                        <td>
+                          <Badge status={t.status} ticket />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Panel>
           )}
         </div>

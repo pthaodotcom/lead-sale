@@ -82,6 +82,8 @@ if (oldIntake === undefined)
 for (const [schema, version] of [
   ["22_lead_sale_inbox.sql", "20261022020000_inbox.sql"],
   ["23_lead_sale_voice.sql", "20261022030000_voice.sql"],
+  ["24_lead_sale_review.sql", "20261024000000_note_review.sql"],
+  ["25_lead_sale_review_reports.sql", "20261024010000_note_reports.sql"],
 ]) {
   const next = await readFile(root + "/schemas/" + schema, "utf8");
   const file = root + "/migrations/" + version;

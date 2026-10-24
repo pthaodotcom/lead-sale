@@ -20,6 +20,21 @@ const activity: ActivityInput = {
   decision: "none",
   reason: "none",
   note: "Đã trao đổi điều kiện đăng ký.",
+  ticketStatus: "Open",
+  attachments: [
+    {
+      path: "sale-1/fixture/audio",
+      name: "call.wav",
+      type: "audio/wav",
+      size: 20,
+    },
+    {
+      path: "sale-1/fixture/image",
+      name: "log.png",
+      type: "image/png",
+      size: 20,
+    },
+  ],
 };
 
 describe("Hồ sơ và phân quyền", () => {
@@ -119,7 +134,9 @@ describe("Phân công và hoạt động", () => {
       "Closed",
     );
     expect(next.assignments[0].assigneeId).toBe("sale-2");
-    expect(next.activities).toEqual(db.activities);
+    expect(next.activities.filter((a) => !a.appointmentId)).toEqual(
+      db.activities,
+    );
   });
   it("nhân viên khác không được ghi tư vấn, phiếu Closed không nhận hoạt động", () => {
     const db = makeSeed(now);
@@ -174,7 +191,7 @@ describe("Phân công và hoạt động", () => {
             ...activity,
             decision: "agreed",
             appointmentAt: "2026-10-19T08:00:00Z",
-            place: "Văn phòng",
+            place: "văn phòng HN1",
           },
         },
         now,
@@ -194,7 +211,7 @@ describe("Phân công và hoạt động", () => {
           ...activity,
           decision: "agreed",
           appointmentAt: "2026-10-21T08:00:00Z",
-          place: "Văn phòng",
+          place: "văn phòng HN1",
         },
       },
       now,

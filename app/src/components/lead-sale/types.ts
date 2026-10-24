@@ -2,6 +2,7 @@ export type Role = "admin" | "intake" | "leader" | "telesale" | "viewer";
 export type LeadStatus = "New" | "Activated" | "Onboarded" | "Closed";
 export type TicketStatus = "New" | "Open" | "Solved" | "Closed";
 export type Outcome =
+  | "activated"
   | "called"
   | "no_answer"
   | "unresponsive"
@@ -37,6 +38,7 @@ export interface LeadProfile {
   documents?: { cccd?: boolean; license?: boolean; registration?: boolean };
 }
 export interface Lead {
+  wrongPhone?: boolean;
   id: string;
   name: string;
   phone: string;
@@ -68,6 +70,7 @@ export interface Lead {
   correctionReason?: string;
 }
 export interface Assignment {
+  leadSnapshot?: Partial<Lead>;
   sequence?: number;
   id: string;
   leadId: string;
@@ -104,6 +107,7 @@ export interface Activity {
   voidReason?: string;
 }
 export interface Attachment {
+  dataUrl?: string;
   path: string;
   name: string;
   type: string;
@@ -117,7 +121,20 @@ export interface Appointment {
   actorId: string;
   at: string;
   place: string;
-  status: "scheduled" | "attended" | "missed" | "cancelled";
+  status:
+    | "scheduled"
+    | "waiting"
+    | "succeeded"
+    | "failed"
+    | "attended"
+    | "missed"
+    | "cancelled";
+  round?: number;
+  createdAt?: string;
+  resultAt?: string;
+  resultCutoff?: string;
+  resultReason?: string;
+  resultHistory?: { status: string; at: string; reason: string }[];
   previousId?: string;
 }
 export interface Reception {
@@ -149,6 +166,7 @@ export interface Notice {
   readAt?: string;
 }
 export interface ReportFilters {
+  city?: string;
   from?: string;
   to?: string;
   source?: string;
@@ -156,6 +174,7 @@ export interface ReportFilters {
   member?: string;
 }
 export interface ReportData {
+  analytics?: Analytics;
   total: number;
   registered: number;
   onboarded: number;
@@ -174,6 +193,7 @@ export interface AuditLog {
   detail: string;
 }
 export interface Database {
+  analytics?: Analytics;
   version: 1;
   leads: Lead[];
   assignments: Assignment[];
@@ -196,8 +216,61 @@ export type LeadInput = Pick<
 export type ActivityInput = Pick<
   Activity,
   "channel" | "at" | "outcome" | "decision" | "reason" | "note"
-> & { appointmentAt?: string; place?: string; nextCallAt?: string };
+> & {
+  appointmentAt?: string;
+  place?: string;
+  nextCallAt?: string;
+  attachments?: Attachment[];
+  ticketStatus?: TicketStatus;
+};
+export interface Analytics {
+  performance: {
+    id: string;
+    total: number;
+    New: number;
+    Open: number;
+    Solved: number;
+    Closed: number;
+    called: number;
+    no_answer: number;
+    wrong_phone: number;
+    agreed: number;
+    declined: number;
+    hungup: number;
+    assignedLeads: number;
+    converted: number;
+    backlog: number;
+  }[];
+  conversion: {
+    id: string;
+    total: number;
+    agreed: number;
+    registered: number;
+    onboarded: number;
+  }[];
+  sources: {
+    id: string;
+    total: number;
+    New: number;
+    Activated: number;
+    Onboarded: number;
+    Closed: number;
+    wrongPhone: number;
+  }[];
+  totals: {
+    total: number;
+    agreed: number;
+    registered: number;
+    onboarded: number;
+    unassigned: number;
+    reviewPending: number;
+    consulting: number;
+  };
+}
 export type Command =
+  | { type: "memberCreate"; name: string; email: string }
+  | { type: "reconcileAppointment"; id: string; reason: string }
+  | { type: "memberProfile"; id: string; name: string; email: string }
   | { type: "saveLead"; id?: string; input: LeadInput }
   | {
       type: "leadStatus";

@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  MessagesSquare,
   Search,
   Send,
   Settings2,
@@ -32,17 +31,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useWorkspace } from "./context";
 import { roleLabels, canAssign, isLive } from "./domain";
-import { Avatar, formatDate } from "./shared";
+import { Avatar, formatDate, Guard } from "./shared";
 import { supabase } from "./backend";
 import { serverNow } from "./dates";
 import { inGroup, visibleTickets } from "./tasks";
-import { useInbox } from "./inbox-store";
+import { routeAllowed } from "./access";
 import type { Database, Member, Role } from "./types";
 
 type Item = { to: string; label: string; icon: LucideIcon; count?: number };
 type Group = { label?: string; items: Item[] };
 
-function navigation(db: Database, actor: Member, unread: number): Group[] {
+function navigation(db: Database, actor: Member): Group[] {
   const is = (...roles: Role[]) => roles.includes(actor.role);
   const tickets = visibleTickets(db, actor);
   const myPending = tickets.filter(
@@ -67,17 +66,7 @@ function navigation(db: Database, actor: Member, unread: number): Group[] {
     {
       label: "Công việc",
       items: [
-        ...(is("admin", "intake")
-          ? [
-              {
-                to: "/inbox",
-                label: "Hộp thư",
-                icon: MessagesSquare,
-                count: unread,
-              },
-            ]
-          : []),
-        ...(is("telesale", "leader", "admin")
+        ...(is("telesale", "leader")
           ? [
               {
                 to: "/tasks",
@@ -97,7 +86,7 @@ function navigation(db: Database, actor: Member, unread: number): Group[] {
               },
             ]
           : []),
-        ...(!is("viewer")
+        ...(is("telesale", "leader", "intake")
           ? [{ to: "/appointments", label: "Lịch hẹn", icon: CalendarDays }]
           : []),
       ],
@@ -105,10 +94,10 @@ function navigation(db: Database, actor: Member, unread: number): Group[] {
     {
       label: "Hồ sơ",
       items: [
-        ...(!is("viewer")
+        ...(!is("viewer", "admin")
           ? [{ to: "/leads", label: "Hồ sơ Lead", icon: BookUser }]
           : []),
-        ...(is("admin", "intake", "leader")
+        ...(is("intake", "leader")
           ? [
               {
                 to: "/handover",
@@ -122,13 +111,17 @@ function navigation(db: Database, actor: Member, unread: number): Group[] {
     },
     {
       label: "Phân tích",
-      items: [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }],
+      items: is("leader", "intake", "viewer")
+        ? [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }]
+        : [],
     },
     ...(is("admin")
       ? [
           {
             label: "Hệ thống",
-            items: [{ to: "/admin", label: "Cài đặt", icon: Settings2 }],
+            items: [
+              { to: "/admin", label: "Quản trị tài khoản", icon: Settings2 },
+            ],
           },
         ]
       : []),
@@ -262,14 +255,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const navigate = useNavigate();
-  useLocation();
-  const inbox = useInbox(["admin", "intake"].includes(actor.role));
-  const groups = navigation(
-    db,
-    actor,
-    inbox.data.threads.filter((t) => t.unread > 0 && t.status !== "spam")
-      .length,
-  );
+  const location = useLocation();
+  const groups = navigation(db, actor);
   const banner = db.notices
     .filter((n) => n.recipientId === actor.id && !n.readAt)
     .sort((a, b) => b.at.localeCompare(a.at))[0];
@@ -377,7 +364,9 @@ export function Layout({ children }: { children: ReactNode }) {
               </Button>
             </div>
           )}
-          {children}
+          <Guard allowed={routeAllowed(actor.role, location.pathname)}>
+            {children}
+          </Guard>
         </main>
       </div>
       <Toaster richColors position="top-right" closeButton />
