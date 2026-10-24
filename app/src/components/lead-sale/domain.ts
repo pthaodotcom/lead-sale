@@ -392,19 +392,9 @@ export function applyCommand(
     case "leadNote": {
       const lead = leadById(command.id);
       ensure(!lead.archived, "Không thể sửa hồ sơ đã lưu trữ.");
-      const canUpdate =
-        actor.role === "admin" ||
-        actor.role === "intake" ||
-        (actor.role === "telesale" &&
-          db.assignments.some(
-            (t) =>
-              t.leadId === lead.id &&
-              t.assigneeId === actor.id &&
-              t.status !== "Closed",
-          ));
       ensure(
-        canUpdate,
-        "Chỉ nhân viên phụ trách hồ sơ này được cập nhật ghi chú.",
+        canEditLead(actor),
+        "Chỉ nhân viên tiếp nhận hồ sơ được cập nhật ghi chú Lead.",
       );
       lead.note = command.note.trim();
       lead.updatedAt = stamp;

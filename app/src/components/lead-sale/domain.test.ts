@@ -238,11 +238,11 @@ describe("Phân công và hoạt động", () => {
     expect(next.activities[0].direction).toBe("inbound");
     expect(next.activities[0].durationSeconds).toBe(155);
   });
-  it("chuyên viên phụ trách có quyền cập nhật ghi chú Lead", () => {
+  it("nhân viên tiếp nhận được cập nhật ghi chú Lead, telesale không được trực tiếp sửa", () => {
     const db = makeSeed(now);
     const next = applyCommand(
       db,
-      "sale-1",
+      "intake",
       {
         type: "leadNote",
         id: "LEAD-0001",
@@ -251,6 +251,19 @@ describe("Phân công và hoạt động", () => {
       now,
     );
     expect(next.leads[0].note).toBe("Tài xế hẹn nộp hồ sơ buổi sáng");
+
+    expect(() =>
+      applyCommand(
+        db,
+        "sale-1",
+        {
+          type: "leadNote",
+          id: "LEAD-0001",
+          note: "Telesale cố tình sửa ghi chú",
+        },
+        now,
+      ),
+    ).toThrow("Chỉ nhân viên tiếp nhận");
   });
   it("không tạm ngưng nhân viên còn phiếu hiệu lực", () => {
     expect(() =>

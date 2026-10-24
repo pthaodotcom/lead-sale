@@ -644,6 +644,7 @@ export function LeadShow() {
     ["Thời gian tiếp nhận hồ sơ", formatDate(l.receivedAt, true)],
     ["Nguồn Lead", sourceName(db, l.sourceId)],
     ["Trạng thái đăng ký", <Badge key="s" status={l.status} />],
+    ...(l.note ? [["Ghi chú tiếp nhận", l.note] as [string, ReactNode]] : []),
   ];
   return (
     <>
@@ -869,7 +870,7 @@ export function LeadShow() {
           )}
         </div>
         <div className="col">
-          {!editor && myTicket && !l.archived && (
+          {editor && !l.archived && (
             <Panel title="Ghi chú hồ sơ Lead">
               <form
                 className="stack-form"
