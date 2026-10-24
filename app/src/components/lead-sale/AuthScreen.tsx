@@ -15,8 +15,18 @@ const testRoleNames: Record<string, string> = {
   intake: "Tiếp nhận",
   leader: "Trưởng nhóm",
   telesale: "Telesale",
+  telesale2: "Telesale 2",
   viewer: "Xem báo cáo",
 };
+
+const defaultTestAccounts: TestAccount[] = [
+  { role: "admin", email: "admin@lead-sale.local", password: "123456" },
+  { role: "intake", email: "tiepnhan@lead-sale.local", password: "123456" },
+  { role: "leader", email: "truongnhom@lead-sale.local", password: "123456" },
+  { role: "telesale", email: "telesale1@lead-sale.local", password: "123456" },
+  { role: "telesale2", email: "telesale2@lead-sale.local", password: "123456" },
+  { role: "viewer", email: "baocao@lead-sale.local", password: "123456" },
+];
 
 export function AuthScreen({
   configured,
@@ -35,7 +45,7 @@ export function AuthScreen({
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [sent, setSent] = useState(false);
-  const [testAccounts, setTestAccounts] = useState<TestAccount[]>([]);
+  const [testAccounts, setTestAccounts] = useState<TestAccount[]>(defaultTestAccounts);
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const controller = new AbortController();
@@ -166,7 +176,7 @@ export function AuthScreen({
               {forgot ? "Quay lại đăng nhập" : "Quên mật khẩu"}
             </Button>
             {!forgot && testAccounts.length > 0 && (
-              <details className="auth-test-accounts">
+              <details className="auth-test-accounts" open>
                 <summary>Tài khoản dùng thử</summary>
                 <p>Chọn tài khoản để điền sẵn email và mật khẩu.</p>
                 <div className="auth-test-list">
