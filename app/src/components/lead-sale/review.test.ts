@@ -85,14 +85,14 @@ describe("Reviewed boundaries", () => {
       "/dispatch",
       "/tasks",
       "/appointments",
-      "/reports",
       "/inbox",
       "/handover",
     ]) {
       expect(routeAllowed("admin", path)).toBe(false);
     }
     expect(routeAllowed("admin", "/admin/users")).toBe(true);
-    expect(routeAllowed("telesale", "/reports")).toBe(false);
+    expect(routeAllowed("admin", "/reports")).toBe(true);
+    expect(routeAllowed("telesale", "/reports")).toBe(true);
     expect(routeAllowed("intake", "/tasks")).toBe(false);
     expect(routeAllowed("intake", "/appointments")).toBe(true);
   });

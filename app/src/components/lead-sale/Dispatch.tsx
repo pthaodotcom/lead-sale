@@ -100,7 +100,7 @@ export function Dispatch() {
     <Guard allowed={canAssign(actor)}>
       <PageHeading
         title="Điều phối"
-        description="Giao Lead mới cho chuyên viên. Chọn nhiều hồ sơ để giao một lần."
+        
       />
       <div className="grid-2">
         <section className="panel">

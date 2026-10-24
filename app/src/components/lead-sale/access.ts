@@ -1,12 +1,12 @@
 import type { Role } from "./types";
-// Route matrix after NOTE SỬA 24/10/2026; the server enforces the same scope.
+// Route matrix: all roles can access reports.
 export function routeAllowed(role: Role, path: string) {
   if (path === "/" || path.startsWith("/account")) return true;
+  if (path.startsWith("/reports")) return true;
   if (path.startsWith("/notifications")) return role !== "viewer";
-  if (role === "admin") return path.startsWith("/admin");
+  if (role === "admin")
+    return path.startsWith("/admin") || path.startsWith("/reports");
   if (path.startsWith("/admin") || path.startsWith("/inbox")) return false;
-  if (path.startsWith("/reports"))
-    return ["leader", "intake", "viewer"].includes(role);
   if (path.startsWith("/dispatch")) return role === "leader";
   if (path.startsWith("/handover")) return ["leader", "intake"].includes(role);
   if (

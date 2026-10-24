@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
-import { Empty, Guard, PageHeading, downloadCsv } from "./shared";
+import { Empty, PageHeading, downloadCsv } from "./shared";
 import {
   PeriodFilter,
   percent,
@@ -11,16 +11,15 @@ import {
 } from "./ReviewShared";
 import { cities } from "./catalog";
 import type { ReportFilters } from "./types";
+
 function ReportTable({
   title,
   headers,
   rows,
-  note,
 }: {
   title: string;
   headers: string[];
   rows: ReactNode[][];
-  note: string;
 }) {
   return (
     <section className="panel">
@@ -48,93 +47,119 @@ function ReportTable({
         </table>
       </div>
       {!rows.length && <Empty title="Không có dữ liệu trong kỳ" />}
-      <p className="muted report-note">{note}</p>
     </section>
   );
 }
+
 export function Reports() {
   const { db, actor } = useWorkspace();
   const [filters, setFilters] = useState<ReportFilters>(periodFilters("month"));
+  const [reportType, setReportType] = useState<"telesale" | "source">(
+    actor.role === "intake" ? "source" : "telesale",
+  );
   const { analytics: a, error, loading } = useAnalytics(filters);
-  const intake = actor.role === "intake";
+  const isSource = reportType === "source";
+
   const member = (id: string) =>
     db.members.find((m) => m.id === id)?.name ??
     (id === "unassigned" ? "Chưa phân công" : id);
+
   const sources = (a?.sources ?? []).map((s) => ({
     ...s,
     name: db.sources.find((x) => x.id === s.id)?.name ?? s.id,
   }));
+
   return (
-    <Guard allowed={["leader", "intake", "viewer"].includes(actor.role)}>
+    <>
       <PageHeading
-        title={intake ? "Báo cáo nguồn tiếp nhận" : "Báo cáo Telesale"}
-        description="Đối chiếu số phiếu, số hồ sơ và kết quả chuyển đổi theo kỳ."
+        title={isSource ? "Báo cáo nguồn tiếp nhận" : "Báo cáo Telesale"}
         action={
-          <Button
-            variant="outline"
-            disabled={!a || !!error || loading}
-            onClick={() => {
-              if (!a) return;
-              downloadCsv(
-                "bao-cao-lead-sale.csv",
-                intake
-                  ? [
-                      [
-                        "Nguồn",
-                        "Tổng hồ sơ",
-                        "Tỷ trọng",
-                        "Mới",
-                        "Đã đăng ký",
-                        "Đã chạy đơn đầu",
-                        "Đã đóng",
-                        "SĐT sai",
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 4 }}>
+              <Button
+                size="sm"
+                variant={!isSource ? "default" : "outline"}
+                onClick={() => setReportType("telesale")}
+              >
+                Báo cáo Telesale
+              </Button>
+              <Button
+                size="sm"
+                variant={isSource ? "default" : "outline"}
+                onClick={() => setReportType("source")}
+              >
+                Báo cáo nguồn
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!a || !!error || loading}
+              onClick={() => {
+                if (!a) return;
+                downloadCsv(
+                  isSource
+                    ? "bao-cao-nguon-tiep-nhan.csv"
+                    : "bao-cao-telesale.csv",
+                  isSource
+                    ? [
+                        [
+                          "Nguồn",
+                          "Tổng hồ sơ",
+                          "Tỷ trọng",
+                          "Mới",
+                          "Đã đăng ký",
+                          "Đã chạy đơn đầu",
+                          "Đã đóng",
+                          "SĐT sai",
+                        ],
+                        ...sources.map((s) => [
+                          s.name,
+                          s.total,
+                          percent(s.total, a.totals.total),
+                          s.New,
+                          s.Activated,
+                          s.Onboarded,
+                          s.Closed,
+                          s.wrongPhone,
+                        ]),
+                      ]
+                    : [
+                        [
+                          "Chuyên viên",
+                          "Tổng phiếu",
+                          "Chưa liên hệ",
+                          "Đang tư vấn",
+                          "Đã giải quyết",
+                          "Đã đóng",
+                          "Liên hệ thành công",
+                          "KNM",
+                          "Sai SĐT",
+                          "Đồng ý",
+                          "Không đồng ý",
+                          "Cúp ngang",
+                        ],
+                        ...a.performance.map((p) => [
+                          member(p.id),
+                          p.total,
+                          p.New,
+                          p.Open,
+                          p.Solved,
+                          p.Closed,
+                          percent(p.called, p.total),
+                          percent(p.no_answer, p.total),
+                          percent(p.wrong_phone, p.total),
+                          percent(p.agreed, p.total),
+                          percent(p.declined, p.total),
+                          percent(p.hungup, p.total),
+                        ]),
                       ],
-                      ...sources.map((s) => [
-                        s.name,
-                        s.total,
-                        percent(s.total, a.totals.total),
-                        s.New,
-                        s.Activated,
-                        s.Onboarded,
-                        s.Closed,
-                        s.wrongPhone,
-                      ]),
-                    ]
-                  : [
-                      [
-                        "Chuyên viên",
-                        "Tổng phiếu",
-                        "Chưa liên hệ",
-                        "Đang tư vấn",
-                        "Đã giải quyết",
-                        "Đã đóng",
-                        "Liên hệ thành công",
-                        "KNM",
-                        "Sai SĐT",
-                        "Đồng ý",
-                        "Không đồng ý",
-                        "Cúp ngang",
-                      ],
-                      ...a.performance.map((p) => [
-                        member(p.id),
-                        p.total,
-                        p.New,
-                        p.Open,
-                        p.Solved,
-                        p.Closed,
-                        percent(p.called, p.total),
-                        percent(p.no_answer, p.total),
-                        percent(p.wrong_phone, p.total),
-                        percent(p.agreed, p.total),
-                        percent(p.declined, p.total),
-                        percent(p.hungup, p.total),
-                      ]),
-                    ],
-              );
-            }}
-          >
-            Xuất CSV
-          </Button>
+                );
+              }}
+            >
+              Xuất CSV
+            </Button>
+          </div>
         }
       />
       <section className="panel panel-body">
@@ -152,7 +177,7 @@ export function Reports() {
               </option>
             ))}
           </select>
-          {!intake && (
+          {!isSource && (
             <>
               <select
                 aria-label="Lọc chuyên viên báo cáo"
@@ -198,7 +223,7 @@ export function Reports() {
       {loading && <p role="status">Đang tải báo cáo…</p>}
       {a && !error && (
         <>
-          {intake ? (
+          {isSource ? (
             <>
               <ReportTable
                 title="Tỷ trọng hồ sơ theo nguồn tiếp nhận"
@@ -208,7 +233,6 @@ export function Reports() {
                   s.total,
                   percent(s.total, a.totals.total),
                 ])}
-                note="Theo ngày tiếp nhận đầu. Mỗi hồ sơ chỉ tính một lần, không nhân theo số lần nhận trùng."
               />
               <ReportTable
                 title="Trạng thái hồ sơ Lead theo nguồn"
@@ -230,7 +254,6 @@ export function Reports() {
                   s.Closed,
                   s.wrongPhone,
                 ])}
-                note="Bốn trạng thái là hiện tại và loại trừ nhau. SĐT sai là cờ chất lượng từng được xác nhận, có thể trùng với Đã đóng; không cộng vào tổng trạng thái."
               />
             </>
           ) : (
@@ -253,7 +276,6 @@ export function Reports() {
                   p.Solved,
                   p.Closed,
                 ])}
-                note="Theo ngày tạo phiếu trong kỳ. Trạng thái hiện tại; tổng bốn trạng thái bằng số phiếu được giao."
               />
               <ReportTable
                 title="Kết quả liên hệ và tư vấn theo chuyên viên"
@@ -277,7 +299,6 @@ export function Reports() {
                   percent(p.declined, p.total),
                   percent(p.hungup, p.total),
                 ])}
-                note="Kết quả hợp lệ gần nhất của mỗi phiếu / tổng phiếu được giao trong kỳ. Liên hệ thành công không tính Cúp ngang. Kết quả và quyết định có thể giao nhau nên các tỷ lệ không cộng thành 100%."
               />
               <ReportTable
                 title="Tỷ lệ chuyển đổi Lead"
@@ -299,16 +320,15 @@ export function Reports() {
                   c.onboarded,
                   percent(c.onboarded, c.total),
                 ])}
-                note="Theo ngày tiếp nhận Lead; chuyển đổi lũy kế đến lúc xem. Đã đăng ký bao gồm Đã chạy đơn đầu. Mỗi Lead tính một lần; quy công cho phiếu phụ trách tại thời điểm đạt mốc. Mẫu số 0 hiển thị —."
               />
             </>
           )}
-          <p className="muted report-note">
+          <p className="muted" style={{ marginTop: 12, fontWeight: 500 }}>
             Tổng: {a.totals.total} hồ sơ · {a.totals.registered} đã đăng ký ·{" "}
             {a.totals.onboarded} đã chạy đơn đầu.
           </p>
         </>
       )}
-    </Guard>
+    </>
   );
 }

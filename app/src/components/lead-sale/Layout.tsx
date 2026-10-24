@@ -111,9 +111,7 @@ function navigation(db: Database, actor: Member): Group[] {
     },
     {
       label: "Phân tích",
-      items: is("leader", "intake", "viewer")
-        ? [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }]
-        : [],
+      items: [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }],
     },
     ...(is("admin")
       ? [
@@ -251,7 +249,7 @@ function UserMenu() {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { db, actor, cloud, run } = useWorkspace();
+  const { db, actor, run } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const navigate = useNavigate();
@@ -305,16 +303,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="side-foot">
-          <div className={`mode-note ${cloud ? "" : "demo"}`}>
-            <span className="dot" />
-            <span>
-              {cloud
-                ? "Đã kết nối máy chủ — dữ liệu lưu trên Supabase."
-                : "Bản xem thử — dữ liệu chỉ lưu trên trình duyệt này."}
-            </span>
-          </div>
-        </div>
+        
       </aside>
       <div className="main">
         <header className="topbar">

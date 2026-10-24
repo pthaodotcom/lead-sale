@@ -158,7 +158,7 @@ export function Handover() {
     <Guard allowed={["intake", "leader"].includes(actor.role)}>
       <PageHeading
         title="Bàn giao phiếu Closed"
-        description="Phiếu đã đóng chuyển về Tiếp nhận để cập nhật hồ sơ. Phiếu Closed không tự làm hồ sơ Closed."
+        
       />
       <section className="panel">
         <div className="tabs">

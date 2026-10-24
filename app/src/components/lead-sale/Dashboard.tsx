@@ -110,13 +110,7 @@ export function Dashboard() {
               ? "Tổng quan công việc của bạn"
               : "Tổng quan nhóm Telesale"
         }
-        description={
-          intake
-            ? "Hồ sơ đầu vào, chờ bàn giao và cập nhật sau Closed."
-            : telesale
-              ? "Chỉ gồm phiếu và lịch hẹn của bạn."
-              : "Công việc và chuyển đổi của nhóm."
-        }
+        
         action={
           canEditLead(actor) && (
             <Button asChild>
@@ -232,9 +226,7 @@ export function Dashboard() {
             <strong style={{ fontSize: 28 }}>
               {value(totals?.consulting)}
             </strong>
-            <p className="muted">
-              Phiếu Đang tư vấn (Open) còn hạn, tại thời điểm hiện tại.
-            </p>
+            
           </Panel>
         </div>
       ) : !telesale ? (
@@ -247,9 +239,7 @@ export function Dashboard() {
                 d: p.assignedLeads,
               }))}
             />
-            <p className="muted">
-              Số Lead đã chạy đơn đầu / Số Lead được giao.
-            </p>
+            
           </Panel>
           <Panel title="Phiếu phân công chưa đóng">
             {db.members
@@ -269,10 +259,7 @@ export function Dashboard() {
                   />
                 );
               })}
-            <p className="muted">
-              Tồn hiện tại (Chưa liên hệ + Đang tư vấn + Đã giải quyết), không
-              giới hạn ngày giao.
-            </p>
+            
           </Panel>
           <Panel title="Tỷ lệ chuyển đổi thành công theo nguồn">
             <Rates

@@ -95,7 +95,7 @@ export function useAnalytics(filters: ReportFilters) {
   const [loading, setLoading] = useState(false);
   const serialized = JSON.stringify(filters);
   useEffect(() => {
-    if (!cloud || actor.role === "admin") return;
+    if (!cloud) return;
     let active = true;
     setLoading(true);
     setError("");
@@ -116,7 +116,7 @@ export function useAnalytics(filters: ReportFilters) {
     return () => {
       active = false;
     };
-  }, [cloud, actor.role, serialized, db]);
+  }, [cloud, serialized, db]);
   const invalid = !!filters.from && !!filters.to && filters.from > filters.to;
   return {
     analytics: invalid

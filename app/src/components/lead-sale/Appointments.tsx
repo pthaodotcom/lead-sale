@@ -252,7 +252,7 @@ export function Appointments() {
     <Guard allowed={["telesale", "leader", "intake"].includes(actor.role)}>
       <PageHeading
         title="Lịch hẹn đăng ký"
-        description="Quá giờ hẹn: chuyển Đã xử lý, chờ cập nhật kết quả. 08:00 hôm sau: chốt Thành công/Thất bại theo mốc đăng ký của hồ sơ."
+        
       />
       <section className="panel">
         <div className="tabs">
