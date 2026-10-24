@@ -84,14 +84,9 @@ export function TasksPage() {
     );
   const leader = canAssign(actor);
   return (
-    <Guard allowed={["telesale", "leader", "admin"].includes(actor.role)}>
+    <Guard allowed={["telesale", "leader"].includes(actor.role)}>
       <PageHeading
         title="Nhiệm vụ"
-        description={
-          actor.role === "telesale"
-            ? "Các phiếu tư vấn được giao cho bạn, chia theo kết quả liên hệ."
-            : "Phiếu tư vấn của nhóm, chia theo kết quả liên hệ."
-        }
         action={leader && <AssignmentDialog />}
       />
       <div className="tasks-layout">
@@ -136,7 +131,9 @@ export function TasksPage() {
                   .filter(
                     (m) =>
                       m.role === "telesale" &&
-                      (actor.role === "admin" || m.teamId === actor.teamId),
+                      (actor.role === "admin" ||
+                        (m.teamId ?? "default") ===
+                          (actor.teamId ?? "default")),
                   )
                   .map((m) => (
                     <option value={m.id} key={m.id}>

@@ -241,7 +241,7 @@ export function Dispatch() {
         </section>
         <div className="col">
           <Panel
-            title="Phiếu phân công chưa đóng"
+            title="Số phiếu đã phân công còn tồn"
             aside={<span>Tồn hiện tại</span>}
             bodyless
           >

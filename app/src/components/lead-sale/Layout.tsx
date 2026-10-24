@@ -43,6 +43,25 @@ type Group = { label?: string; items: Item[] };
 
 function navigation(db: Database, actor: Member): Group[] {
   const is = (...roles: Role[]) => roles.includes(actor.role);
+  if (actor.role === "admin") {
+    return [
+      {
+        label: "Hệ thống",
+        items: [
+          { to: "/admin/users", label: "Quản lý người dùng", icon: Settings2 },
+          { to: "/admin/roles", label: "Vai trò & phân quyền", icon: KeyRound },
+        ],
+      },
+    ];
+  }
+  if (actor.role === "viewer") {
+    return [
+      {
+        label: "Phân tích",
+        items: [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }],
+      },
+    ];
+  }
   const tickets = visibleTickets(db, actor);
   const myPending = tickets.filter(
     (t) =>
@@ -94,9 +113,7 @@ function navigation(db: Database, actor: Member): Group[] {
     {
       label: "Hồ sơ",
       items: [
-        ...(!is("viewer", "admin")
-          ? [{ to: "/leads", label: "Hồ sơ Lead", icon: BookUser }]
-          : []),
+        { to: "/leads", label: "Hồ sơ Lead", icon: BookUser },
         ...(is("intake", "leader")
           ? [
               {
@@ -109,17 +126,11 @@ function navigation(db: Database, actor: Member): Group[] {
           : []),
       ],
     },
-    {
-      label: "Phân tích",
-      items: [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }],
-    },
-    ...(is("admin")
+    ...(is("leader", "intake", "viewer")
       ? [
           {
-            label: "Hệ thống",
-            items: [
-              { to: "/admin", label: "Quản trị tài khoản", icon: Settings2 },
-            ],
+            label: "Phân tích",
+            items: [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }],
           },
         ]
       : []),

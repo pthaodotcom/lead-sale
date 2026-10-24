@@ -241,7 +241,7 @@ export function Dashboard() {
             />
             
           </Panel>
-          <Panel title="Phiếu phân công chưa đóng">
+          <Panel title="Số phiếu đã phân công còn tồn">
             {db.members
               .filter((m) => m.role === "telesale" && sameTeam(m.teamId))
               .map((m) => {

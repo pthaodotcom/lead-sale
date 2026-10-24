@@ -15,7 +15,6 @@ export function Notices() {
     <>
       <PageHeading
         title="Thông báo"
-        description="Nhắc lịch hẹn và tóm tắt bàn giao phiếu Closed."
       />
       <section className="panel" style={{ maxWidth: 820 }}>
         <div className="tabs">

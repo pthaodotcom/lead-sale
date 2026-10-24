@@ -72,7 +72,6 @@ export function ImportLeads() {
     <Guard allowed={canEditLead(actor)}>
       <PageHeading
         title="Nhập danh sách Lead"
-        description="Nhập CSV hoặc Excel XLSX; xem trước và kiểm tra từng dòng."
         back="/leads"
         backLabel="Hồ sơ Lead"
       />

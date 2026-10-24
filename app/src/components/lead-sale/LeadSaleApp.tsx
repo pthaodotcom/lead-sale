@@ -2,7 +2,7 @@ import { CustomRoutes } from "ra-core";
 import { Navigate, Route, useParams } from "react-router";
 import fakeRestDataProvider from "ra-data-fakerest";
 import { Admin } from "@/components/admin/admin";
-import { WorkspaceProvider } from "./context";
+import { useWorkspace, WorkspaceProvider } from "./context";
 import { Layout } from "./Layout";
 import { Dashboard } from "./Dashboard";
 import { LeadForm, LeadsList, LeadShow } from "./Leads";
@@ -30,13 +30,21 @@ const NotFound = () => (
   </div>
 );
 const LegacyTicket = () => <Navigate replace to={`/tasks/${useParams().id}`} />;
+
+const RootLanding = () => {
+  const { actor } = useWorkspace();
+  if (actor.role === "admin") return <Navigate replace to="/admin/users" />;
+  if (actor.role === "viewer") return <Navigate replace to="/reports" />;
+  return <Dashboard />;
+};
+
 export default function LeadSaleApp() {
   return (
     <WorkspaceProvider>
       <Admin
         dataProvider={foundationProvider}
         layout={Layout}
-        dashboard={Dashboard}
+        dashboard={RootLanding}
         catchAll={NotFound}
         title="Lead Sale"
         disableTelemetry

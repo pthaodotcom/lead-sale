@@ -91,8 +91,11 @@ describe("Reviewed boundaries", () => {
       expect(routeAllowed("admin", path)).toBe(false);
     }
     expect(routeAllowed("admin", "/admin/users")).toBe(true);
-    expect(routeAllowed("admin", "/reports")).toBe(true);
-    expect(routeAllowed("telesale", "/reports")).toBe(true);
+    expect(routeAllowed("admin", "/reports")).toBe(false);
+    expect(routeAllowed("telesale", "/reports")).toBe(false);
+    expect(routeAllowed("leader", "/reports")).toBe(true);
+    expect(routeAllowed("intake", "/reports")).toBe(true);
+    expect(routeAllowed("viewer", "/reports")).toBe(true);
     expect(routeAllowed("intake", "/tasks")).toBe(false);
     expect(routeAllowed("intake", "/appointments")).toBe(true);
   });

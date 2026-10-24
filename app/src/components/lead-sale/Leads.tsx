@@ -88,11 +88,6 @@ export function LeadsList() {
     <Guard allowed={actor.role !== "viewer"}>
       <PageHeading
         title="Hồ sơ Lead"
-        description={
-          actor.role === "telesale"
-            ? "Hồ sơ tài xế bạn đang được giao tư vấn (chỉ xem)."
-            : "Mỗi tài xế một hồ sơ theo số điện thoại."
-        }
         action={
           canEditLead(actor) && (
             <>
@@ -372,7 +367,6 @@ export function LeadForm() {
     <Guard allowed={canEditLead(actor)}>
       <PageHeading
         title={id ? `Sửa hồ sơ · ${existing?.name}` : "Tiếp nhận Lead mới"}
-        description="Nhập số điện thoại trước — hệ thống kiểm tra trùng ngay."
         back={id ? `/leads/${id}/show` : "/leads"}
         backLabel={id ? "Về hồ sơ" : "Hồ sơ Lead"}
       />
@@ -507,12 +501,6 @@ export function LeadForm() {
   );
 }
 
-const transitionsOf: Record<LeadStatus, LeadStatus[]> = {
-  New: ["Activated"],
-  Activated: ["Onboarded"],
-  Onboarded: [],
-  Closed: ["New"],
-};
 const transitionLabel: Record<LeadStatus, string> = {
   Activated: "Xác nhận đã đăng ký (Activated)",
   Onboarded: "Xác nhận đã chạy đơn đầu (Onboarded)",
@@ -550,16 +538,13 @@ function LeadStatusForm({ leadId }: { leadId: string }) {
           onChange={(e) => setStatus(e.target.value as LeadStatus)}
         >
           <option value="">Chọn thao tác</option>
-          {(["New", "Activated", "Onboarded"] as LeadStatus[]).map((s) => (
-            <option
-              key={s}
-              value={s}
-              disabled={!transitionsOf[l.status].includes(s)}
-            >
-              {transitionLabel[s]}
-              {l.status === s ? " — hiện tại" : ""}
-            </option>
-          ))}
+          {(["New", "Activated", "Onboarded"] as LeadStatus[])
+            .filter((s) => s !== l.status)
+            .map((s) => (
+              <option key={s} value={s}>
+                {transitionLabel[s]}
+              </option>
+            ))}
         </select>
       </Field>
       {status && (

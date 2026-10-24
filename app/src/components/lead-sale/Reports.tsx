@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
-import { Empty, PageHeading, downloadCsv } from "./shared";
+import { Empty, Guard, PageHeading, downloadCsv } from "./shared";
 import {
   PeriodFilter,
   percent,
@@ -70,27 +70,29 @@ export function Reports() {
   }));
 
   return (
-    <>
+    <Guard allowed={["leader", "intake", "viewer"].includes(actor.role)}>
       <PageHeading
         title={isSource ? "Báo cáo nguồn tiếp nhận" : "Báo cáo Telesale"}
         action={
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              <Button
-                size="sm"
-                variant={!isSource ? "default" : "outline"}
-                onClick={() => setReportType("telesale")}
-              >
-                Báo cáo Telesale
-              </Button>
-              <Button
-                size="sm"
-                variant={isSource ? "default" : "outline"}
-                onClick={() => setReportType("source")}
-              >
-                Báo cáo nguồn
-              </Button>
-            </div>
+            {actor.role !== "intake" && (
+              <div style={{ display: "flex", gap: 4 }}>
+                <Button
+                  size="sm"
+                  variant={!isSource ? "default" : "outline"}
+                  onClick={() => setReportType("telesale")}
+                >
+                  Báo cáo Telesale
+                </Button>
+                <Button
+                  size="sm"
+                  variant={isSource ? "default" : "outline"}
+                  onClick={() => setReportType("source")}
+                >
+                  Báo cáo nguồn
+                </Button>
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -329,6 +331,6 @@ export function Reports() {
           </p>
         </>
       )}
-    </>
+    </Guard>
   );
 }
