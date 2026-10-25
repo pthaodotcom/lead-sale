@@ -649,6 +649,7 @@ export function parseAuditDetail(
     );
     const diffs: AuditDiff[] = [];
     for (const k of allKeys) {
+      if (k === "Ngày tiếp nhận" || k === "Thời gian tiếp nhận") continue;
       const from = beforeFields[k] || "(trống)";
       const to = afterFields[k] || "(trống)";
       if (from !== to) {
@@ -684,6 +685,7 @@ export function parseAuditDetail(
           );
           const diffs: AuditDiff[] = [];
           for (const k of allKeys) {
+            if (k === "Ngày tiếp nhận" || k === "Thời gian tiếp nhận") continue;
             const from = olderFields[k] || "(trống)";
             const to = currentFields[k] || "(trống)";
             if (from !== to) {
@@ -711,6 +713,7 @@ export function parseAuditDetail(
         if (label === "Trạng thái" && value === "Mới") return false;
         if (label === "Lưu trữ" && value === "Đang hoạt động") return false;
         if (label === "Báo sai SĐT" && value === "Số hợp lệ") return false;
+        if (label === "Ngày tiếp nhận" || label === "Thời gian tiếp nhận") return false;
         return true;
       })
       .map(([label, value]) => ({ label, value }));
@@ -929,40 +932,35 @@ export function AuditDetailView({
 
   if (parsed.diffs && parsed.diffs.length > 0) {
     return (
-      <div className="tl-note tl-audit-card">
-        <div className="tl-audit-title">Nội dung thay đổi:</div>
-        <div className="tl-audit-list">
-          {parsed.diffs.map((d) => (
-            <div key={d.label} className="tl-audit-row">
-              <span className="tl-audit-k">{d.label}:</span>
-              <span className="tl-audit-old">{d.from}</span>
-              <span className="tl-audit-arrow">→</span>
-              <strong className="tl-audit-new">{d.to}</strong>
-            </div>
-          ))}
-        </div>
+      <div className="tl-audit-chips-wrap">
+        {parsed.diffs.map((d) => (
+          <div key={d.label} className="tl-audit-chip diff">
+            <span className="tl-chip-k">{d.label}:</span>
+            <span className="tl-chip-old">{d.from}</span>
+            <span className="tl-chip-arrow">→</span>
+            <strong className="tl-chip-new">{d.to}</strong>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (parsed.fields && parsed.fields.length > 0) {
     return (
-      <div className="tl-note tl-audit-card">
-        <div className="tl-audit-list">
-          {parsed.fields.map((f) => (
-            <div key={f.label} className="tl-audit-row">
-              <span className="tl-audit-k">{f.label}:</span>
-              <span className="tl-audit-v">{f.value}</span>
-            </div>
-          ))}
-        </div>
+      <div className="tl-audit-chips-wrap">
+        {parsed.fields.map((f) => (
+          <div key={f.label} className="tl-audit-chip field">
+            <span className="tl-chip-k">{f.label}:</span>
+            <strong className="tl-chip-v">{f.value}</strong>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (parsed.text) {
     return (
-      <div className="tl-note tl-audit-card">
+      <div className="tl-audit-text-box">
         <p className="tl-audit-text">{parsed.text}</p>
       </div>
     );

@@ -917,46 +917,6 @@ export function LeadShow() {
               </Button>
             </Panel>
           )}
-          {editor && (
-            <Panel title="Lịch sử cập nhật hồ sơ" bodyless>
-              {db.audit.some((a) => a.target === l.id) ? (
-                <div className="timeline">
-                  {db.audit
-                    .filter((a) => a.target === l.id)
-                    .map((a, idx, arr) => {
-                      const older = arr[idx + 1];
-                      return (
-                        <article key={a.id} className="tl-item">
-                          <span className="tl-icon">
-                            <Pencil size={14} />
-                          </span>
-                          <div>
-                            <div className="tl-top">
-                              <strong>
-                                {formatAuditAction(a.action, a.detail)}
-                              </strong>
-                              <time>{formatDate(a.at, true)}</time>
-                            </div>
-                            <small className="muted">
-                              {memberName(db, a.actorId)}
-                            </small>
-                            {a.detail && (
-                              <AuditDetailView
-                                detail={a.detail}
-                                olderDetail={older?.detail}
-                                db={db}
-                              />
-                            )}
-                          </div>
-                        </article>
-                      );
-                    })}
-                </div>
-              ) : (
-                <Empty title="Chưa có cập nhật" description="" />
-              )}
-            </Panel>
-          )}
           {!editor && tickets.length > 0 && (
             <Panel title="Phiếu đã tư vấn" bodyless>
               <div className="table-scroll">
@@ -991,6 +951,60 @@ export function LeadShow() {
           )}
         </div>
       </div>
+
+      {editor && (
+        <Panel
+          title="Lịch sử cập nhật hồ sơ"
+          className="lead-history-panel"
+          aside={
+            <span className="muted" style={{ fontSize: 13 }}>
+              {db.audit.filter((a) => a.target === l.id).length} bản ghi
+            </span>
+          }
+          bodyless
+        >
+          {db.audit.some((a) => a.target === l.id) ? (
+            <div className="timeline timeline-wide">
+              {db.audit
+                .filter((a) => a.target === l.id)
+                .map((a, idx, arr) => {
+                  const older = arr[idx + 1];
+                  return (
+                    <article key={a.id} className="tl-item">
+                      <span className="tl-icon">
+                        <Pencil size={14} />
+                      </span>
+                      <div className="tl-audit-content">
+                        <div className="tl-audit-top">
+                          <strong className="tl-audit-action">
+                            {formatAuditAction(a.action, a.detail)}
+                          </strong>
+                          <span className="tl-audit-sep">·</span>
+                          <span className="tl-audit-actor">
+                            {memberName(db, a.actorId)}
+                          </span>
+                          <span className="tl-audit-sep">·</span>
+                          <time className="tl-audit-time">
+                            {formatDate(a.at, true)}
+                          </time>
+                        </div>
+                        {a.detail && (
+                          <AuditDetailView
+                            detail={a.detail}
+                            olderDetail={older?.detail}
+                            db={db}
+                          />
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+            </div>
+          ) : (
+            <Empty title="Chưa có cập nhật" description="" />
+          )}
+        </Panel>
+      )}
 
       {/* Telesale Action Modals */}
       {myTicket && (
