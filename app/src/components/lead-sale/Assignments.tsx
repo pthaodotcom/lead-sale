@@ -172,7 +172,7 @@ const blankForm = (): ActivityInput => ({
 });
 
 function LogForm({ ticketId }: { ticketId: string }) {
-  const { run, busy } = useWorkspace();
+  const { db, actor, run, busy } = useWorkspace();
   const [form, setForm] = useState<ActivityInput>(blankForm);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -190,6 +190,10 @@ function LogForm({ ticketId }: { ticketId: string }) {
       className="panel log-form"
       onSubmit={async (e) => {
         e.preventDefault();
+        const t = db.assignments.find((a) => a.id === ticketId);
+        if (t && !t.acceptedAt && t.assigneeId === actor.id) {
+          await run({ type: "accept", id: ticketId });
+        }
         if (
           await run(
             {
@@ -524,10 +528,7 @@ export function TicketPage() {
     canWork(actor, t) ||
     (actor.role === "leader" &&
       (t.teamId ?? "default") === (actor.teamId ?? "default"));
-  const editable =
-    canWork(actor, t) &&
-    isPending(t) &&
-    (!!t.acceptedAt || actor.role === "admin");
+  const editable = canWork(actor, t) && isPending(t);
   const mustAccept =
     t.assigneeId === actor.id && !t.acceptedAt && t.status !== "Closed";
   const c = counts(db, t.id);
@@ -556,6 +557,18 @@ export function TicketPage() {
           </div>
         </div>
         <div className="page-actions">
+          {mustAccept && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                void run({ type: "accept", id: t.id }, "Đã nhận việc.")
+              }
+            >
+              <UserCheck size={14} /> Nhận việc
+            </Button>
+          )}
           {l.phone && (
             <Button asChild size="sm" variant="default">
               <a href={`tel:${l.phone}`}>
@@ -621,48 +634,32 @@ export function TicketPage() {
               <div className="panel-head">
                 <h2>Ghi nhận liên hệ</h2>
               </div>
-              {mustAccept ? (
-                <div className="panel-body stack-form">
-                  <p className="muted" style={{ margin: 0 }}>
-                    Nhận việc để bắt đầu gọi và ghi kết quả cho phiếu này.
-                  </p>
+              <div
+                className="locked-note"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  alignItems: "flex-start",
+                }}
+              >
+                <p style={{ margin: 0 }}>
+                  {t.status === "Solved"
+                    ? "Phiếu đã giải quyết. Bấm nút Mở lại phiếu để tiếp tục chăm sóc tài xế."
+                    : t.status === "Closed" || !isPending(t)
+                      ? "Phiếu đã đóng hoặc hết hạn, không ghi nhận thêm."
+                      : "Chỉ chuyên viên được giao mới ghi nhận liên hệ trên phiếu này."}
+                </p>
+                {t.status === "Solved" && permitted && isLive(t) && l.status === "New" && (
                   <Button
-                    disabled={busy}
-                    onClick={() =>
-                      void run({ type: "accept", id: t.id }, "Đã nhận việc.")
-                    }
+                    size="sm"
+                    variant="default"
+                    onClick={() => setReopenOpen(true)}
                   >
-                    <UserCheck /> Nhận việc
+                    <RotateCcw size={14} /> Mở lại phiếu này
                   </Button>
-                </div>
-              ) : (
-                <div
-                  className="locked-note"
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <p style={{ margin: 0 }}>
-                    {t.status === "Solved"
-                      ? "Phiếu đã giải quyết. Bấm nút Mở lại phiếu để tiếp tục chăm sóc tài xế."
-                      : t.status === "Closed" || !isPending(t)
-                        ? "Phiếu đã đóng hoặc hết hạn, không ghi nhận thêm."
-                        : "Chỉ chuyên viên được giao mới ghi nhận liên hệ trên phiếu này."}
-                  </p>
-                  {t.status === "Solved" && permitted && isLive(t) && l.status === "New" && (
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => setReopenOpen(true)}
-                    >
-                      <RotateCcw size={14} /> Mở lại phiếu này
-                    </Button>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </section>
           )}
           <Panel title="Tài xế">

@@ -6,7 +6,6 @@ import type { Assignment, Database, Member } from "./types";
 // Sub-queues of "Nhiệm vụ" (BA §6.6, BR-50). Counts are tickets and may overlap.
 export const taskGroups = [
   { id: "pending", name: "Phiếu chưa giải quyết" },
-  { id: "unaccepted", name: "Chưa nhận việc", child: true },
   { id: "new", name: "Chưa liên hệ", child: true },
   { id: "agreed", name: "Đồng ý đăng ký" },
   { id: "no_answer", name: "Không nghe máy" },
@@ -45,7 +44,6 @@ export function inGroup(db: Database, t: Assignment, key: TaskGroup) {
     return Date.parse(t.updatedAt) >= serverNow().getTime() - 3 * 86400000;
   if (!isPending(t)) return false;
   if (key === "pending") return true;
-  if (key === "unaccepted") return t.status === "New" && !t.acceptedAt;
   if (key === "new") return t.status === "New";
   if (key === "agreed") return latestActivity(db, t.id)?.decision === "agreed";
   if (key === "no_answer") return c.noAnswer > 0;

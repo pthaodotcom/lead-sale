@@ -10,7 +10,6 @@ import {
   PhoneOutgoing,
   Trash2,
   UploadCloud,
-  UserCheck,
 } from "lucide-react";
 import {
   Dialog,
@@ -246,17 +245,6 @@ export function CallLogModal({
                 </select>
               )}
             </Field>
-
-            {mustAccept && (
-              <p
-                className="callout"
-                style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}
-              >
-                <UserCheck size={14} style={{ display: "inline" }} /> Phiếu này
-                chưa nhận việc. Hệ thống sẽ tự động nhận việc khi bạn lưu cuộc
-                gọi.
-              </p>
-            )}
           </div>
 
           {/* Channel & Direction */}
