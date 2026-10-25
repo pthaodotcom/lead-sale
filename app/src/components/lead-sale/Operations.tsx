@@ -14,6 +14,7 @@ import {
   Guard,
   memberName,
   PageHeading,
+  TablePagination,
 } from "./shared";
 import type { ClosureReview } from "./types";
 
@@ -128,10 +129,13 @@ function ReviewRow({ review }: { review: ClosureReview }) {
   );
 }
 
+const PAGE = 10;
+
 export function Handover() {
   const { db, actor } = useWorkspace();
   const [state, setState] = useState("pending");
   const [date, setDate] = useState("");
+  const [page, setPage] = useState(1);
   const day = (s: string) =>
     new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
       new Date(s),
@@ -154,6 +158,9 @@ export function Handover() {
         (!date || day(r.at) === date),
     )
     .sort((a, b) => b.at.localeCompare(a.at));
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const current = Math.min(page, pages);
+  const paginatedRows = rows.slice((current - 1) * PAGE, current * PAGE);
   return (
     <Guard allowed={["intake", "leader"].includes(actor.role)}>
       <PageHeading
@@ -170,7 +177,10 @@ export function Handover() {
             <button
               key={k}
               className={state === k ? "active" : ""}
-              onClick={() => setState(k)}
+              onClick={() => {
+                setState(k);
+                setPage(1);
+              }}
             >
               {label} <span className="count">{count(k)}</span>
             </button>
@@ -182,20 +192,40 @@ export function Handover() {
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setPage(1);
+              }}
               style={{ width: "auto" }}
             />
           </label>
           {date && (
-            <Button variant="ghost" size="sm" onClick={() => setDate("")}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDate("");
+                setPage(1);
+              }}
+            >
               Bỏ lọc ngày
             </Button>
           )}
         </div>
-        {rows.map((r) => (
-          <ReviewRow key={r.id} review={r} />
-        ))}
-        {!rows.length && (
+        {rows.length ? (
+          <>
+            {paginatedRows.map((r) => (
+              <ReviewRow key={r.id} review={r} />
+            ))}
+            <TablePagination
+              current={current}
+              total={rows.length}
+              pageSize={PAGE}
+              onPageChange={setPage}
+              unit="phiếu bàn giao"
+            />
+          </>
+        ) : (
           <Empty
             icon={ArrowLeftRight}
             title={

@@ -17,11 +17,14 @@ import {
   relativeDeadline,
   SearchBox,
   sourceName,
+  TablePagination,
   textMatches,
   vehicleLabel,
 } from "./shared";
 import { expiresSoon, visibleTickets } from "./tasks";
 import { cities, normalizeCity } from "./catalog";
+
+const PAGE = 15;
 
 export function Dispatch() {
   const { db, actor, perform } = useWorkspace();
@@ -32,6 +35,7 @@ export function Dispatch() {
   const [city, setCity] = useState("");
   const [direction, setDirection] = useState(1);
   const [result, setResult] = useState("");
+  const [page, setPage] = useState(1);
   const now = serverNow().getTime();
   const queue = db.leads
     .filter(
@@ -57,6 +61,9 @@ export function Dispatch() {
       (!city || normalizeCity(l.city) === city) &&
       textMatches(q, l.id, l.name, l.phone, l.city),
   );
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const current = Math.min(page, pages);
+  const paginatedRows = rows.slice((current - 1) * PAGE, current * PAGE);
   const team = db.members.filter(
     (m) =>
       m.role === "telesale" &&
@@ -72,7 +79,9 @@ export function Dispatch() {
   const expiring = tickets
     .filter(expiresSoon)
     .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
-  const allPicked = rows.length > 0 && rows.every((l) => picked.includes(l.id));
+  const allPickedPage =
+    paginatedRows.length > 0 &&
+    paginatedRows.every((l) => picked.includes(l.id));
   const assign = async () => {
     setBusy(true);
     let ok = 0;
@@ -112,13 +121,19 @@ export function Dispatch() {
             <SearchBox
               className="grow"
               value={q}
-              onChange={setQ}
+              onChange={(v) => {
+                setQ(v);
+                setPage(1);
+              }}
               placeholder="Tìm mã, tên, SĐT…"
             />
             <select
               aria-label="Lọc thành phố điều phối"
               value={city}
-              onChange={(e) => setCity(e.target.value)}
+              onChange={(e) => {
+                setCity(e.target.value);
+                setPage(1);
+              }}
             >
               <option value="">Mọi thành phố</option>
               {cities.map((c) => (
@@ -155,83 +170,116 @@ export function Dispatch() {
             </p>
           )}
           {rows.length ? (
-            <div className="table-scroll">
-              <table className="data-table dispatch-table">
-                <thead>
-                  <tr>
-                    <th className="narrow">
-                      <input
-                        type="checkbox"
-                        aria-label="Chọn tất cả"
-                        checked={allPicked}
-                        onChange={(e) =>
-                          setPicked(
-                            e.target.checked ? rows.map((l) => l.id) : [],
-                          )
-                        }
-                      />
-                    </th>
-                    <th>Mã hồ sơ</th>
-                    <th>Họ tên</th>
-                    <th>SĐT</th>
-                    <th>Thành phố</th>
-                    <th>Phương tiện</th>
-                    <th>Nguồn</th>
-                    <th
-                      aria-sort={direction === 1 ? "ascending" : "descending"}
-                    >
-                      <button
-                        className="sort-heading"
-                        onClick={() => setDirection(-direction)}
+            <>
+              <div className="table-scroll">
+                <table className="data-table dispatch-table">
+                  <thead>
+                    <tr>
+                      <th className="narrow">
+                        <input
+                          type="checkbox"
+                          aria-label="Chọn tất cả trên trang này"
+                          checked={allPickedPage}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setPicked((prev) =>
+                                Array.from(
+                                  new Set([
+                                    ...prev,
+                                    ...paginatedRows.map((l) => l.id),
+                                  ]),
+                                ),
+                              );
+                            } else {
+                              setPicked((prev) =>
+                                prev.filter(
+                                  (id) =>
+                                    !paginatedRows.some((l) => l.id === id),
+                                ),
+                              );
+                            }
+                          }}
+                        />
+                      </th>
+                      <th>Mã hồ sơ</th>
+                      <th>Họ tên</th>
+                      <th>SĐT</th>
+                      <th>Thành phố</th>
+                      <th>Phương tiện</th>
+                      <th>Nguồn</th>
+                      <th
+                        aria-sort={direction === 1 ? "ascending" : "descending"}
                       >
-                        Thời gian tiếp nhận {direction === 1 ? "↑" : "↓"}
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((l) => {
-                    const on = picked.includes(l.id);
-                    return (
-                      <tr
-                        key={l.id}
-                        className={`clickable ${on ? "selected" : ""}`}
-                        onClick={() =>
-                          setPicked((p) =>
-                            on ? p.filter((x) => x !== l.id) : [...p, l.id],
-                          )
-                        }
-                      >
-                        <td className="narrow">
-                          <input
-                            type="checkbox"
-                            aria-label={`Chọn ${l.name}`}
-                            checked={on}
-                            readOnly
-                          />
-                        </td>
-                        <td>
-                          <Link
-                            className="record-link nowrap font-mono text-xs"
-                            to={`/leads/${l.id}/show`}
-                            onClick={(e) => e.stopPropagation()}
-                            title={l.id}
-                          >
-                            {`LEAD-${l.id.replace(/^lead-?/i, "").slice(0, 8).toUpperCase()}`}
-                          </Link>
-                        </td>
-                        <td>{l.name}</td>
-                        <td>{l.phone}</td>
-                        <td>{normalizeCity(l.city)}</td>
-                        <td>{vehicleLabel(l.vehicle)}</td>
-                        <td>{sourceName(db, l.sourceId)}</td>
-                        <td>{formatDate(l.receivedAt, true)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        <button
+                          className="sort-heading"
+                          onClick={() => {
+                            setDirection(-direction);
+                            setPage(1);
+                          }}
+                        >
+                          Thời gian tiếp nhận {direction === 1 ? "↑" : "↓"}
+                        </button>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedRows.map((l) => {
+                      const on = picked.includes(l.id);
+                      return (
+                        <tr
+                          key={l.id}
+                          className={`clickable ${on ? "selected" : ""}`}
+                          onClick={() =>
+                            setPicked((p) =>
+                              on ? p.filter((x) => x !== l.id) : [...p, l.id],
+                            )
+                          }
+                        >
+                          <td className="narrow">
+                            <input
+                              type="checkbox"
+                              aria-label={`Chọn ${l.name}`}
+                              checked={on}
+                              readOnly
+                            />
+                          </td>
+                          <td>
+                            <Link
+                              className="record-link nowrap font-mono text-xs"
+                              to={`/leads/${l.id}/show`}
+                              onClick={(e) => e.stopPropagation()}
+                              title={l.id}
+                            >
+                              {`LEAD-${l.id.replace(/^lead-?/i, "").slice(0, 8).toUpperCase()}`}
+                            </Link>
+                          </td>
+                          <td>{l.name}</td>
+                          <td>{l.phone}</td>
+                          <td>{normalizeCity(l.city)}</td>
+                          <td>{vehicleLabel(l.vehicle)}</td>
+                          <td>{sourceName(db, l.sourceId)}</td>
+                          <td>{formatDate(l.receivedAt, true)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <TablePagination
+                current={current}
+                total={rows.length}
+                pageSize={PAGE}
+                onPageChange={setPage}
+                unit="hồ sơ"
+                extraLeft={
+                  picked.length > 0 ? (
+                    <span style={{ fontSize: "12px", color: "var(--brand, #ea580c)" }}>
+                      Đã chọn <strong>{picked.length}</strong> hồ sơ
+                    </span>
+                  ) : undefined
+                }
+              />
+            </>
           ) : (
             <Empty
               icon={Inbox}

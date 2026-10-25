@@ -24,6 +24,7 @@ import {
   memberName,
   PageHeading,
   RowMenu,
+  TablePagination,
 } from "./shared";
 import type { Appointment } from "./types";
 
@@ -226,11 +227,14 @@ export const appointmentTone = (s: Appointment["status"]) =>
         ? "open"
         : s;
 
+const PAGE = 10;
+
 export function Appointments() {
   const { db, actor } = useWorkspace();
   const [view, setView] = useState<"open" | "done">("open");
   const [member, setMember] = useState("");
   const [direction, setDirection] = useState(1);
+  const [page, setPage] = useState(1);
   const personal = actor.role === "telesale";
   const scoped = db.appointments.filter((a) =>
     personal
@@ -247,6 +251,9 @@ export function Appointments() {
   const rows = (view === "open" ? open : done)
     .filter((a) => !member || a.actorId === member)
     .sort((a, b) => a.at.localeCompare(b.at) * direction);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const current = Math.min(page, pages);
+  const paginatedRows = rows.slice((current - 1) * PAGE, current * PAGE);
   return (
     <Guard allowed={["telesale", "leader", "intake"].includes(actor.role)}>
       <PageHeading
@@ -264,7 +271,10 @@ export function Appointments() {
             <button
               key={id}
               className={view === id ? "active" : ""}
-              onClick={() => setView(id)}
+              onClick={() => {
+                setView(id);
+                setPage(1);
+              }}
             >
               {label}
               <span className="count">{n}</span>
@@ -276,7 +286,10 @@ export function Appointments() {
             <select
               aria-label="Lọc chuyên viên lịch hẹn"
               value={member}
-              onChange={(e) => setMember(e.target.value)}
+              onChange={(e) => {
+                setMember(e.target.value);
+                setPage(1);
+              }}
             >
               <option value="">Tất cả chuyên viên</option>
               {db.members
@@ -295,74 +308,86 @@ export function Appointments() {
           </div>
         )}
         {rows.length ? (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th aria-sort={direction === 1 ? "ascending" : "descending"}>
-                    <button
-                      className="sort-heading"
-                      onClick={() => setDirection(-direction)}
-                    >
-                      Thời gian hẹn {direction === 1 ? "↑" : "↓"}
-                    </button>
-                  </th>
-                  <th>Địa điểm hẹn</th>
-                  <th>Tên + SĐT tài xế</th>
-                  {!personal && <th>Chuyên viên</th>}
-                  <th>Trạng thái</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((a) => {
-                  const t = db.assignments.find((t) => t.id === a.assignmentId);
-                  const l =
-                    db.leads.find((l) => l.id === a.leadId) ?? t?.leadSnapshot;
-                  return (
-                    <tr key={a.id}>
-                      <td>
-                        {formatDate(a.at, true)}
-                        {a.status === "waiting" && (
-                          <small>
-                            Chốt{" "}
-                            {formatDate(
-                              new Date(resultDeadline(a.at)).toISOString(),
-                              true,
-                            )}
-                          </small>
-                        )}
-                      </td>
-                      <td>{a.place}</td>
-                      <td>
-                        <Link
-                          className="record-link"
-                          to={
-                            actor.role === "intake"
-                              ? `/leads/${a.leadId}/show`
-                              : `/tasks/${a.assignmentId}`
-                          }
-                        >
-                          {l?.name ?? a.leadId}
-                        </Link>
-                        <small>{l?.phone}</small>
-                      </td>
-                      {!personal && <td>{memberName(db, a.actorId)}</td>}
-                      <td>
-                        <Chip tone={appointmentTone(a.status)}>
-                          {appointmentLabels[a.status]}
-                        </Chip>
-                        {a.resultReason && <small>{a.resultReason}</small>}
-                      </td>
-                      <td className="end">
-                        <AppointmentActions appointment={a} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th aria-sort={direction === 1 ? "ascending" : "descending"}>
+                      <button
+                        className="sort-heading"
+                        onClick={() => {
+                          setDirection(-direction);
+                          setPage(1);
+                        }}
+                      >
+                        Thời gian hẹn {direction === 1 ? "↑" : "↓"}
+                      </button>
+                    </th>
+                    <th>Địa điểm hẹn</th>
+                    <th>Tên + SĐT tài xế</th>
+                    {!personal && <th>Chuyên viên</th>}
+                    <th>Trạng thái</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRows.map((a) => {
+                    const t = db.assignments.find((t) => t.id === a.assignmentId);
+                    const l =
+                      db.leads.find((l) => l.id === a.leadId) ?? t?.leadSnapshot;
+                    return (
+                      <tr key={a.id}>
+                        <td>
+                          {formatDate(a.at, true)}
+                          {a.status === "waiting" && (
+                            <small>
+                              Chốt{" "}
+                              {formatDate(
+                                new Date(resultDeadline(a.at)).toISOString(),
+                                true,
+                              )}
+                            </small>
+                          )}
+                        </td>
+                        <td>{a.place}</td>
+                        <td>
+                          <Link
+                            className="record-link"
+                            to={
+                              actor.role === "intake"
+                                ? `/leads/${a.leadId}/show`
+                                : `/tasks/${a.assignmentId}`
+                            }
+                          >
+                            {l?.name ?? a.leadId}
+                          </Link>
+                          <small>{l?.phone}</small>
+                        </td>
+                        {!personal && <td>{memberName(db, a.actorId)}</td>}
+                        <td>
+                          <Chip tone={appointmentTone(a.status)}>
+                            {appointmentLabels[a.status]}
+                          </Chip>
+                          {a.resultReason && <small>{a.resultReason}</small>}
+                        </td>
+                        <td className="end">
+                          <AppointmentActions appointment={a} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination
+              current={current}
+              total={rows.length}
+              pageSize={PAGE}
+              onPageChange={setPage}
+              unit="lịch hẹn"
+            />
+          </>
         ) : (
           <Empty
             icon={CalendarDays}

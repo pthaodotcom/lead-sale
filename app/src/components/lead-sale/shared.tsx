@@ -61,10 +61,10 @@ export function relativeDeadline(value: string) {
   if (hours < 24) return `Còn ${Math.max(1, Math.round(hours))} giờ`;
   return `Còn ${Math.round(hours / 24)} ngày`;
 }
-export function localDateTime(value = serverNow()) {
+export function localDateTime(value = serverNow(), precise = false) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
     .toISOString()
-    .slice(0, 16);
+    .slice(0, precise ? 23 : 16);
 }
 export const initials = (name = "") =>
   /^\+?\d/.test(name.trim())
@@ -298,7 +298,7 @@ export function Empty({
     <div className="empty-state">
       <Icon size={30} />
       <h2>{title}</h2>
-      <p>{description}</p>
+      {description && <p>{description}</p>}
       {action}
     </div>
   );
@@ -412,3 +412,66 @@ export function RowMenu({
     </DropdownMenu>
   );
 }
+
+export function TablePagination({
+  current,
+  total,
+  pageSize = 10,
+  onPageChange,
+  unit = "mục",
+  extraLeft,
+}: {
+  current: number;
+  total: number;
+  pageSize?: number;
+  onPageChange: (page: number) => void;
+  unit?: string;
+  extraLeft?: ReactNode;
+}) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const safeCurrent = Math.min(Math.max(1, current), pages);
+  const start = total === 0 ? 0 : (safeCurrent - 1) * pageSize + 1;
+  const end = Math.min(safeCurrent * pageSize, total);
+
+  return (
+    <div className="table-foot">
+      {extraLeft ? <div>{extraLeft}</div> : <div />}
+      <span>
+        {total > 0
+          ? `${start}–${end} trên ${total} ${unit}`
+          : `0 ${unit}`}
+      </span>
+      <div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={safeCurrent <= 1}
+          onClick={() => onPageChange(safeCurrent - 1)}
+        >
+          Trước
+        </Button>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 6px",
+            fontSize: "12px",
+            color: "var(--muted, #64748b)",
+            fontWeight: 500,
+          }}
+        >
+          Trang {safeCurrent} / {pages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={safeCurrent >= pages}
+          onClick={() => onPageChange(safeCurrent + 1)}
+        >
+          Sau
+        </Button>
+      </div>
+    </div>
+  );
+}
+

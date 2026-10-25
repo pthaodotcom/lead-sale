@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from "react";
-import { NavLink, useParams } from "react-router";
+import { useId, useState, type ReactNode } from "react";
+import { Navigate, useParams } from "react-router";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,8 +26,17 @@ import {
   memberName,
   RowMenu,
   SearchBox,
+  TablePagination,
   textMatches,
 } from "./shared";
+import {
+  accountState,
+  accountRoleLabel,
+  supportedRole,
+  needsTeam,
+  memberUpdate,
+} from "./admin";
+import { getDatabase } from "./store";
 import type { Database, Member, Role, Source } from "./types";
 
 const teamsOf = (db: Database) =>
@@ -42,6 +51,7 @@ function FormDialog({
   submitLabel = "Lưu",
   onSubmit,
   children,
+  submitDisabled = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -50,37 +60,56 @@ function FormDialog({
   submitLabel?: string;
   onSubmit: () => Promise<boolean>;
   children: ReactNode;
+  submitDisabled?: boolean;
 }) {
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const descriptionId = useId();
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!saving) onOpenChange(value);
+      }}
+    >
+      <DialogContent className="sm:max-w-md" aria-describedby={description ? descriptionId : undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
+          {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
         </DialogHeader>
         <form
           className="stack-form"
           onSubmit={async (e) => {
             e.preventDefault();
             setSaving(true);
+            setError("");
             try {
               if (await onSubmit()) onOpenChange(false);
+            } catch (e) {
+              setError((e as Error).message);
             } finally {
               setSaving(false);
             }
           }}
         >
-          {children}
+          <fieldset disabled={saving} className="admin-form-fields">
+            {children}
+          </fieldset>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
+              disabled={saving}
               onClick={() => onOpenChange(false)}
             >
               Hủy
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || submitDisabled}>
               {saving ? "Đang lưu…" : submitLabel}
             </Button>
           </DialogFooter>
@@ -90,20 +119,11 @@ function FormDialog({
   );
 }
 
-function SectionHead({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
+function SectionHead({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <header className="settings-head">
       <div>
-        <h2>{title}</h2>
-        <p>{description}</p>
+        <h1>{title}</h1>
       </div>
       {action}
     </header>
@@ -112,6 +132,71 @@ function SectionHead({
 
 /* ---------- Users ---------- */
 
+function AccessFields({
+  role,
+  teamId,
+  active,
+  onRole,
+  onTeam,
+  onActive,
+}: {
+  role: Role | "";
+  teamId: string;
+  active: boolean;
+  onRole: (value: Role) => void;
+  onTeam: (value: string) => void;
+  onActive: (value: boolean) => void;
+}) {
+  const { db } = useWorkspace();
+  return (
+    <>
+      <Field label="Vai trò *">
+        <select
+          required
+          value={role}
+          onChange={(e) => onRole(e.target.value as Role)}
+        >
+          <option value="" disabled>
+            Chọn vai trò
+          </option>
+          {Object.entries(roleLabels).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {needsTeam(role) && (
+        <Field label="Nhóm làm việc *">
+          <select
+            required
+            value={teamId}
+            onChange={(e) => onTeam(e.target.value)}
+          >
+            <option value="" disabled>
+              Chọn nhóm
+            </option>
+            {teamsOf(db).map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <Field label="Trạng thái tài khoản">
+        <select
+          value={active ? "active" : "disabled"}
+          onChange={(e) => onActive(e.target.value === "active")}
+        >
+          <option value="active">Hoạt động</option>
+          <option value="disabled">Tạm ngưng</option>
+        </select>
+      </Field>
+    </>
+  );
+}
+
 function MemberDialog({
   member,
   onClose,
@@ -119,221 +204,338 @@ function MemberDialog({
   member: Member;
   onClose: () => void;
 }) {
-  const { db, run } = useWorkspace();
-  const [role, setRole] = useState<Role>(member.role);
+  const { perform } = useWorkspace();
+  const [role, setRole] = useState<Role | "">(
+    supportedRole(member.role) ? member.role : "",
+  );
   const [teamId, setTeamId] = useState(member.teamId ?? "default");
   const [active, setActive] = useState(member.active);
   const [name, setName] = useState(member.name);
+  const changed =
+    name.trim() !== member.name ||
+    role !== member.role ||
+    active !== member.active ||
+    (needsTeam(role) && teamId !== (member.teamId ?? "default"));
   return (
     <FormDialog
       open
-      onOpenChange={(v) => !v && onClose()}
-      title={`Sửa người dùng · ${member.name}`}
-      description={member.email}
+      onOpenChange={(value) => !value && onClose()}
+      title="Sửa tài khoản"
+      description={member.name}
+      submitLabel="Lưu thay đổi"
+      submitDisabled={!changed || !role}
       onSubmit={async () => {
-        if (
-          name.trim() !== member.name &&
-          !(await run(
-            {
-              type: "memberProfile",
-              id: member.id,
-              name,
-              email: member.email ?? "",
-            },
-            "Đã cập nhật tên hiển thị.",
-          ))
-        )
-          return false;
-        return run(
-          {
-            type: "member",
-            id: member.id,
-            role,
-            active,
-            ...(teamId !== (member.teamId ?? "default") ? { teamId } : {}),
-          },
-          "Đã cập nhật người dùng.",
-        );
+        if (!role || !supportedRole(role))
+          throw new Error("Chọn vai trò cho tài khoản.");
+        await perform(memberUpdate(member, { name, role, active, teamId }));
+        toast.success("Đã cập nhật tài khoản.");
+        return true;
       }}
     >
-      <Field label="Họ tên hiển thị">
-        <input
+      <Field label="Họ và tên *">
+        <Input
           required
           minLength={2}
           maxLength={120}
           value={name}
           onChange={(e) => setName(e.target.value)}
-        />
-      </Field>
-      <Field label="Vai trò">
-        <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-          {Object.entries(roleLabels).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field
-        label="Nhóm"
-        hint="Trưởng nhóm và Telesale chỉ thao tác trong nhóm của mình."
-      >
-        <select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-          {teamsOf(db).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Trạng thái tài khoản">
-        <select
-          value={active ? "1" : "0"}
-          onChange={(e) => setActive(e.target.value === "1")}
-        >
-          <option value="1">Hoạt động</option>
-          <option value="0">Tạm ngưng — chặn đăng nhập và mọi thao tác</option>
-        </select>
-      </Field>
-    </FormDialog>
-  );
-}
-
-function CreateMemberDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const { refresh } = useWorkspace();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  return (
-    <FormDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Thêm người dùng"
-      description="Tài khoản mới ở trạng thái tạm ngưng, chưa có vai trò. Sau khi tạo, chọn Sửa để gán vai trò, nhóm và kích hoạt."
-      submitLabel="Tạo tài khoản"
-      onSubmit={async () => {
-        try {
-          await registerMember(email, password, name);
-          await refresh();
-          toast.success(`Đã tạo tài khoản ${email}.`);
-          setName("");
-          setEmail("");
-          setPassword("");
-          return true;
-        } catch (e) {
-          toast.error((e as Error).message);
-          return false;
-        }
-      }}
-    >
-      <Field label="Họ tên">
-        <Input
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
         />
       </Field>
       <Field label="Email đăng nhập">
         <Input
-          required
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          readOnly
+          value={member.email ?? ""}
+          className="admin-readonly"
         />
       </Field>
-      <Field label="Mật khẩu ban đầu" hint="Tối thiểu 10 ký tự.">
-        <Input
-          required
-          type="password"
-          minLength={10}
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </Field>
+      <AccessFields
+        role={role}
+        teamId={teamId}
+        active={active}
+        onRole={setRole}
+        onTeam={setTeamId}
+        onActive={setActive}
+      />
     </FormDialog>
   );
 }
 
+function CreateMemberDialog({ onClose }: { onClose: () => void }) {
+  const { db, cloud, perform, refresh } = useWorkspace();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<Role>("telesale");
+  const [teamId, setTeamId] = useState(teamsOf(db)[0].id);
+  const [active, setActive] = useState(true);
+  const [created, setCreated] = useState<Member>();
+  return (
+    <FormDialog
+      open
+      onOpenChange={(value) => !value && onClose()}
+      title="Thêm người dùng"
+      submitLabel={created ? "Hoàn tất phân quyền" : "Tạo tài khoản"}
+      onSubmit={async () => {
+        let member = created;
+        if (!member) {
+          if (
+            db.members.some(
+              (m) => m.email?.toLowerCase() === email.trim().toLowerCase(),
+            )
+          )
+            throw new Error(
+              "Email đã được sử dụng. Chọn Sửa ở tài khoản hiện có.",
+            );
+          if (cloud)
+            member = await registerMember(email.trim(), password, name.trim());
+          else {
+            await perform({
+              type: "memberCreate",
+              name: name.trim(),
+              email: email.trim(),
+            });
+            member = getDatabase().members.find(
+              (m) => m.email?.toLowerCase() === email.trim().toLowerCase(),
+            );
+          }
+          if (!member)
+            throw new Error(
+              "Chưa tải được tài khoản mới. Tải lại danh sách để tiếp tục.",
+            );
+          setCreated(member);
+          setPassword("");
+        }
+        await perform(memberUpdate(member, { name, role, active, teamId }));
+        toast.success("Đã tạo và phân quyền tài khoản.");
+        return true;
+      }}
+    >
+      {created && (
+        <p role="status" className="admin-provision-status">
+          Đã tạo tài khoản. Hoàn tất phân quyền để sử dụng.
+        </p>
+      )}
+      <Field label="Họ và tên *">
+        <Input
+          required
+          minLength={2}
+          maxLength={120}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+        />
+      </Field>
+      <Field label="Email đăng nhập *">
+        <Input
+          required
+          type="email"
+          maxLength={254}
+          readOnly={!!created}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="off"
+        />
+      </Field>
+      {!created && (
+        <Field label="Mật khẩu ban đầu *" hint="Tối thiểu 10 ký tự.">
+          <Input
+            required
+            type="password"
+            minLength={10}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
+      )}
+      <AccessFields
+        role={role}
+        teamId={teamId}
+        active={active}
+        onRole={setRole}
+        onTeam={setTeamId}
+        onActive={setActive}
+      />
+      {created && (
+        <Button type="button" variant="ghost" onClick={() => void refresh()}>
+          Làm mới danh sách
+        </Button>
+      )}
+    </FormDialog>
+  );
+}
+
+const USERS_PAGE = 10;
+
 function Users() {
-  const { db, actor, cloud } = useWorkspace();
+  const { db, actor, cloud, perform, refresh } = useWorkspace();
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
   const [state, setState] = useState("");
+  const [team, setTeam] = useState("");
   const [editing, setEditing] = useState<Member>();
   const [creating, setCreating] = useState(false);
+  const [action, setAction] = useState<{
+    member: Member;
+    kind: "status" | "password";
+  }>();
+  const [reloading, setReloading] = useState(false);
+  const [page, setPage] = useState(1);
   const teamName = (id?: string) =>
     teamsOf(db).find((t) => t.id === (id ?? "default"))?.name ?? "—";
-  const rows = db.members.filter(
-    (m) =>
-      (!role || m.role === role) &&
-      (!state || String(m.active) === state) &&
-      textMatches(q, m.name, m.email ?? ""),
+  const rows = db.members
+    .filter(
+      (m) =>
+        (!role || m.role === role) &&
+        (!state || accountState(m) === state) &&
+        (!team || (needsTeam(m.role) && (m.teamId ?? "default") === team)) &&
+        textMatches(q, m.name, m.email ?? ""),
+    )
+    .sort((a, b) =>
+      a.id === actor.id
+        ? -1
+        : b.id === actor.id
+          ? 1
+          : a.name.localeCompare(b.name, "vi"),
+    );
+  const pages = Math.max(1, Math.ceil(rows.length / USERS_PAGE));
+  const current = Math.min(page, pages);
+  const paginatedRows = rows.slice(
+    (current - 1) * USERS_PAGE,
+    current * USERS_PAGE,
   );
+  const groups = [
+    ["", "Tất cả"],
+    ["active", "Hoạt động"],
+    ["disabled", "Tạm ngưng"],
+    ["pending", "Chờ phân quyền"],
+  ];
   return (
     <>
       <SectionHead
         title="Người dùng"
-        description="Tài khoản nhân viên, vai trò và nhóm. Không xóa tài khoản — tạm ngưng để giữ lịch sử."
         action={
-          <Button
-            disabled={!cloud}
-            title={cloud ? undefined : "Bản xem thử không tạo tài khoản thật"}
-            onClick={() => setCreating(true)}
-          >
-            <Plus /> Thêm người dùng
-          </Button>
+          <div className="page-actions">
+            <Button
+              variant="outline"
+              disabled={reloading}
+              aria-label="Làm mới danh sách"
+              onClick={async () => {
+                setReloading(true);
+                try {
+                  await refresh();
+                } catch {
+                  toast.error("Chưa tải được danh sách. Thử lại.");
+                } finally {
+                  setReloading(false);
+                }
+              }}
+            >
+              <RotateCw size={16} /> Làm mới
+            </Button>
+            <Button onClick={() => setCreating(true)}>
+              <Plus size={16} /> Thêm người dùng
+            </Button>
+          </div>
         }
       />
-      <section className="panel">
+      <section className="panel admin-users">
+        <div
+          className="tabs admin-account-tabs"
+          role="group"
+          aria-label="Trạng thái người dùng"
+        >
+          {groups.map(([key, label]) => (
+            <button
+              type="button"
+              key={key}
+              className={state === key ? "active" : ""}
+              aria-pressed={state === key}
+              onClick={() => {
+                setState(key);
+                setPage(1);
+              }}
+            >
+              {label}
+              <span className="count">
+                {
+                  db.members.filter((m) => !key || accountState(m) === key)
+                    .length
+                }
+              </span>
+            </button>
+          ))}
+        </div>
         <div className="toolbar">
           <SearchBox
             className="grow"
             value={q}
-            onChange={setQ}
-            placeholder="Tìm theo tên hoặc email…"
+            onChange={(v) => {
+              setQ(v);
+              setPage(1);
+            }}
+            placeholder="Tìm tên hoặc email…"
           />
           <select
             aria-label="Lọc vai trò"
             value={role}
-            onChange={(e) => setRole(e.target.value)}
+            onChange={(e) => {
+              setRole(e.target.value);
+              setPage(1);
+            }}
           >
-            <option value="">Mọi vai trò</option>
-            {Object.entries(roleLabels).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
+            <option value="">Tất cả vai trò</option>
+            {Object.entries(roleLabels).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
               </option>
             ))}
           </select>
           <select
-            aria-label="Lọc trạng thái"
-            value={state}
-            onChange={(e) => setState(e.target.value)}
+            aria-label="Lọc nhóm"
+            value={team}
+            onChange={(e) => {
+              setTeam(e.target.value);
+              setPage(1);
+            }}
           >
-            <option value="">Mọi trạng thái</option>
-            <option value="true">Hoạt động</option>
-            <option value="false">Tạm ngưng</option>
+            <option value="">Tất cả nhóm</option>
+            {teamsOf(db).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
           </select>
+          {(q || role || state || team) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setQ("");
+                setRole("");
+                setState("");
+                setTeam("");
+                setPage(1);
+              }}
+            >
+              Xóa bộ lọc
+            </Button>
+          )}
         </div>
         <div className="table-scroll">
-          <table className="data-table">
+          <table className="data-table admin-users-table">
             <thead>
               <tr>
                 <th>Người dùng</th>
                 <th>Vai trò</th>
-                <th>Nhóm</th>
+                <th>Nhóm làm việc</th>
                 <th>Trạng thái</th>
-                <th className="narrow" />
+                <th className="end">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((m) => (
+              {paginatedRows.map((m) => (
                 <tr key={m.id}>
                   <td>
                     <span className="person">
@@ -341,42 +543,75 @@ function Users() {
                       <span>
                         <strong>{m.name}</strong>
                         {m.id === actor.id && (
-                          <span className="muted"> (bạn)</span>
+                          <span className="admin-self">Bạn</span>
                         )}
-                        <small>{m.email ?? m.id}</small>
+                        <small>{m.email ?? "—"}</small>
                       </span>
                     </span>
                   </td>
-                  <td>{roleLabels[m.role]}</td>
+                  <td>{accountRoleLabel(m)}</td>
+                  <td>{needsTeam(m.role) ? teamName(m.teamId) : "—"}</td>
                   <td>
-                    {["leader", "telesale"].includes(m.role)
-                      ? teamName(m.teamId)
-                      : "Toàn hệ thống"}
-                  </td>
-                  <td>
-                    <Chip tone={m.active ? "solved" : "closed"}>
-                      {m.active ? "Hoạt động" : "Tạm ngưng"}
+                    <Chip
+                      tone={
+                        accountState(m) === "active"
+                          ? "solved"
+                          : accountState(m) === "pending"
+                            ? "open"
+                            : "closed"
+                      }
+                    >
+                      {accountState(m) === "pending"
+                        ? "Chờ phân quyền"
+                        : m.active
+                          ? "Hoạt động"
+                          : "Tạm ngưng"}
                     </Chip>
                   </td>
-                  <td className="narrow">
-                    {m.id !== actor.id && (
-                      <RowMenu
-                        label={m.name}
-                        items={[
-                          {
-                            label: "Sửa thông tin, vai trò, nhóm, khóa…",
-                            onSelect: () => setEditing(m),
-                          },
-                          ...(cloud && m.email
-                            ? [
-                                {
-                                  label: "Gửi liên kết đặt lại mật khẩu",
-                                  onSelect: () => void resetPassword(m.email!),
-                                },
-                              ]
-                            : []),
-                        ]}
-                      />
+                  <td className="end">
+                    {m.id === actor.id ? (
+                      <span className="muted admin-own-account">
+                        Tài khoản đang sử dụng
+                      </span>
+                    ) : (
+                      <div className="admin-row-actions">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditing(m)}
+                          aria-label={`Sửa tài khoản ${m.name}`}
+                        >
+                          <Pencil size={14} /> Sửa
+                        </Button>
+                        <RowMenu
+                          label={m.name}
+                          items={[
+                            ...(supportedRole(m.role)
+                              ? [
+                                  {
+                                    label: m.active
+                                      ? "Tạm ngưng tài khoản"
+                                      : "Kích hoạt tài khoản",
+                                    onSelect: () =>
+                                      setAction({ member: m, kind: "status" }),
+                                  },
+                                ]
+                              : []),
+                            ...(cloud && m.email
+                              ? [
+                                  {
+                                    label: "Đặt lại mật khẩu…",
+                                    onSelect: () =>
+                                      setAction({
+                                        member: m,
+                                        kind: "password",
+                                      }),
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -384,17 +619,72 @@ function Users() {
             </tbody>
           </table>
         </div>
-        {!rows.length && <Empty title="Không có người dùng phù hợp" />}
-        <div className="table-foot">
-          <span>
-            {rows.length} / {db.members.length} tài khoản
-          </span>
-        </div>
+        {!rows.length && (
+          <Empty
+            title="Không tìm thấy người dùng"
+            description="Thử tìm theo tên, email hoặc thay đổi bộ lọc."
+          />
+        )}
+        <TablePagination
+          current={current}
+          total={rows.length}
+          pageSize={USERS_PAGE}
+          onPageChange={setPage}
+          unit="tài khoản"
+        />
       </section>
       {editing && (
-        <MemberDialog member={editing} onClose={() => setEditing(undefined)} />
+        <MemberDialog
+          key={editing.id}
+          member={editing}
+          onClose={() => setEditing(undefined)}
+        />
       )}
-      <CreateMemberDialog open={creating} onOpenChange={setCreating} />
+      {creating && <CreateMemberDialog onClose={() => setCreating(false)} />}
+      {action && (
+        <FormDialog
+          open
+          onOpenChange={(value) => !value && setAction(undefined)}
+          title={
+            action.kind === "password"
+              ? "Đặt lại mật khẩu"
+              : action.member.active
+                ? "Tạm ngưng tài khoản"
+                : "Kích hoạt tài khoản"
+          }
+          description={action.member.email ?? action.member.name}
+          submitLabel="Xác nhận"
+          onSubmit={async () => {
+            if (action.kind === "password")
+              await resetPassword(action.member.email!);
+            else {
+              const member = action.member;
+              await perform(
+                memberUpdate(member, {
+                  name: member.name,
+                  role: member.role,
+                  active: !member.active,
+                  teamId: member.teamId ?? "default",
+                }),
+              );
+              toast.success(
+                member.active
+                  ? "Đã tạm ngưng tài khoản."
+                  : "Đã kích hoạt tài khoản.",
+              );
+            }
+            return true;
+          }}
+        >
+          <p className="admin-confirm-text">
+            {action.kind === "password"
+              ? "Gửi liên kết đặt lại mật khẩu tới email này?"
+              : action.member.active
+                ? "Tài khoản sẽ ngừng truy cập hệ thống. Hồ sơ và lịch sử được giữ lại."
+                : "Cho phép tài khoản truy cập lại theo vai trò đã gán?"}
+          </p>
+        </FormDialog>
+      )}
     </>
   );
 }
@@ -410,7 +700,6 @@ function Teams() {
     <>
       <SectionHead
         title="Nhóm Telesale"
-        description="Trưởng nhóm chỉ phân công và xem phiếu trong nhóm của mình."
         action={
           <Button onClick={() => setOpen(true)}>
             <Plus /> Thêm nhóm
@@ -503,7 +792,6 @@ function Sources() {
     <>
       <SectionHead
         title="Nguồn Lead"
-        description="Kênh tài xế để lại thông tin. Nguồn tạm ngưng không chọn được khi tiếp nhận mới; hồ sơ cũ giữ nguyên."
         action={
           <Button onClick={() => openDialog()}>
             <Plus /> Thêm nguồn
@@ -616,10 +904,7 @@ function Statuses() {
   const [label, setLabel] = useState("");
   return (
     <>
-      <SectionHead
-        title="Trạng thái Lead"
-        description="Mã và luồng chuyển trạng thái cố định theo quy trình; chỉ đổi được tên hiển thị."
-      />
+      <SectionHead title="Trạng thái Lead" />
       <section className="panel">
         <div className="table-scroll">
           <table className="data-table">
@@ -689,6 +974,28 @@ function Statuses() {
   );
 }
 
+function accountAuditValues(detail: string, db: Database): [string, string][] {
+  try {
+    const item = JSON.parse(detail);
+    const values: [string, string][] = [];
+    if (item.name) values.push(["Họ và tên", item.name]);
+    if (item.role)
+      values.push(["Vai trò", roleLabels[item.role] ?? "Chưa phân quyền"]);
+    if (typeof item.active === "boolean")
+      values.push(["Trạng thái", item.active ? "Hoạt động" : "Tạm ngưng"]);
+    if (item.teamId)
+      values.push([
+        "Nhóm",
+        teamsOf(db).find((t) => t.id === item.teamId)?.name ?? item.teamId,
+      ]);
+    return values.length
+      ? values
+      : [["Nội dung", "Đã cập nhật thông tin tài khoản"]];
+  } catch {
+    return [["Nội dung", detail]];
+  }
+}
+
 /* ---------- Audit ---------- */
 
 const PAGE = 50;
@@ -708,10 +1015,7 @@ function Audit() {
   const cur = Math.min(page, pages);
   return (
     <>
-      <SectionHead
-        title="Nhật ký thao tác"
-        description="Mọi thay đổi dữ liệu nghiệp vụ, kèm người và thời điểm thực hiện. Không sửa, không xóa."
-      />
+      <SectionHead title="Lịch sử tài khoản" />
       <section className="panel">
         <div className="toolbar">
           <SearchBox
@@ -756,12 +1060,31 @@ function Audit() {
                   <tr key={a.id}>
                     <td className="nowrap">{formatDate(a.at, true)}</td>
                     <td>{memberName(db, a.actorId)}</td>
-                    <td>{a.action}</td>
-                    <td className="muted">{a.target}</td>
+                    <td>
+                      {(
+                        {
+                          member: "Cập nhật tài khoản",
+                          memberProfile: "Sửa thông tin tài khoản",
+                        } as Record<string, string>
+                      )[a.action] ?? a.action}
+                    </td>
+                    <td>
+                      {db.members.find((m) => m.id === a.target)?.name ??
+                        a.target}
+                    </td>
                     <td className="audit-detail">
                       <details>
                         <summary>Xem</summary>
-                        <pre>{a.detail}</pre>
+                        <div className="admin-audit-values">
+                          {accountAuditValues(a.detail, db).map(
+                            ([label, value]) => (
+                              <p key={label}>
+                                <span>{label}</span>
+                                <strong>{value}</strong>
+                              </p>
+                            ),
+                          )}
+                        </div>
                       </details>
                     </td>
                   </tr>
@@ -770,7 +1093,14 @@ function Audit() {
             </table>
           </div>
         ) : (
-          <Empty title="Không có bản ghi phù hợp" />
+          <Empty
+            title={
+              q || who
+                ? "Không tìm thấy thay đổi phù hợp"
+                : "Chưa có thay đổi tài khoản"
+            }
+            description=""
+          />
         )}
         <div className="table-foot">
           <span>{rows.length} bản ghi</span>
@@ -799,18 +1129,14 @@ function Audit() {
 }
 
 async function resetPassword(email: string) {
-  try {
-    if (!supabase) throw new Error("Chưa kết nối Supabase.");
-    const gate = await supabase.rpc("lead_admin_check");
-    if (gate.error) throw gate.error;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
-    if (error) throw error;
-    toast.success("Đã gửi liên kết đặt lại mật khẩu tới email người dùng.");
-  } catch (e) {
-    toast.error((e as Error).message);
-  }
+  if (!supabase) throw new Error("Chưa kết nối hệ thống.");
+  const gate = await supabase.rpc("lead_admin_check");
+  if (gate.error) throw new Error(gate.error.message);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+  if (error) throw error;
+  toast.success("Đã gửi liên kết đặt lại mật khẩu.");
 }
 
 const matrix = [
@@ -850,10 +1176,7 @@ const matrix = [
 function Roles() {
   return (
     <>
-      <SectionHead
-        title="Vai trò & phân quyền"
-        description="Quyền chuẩn theo vai trò, áp dụng tại máy chủ. Gán vai trò ở mục Người dùng."
-      />
+      <SectionHead title="Vai trò & phân quyền" />
       <section className="panel">
         <div className="table-scroll">
           <table className="data-table">
@@ -877,9 +1200,6 @@ function Roles() {
             </tbody>
           </table>
         </div>
-        <p className="muted report-note">
-          Không khóa được tài khoản quản trị của chính mình.
-        </p>
       </section>
     </>
   );
@@ -887,45 +1207,24 @@ function Roles() {
 
 // Catalog screens are no longer part of the Admin scope (NOTE SỬA AD-04);
 // kept exported so the code is preserved for a future owner role.
-export const catalogSections = { Sources, Statuses };
+export const catalogSections = { Sources, Statuses, Teams };
 
 const sections = [
-  { id: "users", label: "Người dùng", group: "Tài khoản", el: Users },
-  { id: "roles", label: "Vai trò & phân quyền", group: "Tài khoản", el: Roles },
-  { id: "teams", label: "Nhóm Telesale", group: "Tài khoản", el: Teams },
-  { id: "audit", label: "Nhật ký thao tác", group: "Hệ thống", el: Audit },
+  { id: "users", el: Users },
+  { id: "roles", el: Roles },
+  { id: "audit", el: Audit },
 ];
 
 export function Settings() {
   const { actor } = useWorkspace();
   const { tab = "users" } = useParams();
-  const current = sections.find((s) => s.id === tab) ?? sections[0];
+  const current = sections.find((section) => section.id === tab);
+  if (!current) return <Navigate replace to="/admin/users" />;
   const Section = current.el;
   return (
     <Guard allowed={actor.role === "admin"}>
-      <div className="settings">
-        <nav className="settings-nav" aria-label="Mục cài đặt">
-          <h1>Quản trị</h1>
-          {[...new Set(sections.map((s) => s.group))].map((g) => (
-            <div key={g}>
-              <p>{g}</p>
-              {sections
-                .filter((s) => s.group === g)
-                .map((s) => (
-                  <NavLink
-                    key={s.id}
-                    to={`/admin/${s.id}`}
-                    className={s.id === current.id ? "active" : ""}
-                  >
-                    {s.label}
-                  </NavLink>
-                ))}
-            </div>
-          ))}
-        </nav>
-        <div className="settings-body">
-          <Section key={current.id} />
-        </div>
+      <div className="admin-workspace">
+        <Section key={current.id} />
       </div>
     </Guard>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import {
   ExternalLink,
@@ -9,10 +9,9 @@ import {
 } from "lucide-react";
 import type { Assignment } from "./types";
 import { useWorkspace } from "./context";
-import { Badge, Chip, Empty, formatCompactDate } from "./shared";
-import { isPending, outcomeLabels } from "./domain";
-import { dayVN, needsRebooking, ticketCode } from "./workflow";
-import { serverNow } from "./dates";
+import { Badge, Empty, formatCompactDate, TablePagination } from "./shared";
+import { outcomeLabels } from "./domain";
+import { ticketCode } from "./workflow";
 import { Button } from "@/components/ui/button";
 import { CallDialog } from "./CallDialog";
 import { CallLogModal } from "./CallLogModal";
@@ -23,22 +22,26 @@ export function TicketTable({
   showActions = true,
   onOpenCall: customOpenCall,
   onOpenCallLog: customOpenCallLog,
+  pageSize = 10,
 }: {
   tickets: Assignment[];
   showActions?: boolean;
   onOpenCall?: (ticket: Assignment) => void;
   onOpenCallLog?: (ticket: Assignment) => void;
+  pageSize?: number;
 }) {
   const { db, actor, run, busy } = useWorkspace();
   const [sort, setSort] = useState({ key: "updatedAt", direction: -1 });
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tickets]);
 
   // Self-contained modal states if no external handler provided
   const [modalCallTicket, setModalCallTicket] = useState<Assignment | null>(null);
   const [modalLogTicket, setModalLogTicket] = useState<Assignment | null>(null);
   const [modalReopenTicket, setModalReopenTicket] = useState<Assignment | null>(null);
-
-  const now = serverNow();
-  const today = dayVN(now);
 
   const heading = (key: string, label: string) => (
     <th
@@ -52,9 +55,10 @@ export function TicketTable({
     >
       <button
         className="sort-heading"
-        onClick={() =>
-          setSort({ key, direction: sort.key === key ? -sort.direction : 1 })
-        }
+        onClick={() => {
+          setSort({ key, direction: sort.key === key ? -sort.direction : 1 });
+          setPage(1);
+        }}
       >
         {label} {sort.key === key ? (sort.direction === 1 ? "↑" : "↓") : "↕"}
       </button>
@@ -67,6 +71,10 @@ export function TicketTable({
         String(b[sort.key as keyof Assignment] ?? ""),
       ) * sort.direction,
   );
+
+  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const current = Math.min(page, pages);
+  const paginatedRows = rows.slice((current - 1) * pageSize, current * pageSize);
 
   const handleCall = (t: Assignment) => {
     if (customOpenCall) {
@@ -95,7 +103,6 @@ export function TicketTable({
               <th>Người yêu cầu</th>
               <th>Trạng thái Lead</th>
               <th>Trạng thái phiếu</th>
-              <th>Tình trạng</th>
               {heading("updatedAt", "Cập nhật")}
               <th>Kết quả</th>
               {heading("expiresAt", "Hạn xử lý")}
@@ -103,22 +110,12 @@ export function TicketTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((t) => {
+            {paginatedRows.map((t) => {
               const l =
                 db.leads.find((l) => l.id === t.leadId) ?? t.leadSnapshot;
               const latest = [...db.activities]
                 .filter((a) => a.assignmentId === t.id && !a.voidedAt)
                 .sort((a, b) => b.at.localeCompare(a.at))[0];
-
-              const isRebook = isPending(t) && needsRebooking(db, t, now);
-              const isCallback =
-                isPending(t) && latest?.outcome === "no_answer";
-              const hasTodayAppt = db.appointments.some(
-                (a) =>
-                  a.assignmentId === t.id &&
-                  dayVN(a.at) === today &&
-                  a.status === "scheduled",
-              );
 
               const canAct =
                 (actor.role === "admin" ||
@@ -160,23 +157,6 @@ export function TicketTable({
                   <td>{l?.status ? <Badge status={l.status} /> : "—"}</td>
                   <td>
                     <Badge status={t.status} ticket />
-                  </td>
-                  <td>
-                    {isRebook ? (
-                      <Chip tone="red">Cần hẹn lại</Chip>
-                    ) : isCallback ? (
-                      <Chip tone="open">Cần gọi lại</Chip>
-                    ) : hasTodayAppt ? (
-                      <Chip tone="new">Lịch hẹn</Chip>
-                    ) : t.status === "New" ? (
-                      <Chip plain>Phiếu mới</Chip>
-                    ) : t.status === "Solved" ? (
-                      <Chip tone="solved">Đã giải quyết</Chip>
-                    ) : t.status === "Closed" ? (
-                      <Chip tone="closed">Đã đóng</Chip>
-                    ) : (
-                      <Chip tone="open">Đang tư vấn</Chip>
-                    )}
                   </td>
                   <td>{formatCompactDate(t.updatedAt)}</td>
                   <td>
@@ -273,7 +253,17 @@ export function TicketTable({
           </tbody>
         </table>
       </div>
-      {!rows.length && <Empty title="Không có phiếu phù hợp" />}
+      {!rows.length ? (
+        <Empty title="Không có phiếu phù hợp" />
+      ) : (
+        <TablePagination
+          current={current}
+          total={rows.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          unit="phiếu"
+        />
+      )}
 
       {/* Internal Modals */}
       {modalCallTicket && (

@@ -45,6 +45,7 @@ import {
   Panel,
   SearchBox,
   sourceName,
+  TablePagination,
   textMatches,
   vehicleLabel,
 } from "./shared";
@@ -299,42 +300,26 @@ export function LeadsList() {
             }
           />
         )}
-        <div className="table-foot">
-          <label className="inline-check">
-            <input
-              type="checkbox"
-              checked={archived}
-              onChange={(e) => {
-                setArchived(e.target.checked);
-                reset();
-              }}
-            />
-            Xem hồ sơ đã lưu trữ
-          </label>
-          <span>
-            {items.length
-              ? `${(current - 1) * PAGE + 1}–${Math.min(current * PAGE, items.length)} trên ${items.length} hồ sơ`
-              : "0 hồ sơ"}
-          </span>
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={current === 1}
-              onClick={() => setPage(current - 1)}
-            >
-              Trước
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={current >= pages}
-              onClick={() => setPage(current + 1)}
-            >
-              Sau
-            </Button>
-          </div>
-        </div>
+        <TablePagination
+          current={current}
+          total={items.length}
+          pageSize={PAGE}
+          onPageChange={setPage}
+          unit="hồ sơ"
+          extraLeft={
+            <label className="inline-check">
+              <input
+                type="checkbox"
+                checked={archived}
+                onChange={(e) => {
+                  setArchived(e.target.checked);
+                  reset();
+                }}
+              />
+              Xem hồ sơ đã lưu trữ
+            </label>
+          }
+        />
       </section>
     </Guard>
   );
@@ -461,7 +446,6 @@ export function LeadForm() {
             </Field>
             <Field
               label="Nguồn Lead *"
-              hint={!existing ? "Tiếp nhận thủ công: Facebook, Hotline hoặc Tài xế cũ giới thiệu" : undefined}
             >
               <select
                 required
@@ -956,7 +940,7 @@ export function LeadShow() {
                     ))}
                 </div>
               ) : (
-                <Empty title="Chưa có cập nhật" />
+                <Empty title="Chưa có cập nhật" description="" />
               )}
             </Panel>
           )}
