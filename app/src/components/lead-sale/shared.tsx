@@ -21,7 +21,13 @@ import {
   type ReactNode,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { leadLabels, ticketLabels } from "./domain";
+import {
+  leadLabels,
+  ticketLabels,
+  outcomeLabels,
+  decisionLabels,
+  reasonLabels,
+} from "./domain";
 import { serverNow } from "./dates";
 import type { Database } from "./types";
 
@@ -474,4 +480,495 @@ export function TablePagination({
     </div>
   );
 }
+
+/* ---------- Human-readable Audit Trail (Dạng chữ nghiệp vụ) ---------- */
+
+export interface AuditDiff {
+  label: string;
+  from: string;
+  to: string;
+}
+
+export interface AuditField {
+  label: string;
+  value: string;
+}
+
+export interface ParsedAudit {
+  diffs?: AuditDiff[];
+  fields?: AuditField[];
+  text?: string;
+  summary: string;
+}
+
+export function formatAuditAction(action: string, detail?: string): string {
+  const map: Record<string, string> = {
+    saveLead: "Cập nhật hồ sơ",
+    leadNote: "Ghi chú hồ sơ",
+    leadStatus: "Thay đổi trạng thái hồ sơ",
+    archiveLead: "Lưu trữ / khôi phục hồ sơ",
+    receiveLead: "Tiếp nhận lại hồ sơ",
+    correctMilestone: "Đính chính mốc xử lý",
+    assign: "Phân công tư vấn",
+    accept: "Nhận phiếu tư vấn",
+    followUp: "Hẹn gọi lại",
+    ticketStatus: "Cập nhật trạng thái phiếu",
+    activity: "Ghi nhận tư vấn",
+    appointment: "Cập nhật lịch hẹn",
+    reschedule: "Đổi lịch hẹn",
+    review: "Rà soát bàn giao",
+    amendReview: "Sửa kết quả rà soát",
+    reconcileAppointment: "Đối soát lịch hẹn",
+    correctAppointment: "Đính chính lịch hẹn",
+    voidActivity: "Hủy lượt tư vấn",
+    attachment: "Đính kèm bằng chứng",
+    member: "Cập nhật tài khoản",
+    memberCreate: "Tạo tài khoản",
+    memberProfile: "Sửa thông tin tài khoản",
+    memberUpsert: "Cập nhật tài khoản",
+    teamCreate: "Tạo nhóm telesale",
+    statusLabel: "Đổi nhãn trạng thái",
+    sourceUpsert: "Cập nhật nguồn tiếp nhận",
+  };
+
+  if (action === "saveLead" && detail) {
+    try {
+      const p = JSON.parse(detail);
+      if (!p.id && (!p.input || !p.input.id)) {
+        return "Tiếp nhận Lead mới";
+      }
+    } catch {
+      // not JSON
+    }
+  }
+
+  return map[action] ?? action;
+}
+
+function extractLeadFields(data: any, db: Database): Record<string, string> {
+  const res: Record<string, string> = {};
+  if (!data || typeof data !== "object") return res;
+
+  if (data.name) res["Họ và tên"] = String(data.name).trim();
+  if (data.phone) res["Số điện thoại"] = String(data.phone).trim();
+  if (data.city) res["Khu vực"] = String(data.city).trim();
+  if (data.vehicle) {
+    res["Phương tiện"] = data.vehicle === "Van" ? "Xe Van" : "Xe máy";
+  }
+  if (data.sourceId) {
+    res["Nguồn tiếp nhận"] = sourceName(db, data.sourceId);
+  }
+  const status = data.status || "New";
+  res["Trạng thái"] =
+    (leadLabels as Record<string, string>)[status] ?? status;
+
+  if (data.tags !== undefined) {
+    const tagsArr = Array.isArray(data.tags)
+      ? data.tags
+      : data.tags
+        ? [data.tags]
+        : [];
+    if (tagsArr.length > 0) res["Nhãn"] = tagsArr.filter(Boolean).join(", ");
+  }
+  if (
+    data.note !== undefined &&
+    data.note !== null &&
+    String(data.note).trim() !== ""
+  ) {
+    res["Ghi chú"] = String(data.note).trim();
+  }
+  const wrongPhone = Boolean(data.wrongPhone);
+  res["Báo sai SĐT"] = wrongPhone ? "Báo sai số" : "Số hợp lệ";
+
+  const archived = Boolean(data.archived);
+  res["Lưu trữ"] = archived ? "Đã lưu trữ" : "Đang hoạt động";
+
+  if (data.receivedAt) {
+    res["Ngày tiếp nhận"] = formatDate(data.receivedAt, true);
+  }
+
+  const p = data.profile;
+  if (p && typeof p === "object") {
+    if (p.birthYear) res["Năm sinh"] = String(p.birthYear);
+    if (p.gender)
+      res["Giới tính"] =
+        p.gender === "male" ? "Nam" : p.gender === "female" ? "Nữ" : p.gender;
+    if (p.district) res["Quận / Huyện"] = String(p.district);
+    if (p.vehicleDetail) res["Chi tiết xe"] = String(p.vehicleDetail);
+    if (p.hasVehicle)
+      res["Đã có xe"] = p.hasVehicle === "yes" ? "Đã có" : "Chưa có";
+    if (p.referrer) res["Người giới thiệu"] = String(p.referrer);
+    if (p.campaign) res["Chiến dịch"] = String(p.campaign);
+    if (p.idNumber) res["Số CCCD / CMND"] = String(p.idNumber);
+    if (p.callTime) {
+      const times: Record<string, string> = {
+        morning: "Buổi sáng",
+        afternoon: "Buổi chiều",
+        evening: "Buổi tối",
+        any: "Bất kỳ lúc nào",
+      };
+      res["Khung giờ liên hệ"] = times[p.callTime] ?? p.callTime;
+    }
+  }
+
+  return res;
+}
+
+export function parseAuditDetail(
+  detail: string | undefined,
+  olderDetail: string | undefined,
+  db: Database,
+): ParsedAudit {
+  if (!detail || !detail.trim()) {
+    return { summary: "—" };
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(detail);
+  } catch {
+    return {
+      text: detail,
+      summary: detail,
+    };
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return {
+      text: String(detail),
+      summary: String(detail),
+    };
+  }
+
+  // 1. Diff object { before, after }
+  if (parsed.before && parsed.after) {
+    const beforeFields = extractLeadFields(parsed.before, db);
+    const afterFields = extractLeadFields(parsed.after, db);
+    const allKeys = Array.from(
+      new Set([...Object.keys(beforeFields), ...Object.keys(afterFields)]),
+    );
+    const diffs: AuditDiff[] = [];
+    for (const k of allKeys) {
+      const from = beforeFields[k] || "(trống)";
+      const to = afterFields[k] || "(trống)";
+      if (from !== to) {
+        diffs.push({ label: k, from, to });
+      }
+    }
+    if (diffs.length > 0) {
+      return {
+        diffs,
+        summary: diffs.map((d) => `${d.label}: ${d.from} → ${d.to}`).join("; "),
+      };
+    }
+    return {
+      text: "Đã lưu lại hồ sơ (không thay đổi dữ liệu)",
+      summary: "Không thay đổi dữ liệu",
+    };
+  }
+
+  // 2. saveLead command / Lead input
+  if (parsed.type === "saveLead" || parsed.input) {
+    const currentLeadData = parsed.input ?? parsed;
+    const currentFields = extractLeadFields(currentLeadData, db);
+
+    if (olderDetail) {
+      try {
+        const olderParsed = JSON.parse(olderDetail);
+        const olderLeadData =
+          olderParsed.input ?? olderParsed.after ?? olderParsed;
+        const olderFields = extractLeadFields(olderLeadData, db);
+        if (Object.keys(olderFields).length > 0) {
+          const allKeys = Array.from(
+            new Set([...Object.keys(olderFields), ...Object.keys(currentFields)]),
+          );
+          const diffs: AuditDiff[] = [];
+          for (const k of allKeys) {
+            const from = olderFields[k] || "(trống)";
+            const to = currentFields[k] || "(trống)";
+            if (from !== to) {
+              diffs.push({ label: k, from, to });
+            }
+          }
+          if (diffs.length > 0) {
+            return {
+              diffs,
+              summary: diffs.map((d) => `${d.label}: ${d.from} → ${d.to}`).join("; "),
+            };
+          }
+          return {
+            text: "Đã lưu lại hồ sơ (không thay đổi thông tin)",
+            summary: "Lưu lại hồ sơ (không đổi thông tin)",
+          };
+        }
+      } catch {
+        // olderDetail was not JSON, ignore
+      }
+    }
+
+    const fields: AuditField[] = Object.entries(currentFields)
+      .filter(([label, value]) => {
+        if (label === "Trạng thái" && value === "Mới") return false;
+        if (label === "Lưu trữ" && value === "Đang hoạt động") return false;
+        if (label === "Báo sai SĐT" && value === "Số hợp lệ") return false;
+        return true;
+      })
+      .map(([label, value]) => ({ label, value }));
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  // 3. leadNote
+  if (parsed.type === "leadNote" || parsed.note) {
+    const note = parsed.note ?? "";
+    return {
+      fields: [{ label: "Ghi chú", value: note }],
+      summary: `Ghi chú: ${note}`,
+    };
+  }
+
+  // 4. leadStatus
+  if (parsed.type === "leadStatus") {
+    const fields: AuditField[] = [];
+    if (parsed.status) {
+      fields.push({
+        label: "Trạng thái mới",
+        value:
+          (leadLabels as Record<string, string>)[parsed.status] ?? parsed.status,
+      });
+    }
+    if (parsed.reason) fields.push({ label: "Lý do", value: parsed.reason });
+    if (parsed.occurredAt)
+      fields.push({
+        label: "Thời điểm ghi nhận",
+        value: formatDate(parsed.occurredAt, true),
+      });
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  // 5. receiveLead
+  if (parsed.type === "receiveLead") {
+    const fields: AuditField[] = [];
+    if (parsed.sourceId)
+      fields.push({
+        label: "Nguồn tiếp nhận",
+        value: sourceName(db, parsed.sourceId),
+      });
+    if (parsed.reason)
+      fields.push({ label: "Lý do tái tiếp nhận", value: parsed.reason });
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  // 6. assign
+  if (parsed.type === "assign") {
+    const fields: AuditField[] = [
+      {
+        label: "Chuyên viên tiếp nhận",
+        value: memberName(db, parsed.assigneeId),
+      },
+      {
+        label: "Hình thức",
+        value: parsed.transfer ? "Chuyển giao phiếu" : "Phân công mới",
+      },
+    ];
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  // 7. ticketStatus
+  if (parsed.type === "ticketStatus") {
+    const fields: AuditField[] = [
+      {
+        label: "Trạng thái phiếu",
+        value:
+          (ticketLabels as Record<string, string>)[parsed.status] ??
+          parsed.status,
+      },
+    ];
+    if (parsed.reason) fields.push({ label: "Lý do", value: parsed.reason });
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  // 8. activity
+  if (parsed.type === "activity" || parsed.channel) {
+    const act = parsed.input ?? parsed;
+    const fields: AuditField[] = [];
+    if (act.channel) {
+      fields.push({
+        label: "Kênh",
+        value:
+          act.channel === "call"
+            ? "Gọi điện"
+            : act.channel === "zalo"
+              ? "Zalo"
+              : act.channel === "meeting"
+                ? "Gặp trực tiếp"
+                : act.channel,
+      });
+    }
+    if (act.outcome) {
+      fields.push({
+        label: "Kết quả",
+        value:
+          (outcomeLabels as Record<string, string>)[act.outcome] ??
+          act.outcome,
+      });
+    }
+    if (act.decision && act.decision !== "none") {
+      fields.push({
+        label: "Quyết định",
+        value:
+          (decisionLabels as Record<string, string>)[act.decision] ??
+          act.decision,
+      });
+    }
+    if (act.reason && act.reason !== "none") {
+      fields.push({
+        label: "Lý do",
+        value:
+          (reasonLabels as Record<string, string>)[act.reason] ?? act.reason,
+      });
+    }
+    if (act.note) fields.push({ label: "Ghi chú", value: act.note });
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  // 9. appointment / reschedule / correctAppointment
+  if (
+    parsed.type === "appointment" ||
+    parsed.type === "reschedule" ||
+    parsed.type === "correctAppointment"
+  ) {
+    const fields: AuditField[] = [];
+    if (parsed.at)
+      fields.push({ label: "Thời gian hẹn", value: formatDate(parsed.at, true) });
+    if (parsed.place) fields.push({ label: "Địa điểm", value: parsed.place });
+    if (parsed.status) fields.push({ label: "Trạng thái", value: parsed.status });
+    if (parsed.reason) fields.push({ label: "Lý do", value: parsed.reason });
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  // 10. correctMilestone / reconcileAppointment / voidActivity
+  if (parsed.reason || parsed.status) {
+    const fields: AuditField[] = [];
+    if (parsed.status) {
+      fields.push({
+        label: "Trạng thái",
+        value:
+          (leadLabels as Record<string, string>)[parsed.status] ?? parsed.status,
+      });
+    }
+    if (parsed.reason) fields.push({ label: "Lý do", value: parsed.reason });
+    if (fields.length > 0) {
+      return {
+        fields,
+        summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+      };
+    }
+  }
+
+  // General fallback for unknown objects
+  const fields: AuditField[] = [];
+  const skipKeys = new Set(["id", "requestId", "version", "type", "updatedAt"]);
+  for (const [k, v] of Object.entries(parsed)) {
+    if (skipKeys.has(k) || v === null || v === undefined) continue;
+    fields.push({
+      label: k,
+      value: typeof v === "object" ? JSON.stringify(v) : String(v),
+    });
+  }
+
+  if (fields.length > 0) {
+    return {
+      fields,
+      summary: fields.map((f) => `${f.label}: ${f.value}`).join(" · "),
+    };
+  }
+
+  return {
+    text: "Thao tác hệ thống",
+    summary: "Thao tác hệ thống",
+  };
+}
+
+export function AuditDetailView({
+  detail,
+  olderDetail,
+  db,
+  compact = false,
+}: {
+  detail?: string;
+  olderDetail?: string;
+  db: Database;
+  compact?: boolean;
+}) {
+  const parsed = parseAuditDetail(detail, olderDetail, db);
+
+  if (compact) {
+    return <span className="tl-audit-compact">{parsed.summary}</span>;
+  }
+
+  if (parsed.diffs && parsed.diffs.length > 0) {
+    return (
+      <div className="tl-note tl-audit-card">
+        <div className="tl-audit-title">Nội dung thay đổi:</div>
+        <div className="tl-audit-list">
+          {parsed.diffs.map((d) => (
+            <div key={d.label} className="tl-audit-row">
+              <span className="tl-audit-k">{d.label}:</span>
+              <span className="tl-audit-old">{d.from}</span>
+              <span className="tl-audit-arrow">→</span>
+              <strong className="tl-audit-new">{d.to}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (parsed.fields && parsed.fields.length > 0) {
+    return (
+      <div className="tl-note tl-audit-card">
+        <div className="tl-audit-list">
+          {parsed.fields.map((f) => (
+            <div key={f.label} className="tl-audit-row">
+              <span className="tl-audit-k">{f.label}:</span>
+              <span className="tl-audit-v">{f.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (parsed.text) {
+    return (
+      <div className="tl-note tl-audit-card">
+        <p className="tl-audit-text">{parsed.text}</p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 

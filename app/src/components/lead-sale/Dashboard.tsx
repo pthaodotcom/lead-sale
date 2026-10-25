@@ -4,8 +4,10 @@ import { CalendarDays, Inbox, Phone, PhoneCall, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "./context";
 import {
+  AuditDetailView,
   Bar,
   Empty,
+  formatAuditAction,
   formatDate,
   Kpi,
   memberName,
@@ -334,7 +336,7 @@ export function Dashboard() {
             <Kpi
               label="Phiếu mới"
               value={pending.filter((t) => t.status === "New").length}
-              hint={telesale ? "Chưa liên hệ · Bấm để lọc" : "Toàn nhóm chưa liên hệ · Bấm để lọc"}
+              hint={telesale ? "Chưa liên hệ" : "Toàn nhóm chưa liên hệ"}
               active={telesaleFilter === "new"}
               onClick={() =>
                 setTelesaleFilter(telesaleFilter === "new" ? "all" : "new")
@@ -343,7 +345,7 @@ export function Dashboard() {
             <Kpi
               label="Cần gọi lại"
               value={callBack}
-              hint="Không nghe máy / cần hẹn lại · Bấm để lọc"
+              hint="Không nghe máy / cần hẹn lại"
               active={telesaleFilter === "callback"}
               onClick={() =>
                 setTelesaleFilter(
@@ -354,7 +356,7 @@ export function Dashboard() {
             <Kpi
               label="Lịch hẹn"
               value={periodAppointments}
-              hint="Đã lên lịch trong kỳ · Bấm để lọc"
+              hint="Đã lên lịch trong kỳ"
               active={telesaleFilter === "today"}
               onClick={() =>
                 setTelesaleFilter(telesaleFilter === "today" ? "all" : "today")
@@ -364,7 +366,7 @@ export function Dashboard() {
               label="Cần hẹn lại"
               value={rebook.length}
               tone={rebook.length ? "red" : ""}
-              hint="Qua 00:00 sau ngày hẹn, chưa đăng ký · Bấm để lọc"
+              hint="Qua 00:00 sau ngày hẹn, chưa đăng ký"
               active={telesaleFilter === "rebook"}
               onClick={() =>
                 setTelesaleFilter(telesaleFilter === "rebook" ? "all" : "rebook")
@@ -538,8 +540,11 @@ export function Dashboard() {
                   {db.audit
                     .filter((a) => inPeriod(a.at, filters))
                     .slice(0, 20)
-                    .map((a) => {
+                    .map((a, idx, arr) => {
                       const l = db.leads.find((l) => l.id === a.target);
+                      const older = arr
+                        .slice(idx + 1)
+                        .find((other) => other.target === a.target);
                       return (
                         <tr key={a.id}>
                           <td>
@@ -561,8 +566,15 @@ export function Dashboard() {
                           <td>{memberName(db, a.actorId)}</td>
                           <td>{formatDate(a.at, true)}</td>
                           <td>
-                            {a.action}
-                            <small>{a.detail}</small>
+                            <strong>
+                              {formatAuditAction(a.action, a.detail)}
+                            </strong>
+                            <AuditDetailView
+                              detail={a.detail}
+                              olderDetail={older?.detail}
+                              db={db}
+                              compact
+                            />
                           </td>
                         </tr>
                       );

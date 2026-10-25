@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand, counts, normalizePhone } from "./domain";
+import { formatAuditAction, parseAuditDetail } from "./shared";
 import { makeSeed } from "./seed";
 import type { ActivityInput, LeadInput } from "./types";
 
@@ -372,5 +373,135 @@ describe("Ranh giới thời gian và trạng thái", () => {
     expect(reconciledAp.resultHistory).toHaveLength(1);
     expect(reconciledAp.resultHistory![0].status).toBe("failed");
     expect(next.activities.find((a) => a.id === "HEN-RESULT-TEST")?.voidedAt).toBeDefined();
+  });
+
+  describe("Định dạng lịch sử cập nhật dạng chữ (Human-readable audit)", () => {
+    const db = makeSeed(now);
+
+    it("chuyển tên hành động kỹ thuật sang tiếng Việt thân thiện", () => {
+      expect(formatAuditAction("saveLead")).toBe("Cập nhật hồ sơ");
+      expect(
+        formatAuditAction(
+          "saveLead",
+          JSON.stringify({ type: "saveLead", input: { name: "A", phone: "09" } }),
+        ),
+      ).toBe("Tiếp nhận Lead mới");
+      expect(
+        formatAuditAction(
+          "saveLead",
+          JSON.stringify({ id: "LEAD-1", type: "saveLead", input: { id: "LEAD-1", name: "A" } }),
+        ),
+      ).toBe("Cập nhật hồ sơ");
+      expect(formatAuditAction("leadNote")).toBe("Ghi chú hồ sơ");
+      expect(formatAuditAction("leadStatus")).toBe("Thay đổi trạng thái hồ sơ");
+      expect(formatAuditAction("archiveLead")).toBe("Lưu trữ / khôi phục hồ sơ");
+      expect(formatAuditAction("receiveLead")).toBe("Tiếp nhận lại hồ sơ");
+      expect(formatAuditAction("assign")).toBe("Phân công tư vấn");
+      expect(formatAuditAction("accept")).toBe("Nhận phiếu tư vấn");
+      expect(formatAuditAction("Tiếp nhận Lead")).toBe("Tiếp nhận Lead");
+    });
+
+    it("chuyển JSON tạo Lead ban đầu thành các trường thông tin dạng chữ", () => {
+      const entry1 = JSON.stringify({
+        type: "saveLead",
+        input: {
+          city: "Hà Nội",
+          name: "Nguyễn Văn A",
+          note: "Gọi ngay nha",
+          tags: ["Gọi ngay nhé"],
+          phone: "0337571666",
+          vehicle: "Motorbike",
+          sourceId: "hotline",
+        },
+      });
+
+      const parsed = parseAuditDetail(entry1, undefined, db);
+      expect(parsed.diffs).toBeUndefined();
+      expect(parsed.fields).toBeDefined();
+      const fieldMap = Object.fromEntries(
+        (parsed.fields ?? []).map((f) => [f.label, f.value]),
+      );
+      expect(fieldMap["Họ và tên"]).toBe("Nguyễn Văn A");
+      expect(fieldMap["Số điện thoại"]).toBe("0337571666");
+      expect(fieldMap["Khu vực"]).toBe("Hà Nội");
+      expect(fieldMap["Phương tiện"]).toBe("Xe máy");
+      expect(fieldMap["Ghi chú"]).toBe("Gọi ngay nha");
+      expect(fieldMap["Nhãn"]).toBe("Gọi ngay nhé");
+      expect(fieldMap["Nguồn tiếp nhận"]).toBe("Hotline");
+    });
+
+    it("so sánh bản ghi cập nhật với bản ghi trước để hiển thị thay đổi cụ thể", () => {
+      const olderEntry = JSON.stringify({
+        type: "saveLead",
+        input: {
+          city: "Hà Nội",
+          name: "Nguyễn Văn A",
+          note: "Gọi ngay nha",
+          tags: ["Gọi ngay nhé"],
+          phone: "0337571666",
+          vehicle: "Motorbike",
+          sourceId: "hotline",
+        },
+      });
+
+      const newerEntry = JSON.stringify({
+        id: "LEAD-2a3de4f0-f108-411c-aa45-a2443c3a5736",
+        type: "saveLead",
+        input: {
+          id: "LEAD-2a3de4f0-f108-411c-aa45-a2443c3a5736",
+          city: "Hồ Chí Minh",
+          name: "Nguyễn Văn A",
+          note: "Gọi ngay nha",
+          tags: ["Gọi ngay"],
+          phone: "0337571666",
+          status: "New",
+          vehicle: "Motorbike",
+          version: 1,
+          archived: false,
+          sourceId: "hotline",
+        },
+      });
+
+      const parsed = parseAuditDetail(newerEntry, olderEntry, db);
+      expect(parsed.diffs).toBeDefined();
+      expect(parsed.diffs?.length).toBe(2);
+
+      const cityDiff = parsed.diffs?.find((d) => d.label === "Khu vực");
+      expect(cityDiff).toEqual({
+        label: "Khu vực",
+        from: "Hà Nội",
+        to: "Hồ Chí Minh",
+      });
+
+      const tagDiff = parsed.diffs?.find((d) => d.label === "Nhãn");
+      expect(tagDiff).toEqual({
+        label: "Nhãn",
+        from: "Gọi ngay nhé",
+        to: "Gọi ngay",
+      });
+    });
+
+    it("xử lý mượt mà văn bản thuần và định dạng trước/sau (before/after)", () => {
+      const plain = "Nguyễn Văn A · 0337571666";
+      const parsedPlain = parseAuditDetail(plain, undefined, db);
+      expect(parsedPlain.text).toBe(plain);
+
+      const beforeAfter = JSON.stringify({
+        before: { city: "Đà Nẵng", vehicle: "Motorbike" },
+        after: { city: "Hà Nội", vehicle: "Van" },
+      });
+      const parsedDiff = parseAuditDetail(beforeAfter, undefined, db);
+      expect(parsedDiff.diffs?.length).toBe(2);
+      expect(parsedDiff.diffs?.find((d) => d.label === "Khu vực")).toEqual({
+        label: "Khu vực",
+        from: "Đà Nẵng",
+        to: "Hà Nội",
+      });
+      expect(parsedDiff.diffs?.find((d) => d.label === "Phương tiện")).toEqual({
+        label: "Phương tiện",
+        from: "Xe máy",
+        to: "Xe Van",
+      });
+    });
   });
 });

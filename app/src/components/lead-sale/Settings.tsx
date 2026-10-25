@@ -21,9 +21,11 @@ import {
   Chip,
   Empty,
   Field,
+  formatAuditAction,
   formatDate,
   Guard,
   memberName,
+  parseAuditDetail,
   RowMenu,
   SearchBox,
   TablePagination,
@@ -988,9 +990,19 @@ function accountAuditValues(detail: string, db: Database): [string, string][] {
         "Nhóm",
         teamsOf(db).find((t) => t.id === item.teamId)?.name ?? item.teamId,
       ]);
-    return values.length
-      ? values
-      : [["Nội dung", "Đã cập nhật thông tin tài khoản"]];
+    if (values.length) return values;
+
+    const parsed = parseAuditDetail(detail, undefined, db);
+    if (parsed.diffs && parsed.diffs.length > 0) {
+      return parsed.diffs.map((d) => [d.label, `${d.from} → ${d.to}`]);
+    }
+    if (parsed.fields && parsed.fields.length > 0) {
+      return parsed.fields.map((f) => [f.label, f.value]);
+    }
+    if (parsed.text) {
+      return [["Nội dung", parsed.text]];
+    }
+    return [["Nội dung", "Đã cập nhật thông tin"]];
   } catch {
     return [["Nội dung", detail]];
   }
@@ -1060,14 +1072,7 @@ function Audit() {
                   <tr key={a.id}>
                     <td className="nowrap">{formatDate(a.at, true)}</td>
                     <td>{memberName(db, a.actorId)}</td>
-                    <td>
-                      {(
-                        {
-                          member: "Cập nhật tài khoản",
-                          memberProfile: "Sửa thông tin tài khoản",
-                        } as Record<string, string>
-                      )[a.action] ?? a.action}
-                    </td>
+                    <td>{formatAuditAction(a.action, a.detail)}</td>
                     <td>
                       {db.members.find((m) => m.id === a.target)?.name ??
                         a.target}

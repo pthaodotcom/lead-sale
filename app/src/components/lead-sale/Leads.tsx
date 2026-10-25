@@ -31,12 +31,14 @@ import { CallDialog } from "./CallDialog";
 import { CallLogModal } from "./CallLogModal";
 import { AppointmentCreateDialog } from "./AppointmentCreateDialog";
 import {
+  AuditDetailView,
   Avatar,
   Badge,
   Chip,
   downloadCsv,
   Empty,
   Field,
+  formatAuditAction,
   formatDate,
   Guard,
   localDateTime,
@@ -921,23 +923,34 @@ export function LeadShow() {
                 <div className="timeline">
                   {db.audit
                     .filter((a) => a.target === l.id)
-                    .map((a) => (
-                      <article key={a.id} className="tl-item">
-                        <span className="tl-icon">
-                          <Pencil size={14} />
-                        </span>
-                        <div>
-                          <div className="tl-top">
-                            <strong>{a.action}</strong>
-                            <time>{formatDate(a.at, true)}</time>
+                    .map((a, idx, arr) => {
+                      const older = arr[idx + 1];
+                      return (
+                        <article key={a.id} className="tl-item">
+                          <span className="tl-icon">
+                            <Pencil size={14} />
+                          </span>
+                          <div>
+                            <div className="tl-top">
+                              <strong>
+                                {formatAuditAction(a.action, a.detail)}
+                              </strong>
+                              <time>{formatDate(a.at, true)}</time>
+                            </div>
+                            <small className="muted">
+                              {memberName(db, a.actorId)}
+                            </small>
+                            {a.detail && (
+                              <AuditDetailView
+                                detail={a.detail}
+                                olderDetail={older?.detail}
+                                db={db}
+                              />
+                            )}
                           </div>
-                          <small className="muted">
-                            {memberName(db, a.actorId)}
-                          </small>
-                          {a.detail && <p className="tl-note">{a.detail}</p>}
-                        </div>
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                 </div>
               ) : (
                 <Empty title="Chưa có cập nhật" description="" />
