@@ -767,7 +767,7 @@ a.kpi:hover {
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
@@ -900,6 +900,18 @@ a.kpi:hover {
 }
 
 /* Fields & forms */
+[data-slot="dialog-content"] {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+[data-slot="dialog-content"] > *,
+[data-slot="dialog-content"] .stack-form > *,
+[data-slot="dialog-content"] :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .field {
   display: grid;
   align-content: start;
@@ -1906,45 +1918,88 @@ a.mini-item:hover {
   }
 }
 
-/* Settings (admin): left section list + content, like helpdesk admin. */
-.settings {
+/* Admin uses the application's main navigation and full content width. */
+.admin-workspace {
+  min-width: 0;
+}
+.admin-form-fields {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
-.settings-nav {
-  position: sticky;
-  top: 76px;
+.admin-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
 }
-.settings-nav h1 {
-  margin: 0 0 12px;
-  padding: 0 10px;
-  font-size: 20px;
-  font-weight: 700;
+.admin-users-table {
+  min-width: 850px;
 }
-.settings-nav p {
-  margin: 14px 0 4px;
-  padding: 0 10px;
+.admin-users-table th:first-child {
+  width: 34%;
+}
+.admin-users-table td {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.admin-users-table .person > span:last-child {
+  min-width: 0;
+}
+.admin-users-table .person strong {
+  overflow-wrap: anywhere;
+}
+.admin-users-table .person small {
+  overflow-wrap: anywhere;
+}
+.admin-self {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.admin-own-account {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.admin-readonly {
+  background: var(--surface-2) !important;
+  color: var(--ink-3) !important;
+}
+.admin-confirm-text,
+.admin-provision-status {
+  margin: 0;
+}
+.admin-provision-status {
+  color: var(--brand-ink);
+}
+.admin-account-tabs {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+.admin-account-tabs button {
+  flex-shrink: 0;
+}
+.admin-audit-values {
+  min-width: 200px;
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+}
+.admin-audit-values p {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.admin-audit-values span {
   color: var(--ink-3);
   font-size: 12px;
-  font-weight: 600;
 }
-.settings-nav a {
-  display: block;
-  padding: 7px 10px;
-  border-radius: 7px;
-  color: var(--ink-2);
-  text-decoration: none;
-}
-.settings-nav a:hover {
-  background: var(--surface);
-}
-.settings-nav a.active {
-  background: var(--surface);
-  color: var(--ink);
-  font-weight: 650;
-  box-shadow: inset 0 0 0 1px var(--line);
+.admin-audit-values strong {
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 .settings-head {
   display: flex;
@@ -1953,10 +2008,20 @@ a.mini-item:hover {
   gap: 16px;
   margin: 2px 0 14px;
 }
-.settings-head h2 {
+.settings-head h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
+}
+@media (max-width: 760px) {
+  .settings-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .settings-head .page-actions {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
 }
 .settings-head p {
   margin: 2px 0 0;
@@ -1983,14 +2048,119 @@ a.mini-item:hover {
 .nowrap {
   white-space: nowrap;
 }
-@media (max-width: 900px) {
-  .settings {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .settings-nav {
-    position: static;
-  }
+
+/* Roles & Permissions Management */
+.role-matrix-table th {
+  text-align: center;
+  min-width: 130px;
 }
+.role-matrix-table th:first-child {
+  text-align: left;
+  min-width: 250px;
+}
+.role-matrix-module-row {
+  background: var(--surface-2, #f8fafc) !important;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+.role-matrix-module-row td {
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+}
+.permission-toggle-cell {
+  text-align: center !important;
+  vertical-align: middle !important;
+  padding: 6px 8px !important;
+}
+.permission-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  background: transparent;
+  min-height: 28px;
+  user-select: none;
+}
+.permission-toggle-btn:hover {
+  background: var(--surface-2, #f1f5f9);
+  border-color: var(--line, #cbd5e1);
+}
+.permission-toggle-btn.granted {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+  font-weight: 500;
+}
+.permission-toggle-btn.granted:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.permission-toggle-btn.denied {
+  color: #94a3b8;
+  border-color: dashed var(--line, #e2e8f0);
+}
+.permission-toggle-btn.denied:hover {
+  background: #fef2f2;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+.role-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.role-summary-card {
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface, #ffffff);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+.role-summary-card:hover {
+  border-color: var(--brand, #ea580c);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.role-summary-card.selected {
+  border-color: var(--brand, #ea580c);
+  background: #fffbf7;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.15);
+}
+.perm-module-card {
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--surface, #ffffff);
+  margin-bottom: 12px;
+}
+.perm-module-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line, #f1f5f9);
+}
+.perm-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line, #f1f5f9);
+  gap: 12px;
+}
+.perm-item-row:last-child {
+  border-bottom: none;
+}
+
 .end-actions {
   justify-content: flex-end;
   align-items: center;
@@ -2359,11 +2529,47 @@ a.mini-item:hover {
   gap: 4px;
   font-size: 12px;
   color: var(--muted-foreground);
+  font-weight: 600;
+  min-width: 0;
+  flex: 0 1 180px;
+}
+.period-filter :is(input, select) {
+  font-weight: 400;
+  color: var(--ink);
+}
+
+@media (max-width: 600px) {
+  .period-filter label {
+    flex: 1 1 150px;
+  }
+  .toolbar > .field,
+  .toolbar .grow,
+  .toolbar > select,
+  .toolbar > input {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 180px;
+  }
+  .form-grid-2,
+  .stack-form .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .form-actions {
+    flex-wrap: wrap;
+  }
 }
 .profile-table th {
   width: 35%;
   text-align: left;
   font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  padding-top: 11px;
+}
+.data-table.profile-table {
+  min-width: 0;
+  table-layout: fixed;
 }
 .profile-table td {
   overflow-wrap: anywhere;
@@ -2376,3 +2582,116 @@ a.mini-item:hover {
 .nowrap {
   white-space: nowrap;
 }
+
+/* Roles & Permissions Management */
+.role-matrix-table th {
+  text-align: center;
+  min-width: 130px;
+}
+.role-matrix-table th:first-child {
+  text-align: left;
+  min-width: 250px;
+}
+.role-matrix-module-row {
+  background: var(--surface-2, #f8fafc) !important;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+.role-matrix-module-row td {
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+}
+.permission-toggle-cell {
+  text-align: center !important;
+  vertical-align: middle !important;
+  padding: 6px 8px !important;
+}
+.permission-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  background: transparent;
+  min-height: 28px;
+  user-select: none;
+}
+.permission-toggle-btn:hover {
+  background: var(--surface-2, #f1f5f9);
+  border-color: var(--line, #cbd5e1);
+}
+.permission-toggle-btn.granted {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+  font-weight: 500;
+}
+.permission-toggle-btn.granted:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.permission-toggle-btn.denied {
+  color: #94a3b8;
+  border-color: dashed var(--line, #e2e8f0);
+}
+.permission-toggle-btn.denied:hover {
+  background: #fef2f2;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+.role-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.role-summary-card {
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface, #ffffff);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+.role-summary-card:hover {
+  border-color: var(--brand, #ea580c);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.role-summary-card.selected {
+  border-color: var(--brand, #ea580c);
+  background: #fffbf7;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.15);
+}
+.perm-module-card {
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--surface, #ffffff);
+  margin-bottom: 12px;
+}
+.perm-module-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line, #f1f5f9);
+}
+.perm-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line, #f1f5f9);
+  gap: 12px;
+}
+.perm-item-row:last-child {
+  border-bottom: none;
+}
+
