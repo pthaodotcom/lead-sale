@@ -152,25 +152,23 @@ export function Dashboard() {
       a.status === "scheduled",
   ).length;
 
-  const displayedPending = !telesale
-    ? pending.slice(0, 10)
-    : pending.filter((t) => {
-        if (telesaleFilter === "new") return t.status === "New";
-        if (telesaleFilter === "callback")
-          return (
-            latestActivity(db, t.id)?.outcome === "no_answer" ||
-            needsRebooking(db, t, now)
-          );
-        if (telesaleFilter === "today")
-          return db.appointments.some(
-            (a) =>
-              a.assignmentId === t.id &&
-              dayVN(a.at) === today &&
-              a.status === "scheduled",
-          );
-        if (telesaleFilter === "rebook") return needsRebooking(db, t, now);
-        return true;
-      });
+  const displayedPending = pending.filter((t) => {
+    if (telesaleFilter === "new") return t.status === "New";
+    if (telesaleFilter === "callback")
+      return (
+        latestActivity(db, t.id)?.outcome === "no_answer" ||
+        needsRebooking(db, t, now)
+      );
+    if (telesaleFilter === "today")
+      return db.appointments.some(
+        (a) =>
+          a.assignmentId === t.id &&
+          dayVN(a.at) === today &&
+          a.status === "scheduled",
+      );
+    if (telesaleFilter === "rebook") return needsRebooking(db, t, now);
+    return true;
+  });
   const totals = analytics?.totals;
   const newToday = db.leads.filter(
     (l) => !l.archived && dayVN(l.receivedAt) === today,
@@ -305,8 +303,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className={`kpis ${telesale ? "kpis-2col" : ""}`}>
-
+      <div className={`kpis ${!intake ? "kpis-2col" : ""}`}>
         {intake ? (
           <>
             <Kpi
@@ -334,12 +331,12 @@ export function Dashboard() {
               to="/handover"
             />
           </>
-        ) : telesale ? (
+        ) : (
           <>
             <Kpi
               label="Phiếu mới"
               value={pending.filter((t) => t.status === "New").length}
-              hint="Chưa liên hệ · Bấm để lọc"
+              hint={telesale ? "Chưa liên hệ · Bấm để lọc" : "Toàn nhóm chưa liên hệ · Bấm để lọc"}
               active={telesaleFilter === "new"}
               onClick={() =>
                 setTelesaleFilter(telesaleFilter === "new" ? "all" : "new")
@@ -374,34 +371,6 @@ export function Dashboard() {
               onClick={() =>
                 setTelesaleFilter(telesaleFilter === "rebook" ? "all" : "rebook")
               }
-            />
-          </>
-        ) : (
-          <>
-            <Kpi
-              label="Lead mới hôm nay"
-              value={newToday}
-              hint="Theo ngày tiếp nhận"
-              to="/leads"
-            />
-            <Kpi
-              label="Chưa phân công"
-              value={value(totals?.unassigned)}
-              hint="Lead Mới đủ điều kiện"
-              to="/dispatch"
-            />
-            <Kpi
-              label="Phiếu đang mở"
-              value={pending.filter((t) => t.status === "Open").length}
-              hint="Đang tư vấn (Open), hiện tại"
-              to="/tasks?group=pending"
-            />
-            <Kpi
-              label="Cần hẹn lại"
-              value={rebook.length}
-              tone={rebook.length ? "red" : ""}
-              hint="Qua 00:00 sau ngày hẹn, chưa đăng ký"
-              to="/tasks?group=overdue"
             />
           </>
         )}
@@ -488,59 +457,53 @@ export function Dashboard() {
       ) : null}
       {!intake && (
         <Panel
-          title={
-            telesale
-              ? `Phiếu cần xử lý (${displayedPending.length}${telesaleFilter !== "all" ? ` / ${pending.length} tổng` : ""})`
-              : "Phiếu cần xử lý"
-          }
+          title={`Phiếu cần xử lý (${displayedPending.length}${telesaleFilter !== "all" ? ` / ${pending.length} tổng` : ""})`}
           aside={<Link to="/tasks">Tất cả nhiệm vụ →</Link>}
           bodyless
         >
-          {telesale && (
-            <div
-              className="tabs"
-              style={{
-                padding: "8px 16px 0",
-                borderBottom: "1px solid var(--border, #eee)",
-              }}
+          <div
+            className="tabs"
+            style={{
+              padding: "8px 16px 0",
+              borderBottom: "1px solid var(--border, #eee)",
+            }}
+          >
+            <button
+              type="button"
+              className={telesaleFilter === "all" ? "active" : ""}
+              onClick={() => setTelesaleFilter("all")}
             >
-              <button
-                type="button"
-                className={telesaleFilter === "all" ? "active" : ""}
-                onClick={() => setTelesaleFilter("all")}
-              >
-                Tất cả ({pending.length})
-              </button>
-              <button
-                type="button"
-                className={telesaleFilter === "new" ? "active" : ""}
-                onClick={() => setTelesaleFilter("new")}
-              >
-                Phiếu mới ({pending.filter((t) => t.status === "New").length})
-              </button>
-              <button
-                type="button"
-                className={telesaleFilter === "callback" ? "active" : ""}
-                onClick={() => setTelesaleFilter("callback")}
-              >
-                Cần gọi lại ({callBack})
-              </button>
-              <button
-                type="button"
-                className={telesaleFilter === "today" ? "active" : ""}
-                onClick={() => setTelesaleFilter("today")}
-              >
-                Lịch hẹn hôm nay ({todayAppointments})
-              </button>
-              <button
-                type="button"
-                className={telesaleFilter === "rebook" ? "active" : ""}
-                onClick={() => setTelesaleFilter("rebook")}
-              >
-                Cần hẹn lại ({rebook.length})
-              </button>
-            </div>
-          )}
+              Tất cả ({pending.length})
+            </button>
+            <button
+              type="button"
+              className={telesaleFilter === "new" ? "active" : ""}
+              onClick={() => setTelesaleFilter("new")}
+            >
+              Phiếu mới ({pending.filter((t) => t.status === "New").length})
+            </button>
+            <button
+              type="button"
+              className={telesaleFilter === "callback" ? "active" : ""}
+              onClick={() => setTelesaleFilter("callback")}
+            >
+              Cần gọi lại ({callBack})
+            </button>
+            <button
+              type="button"
+              className={telesaleFilter === "today" ? "active" : ""}
+              onClick={() => setTelesaleFilter("today")}
+            >
+              Lịch hẹn hôm nay ({todayAppointments})
+            </button>
+            <button
+              type="button"
+              className={telesaleFilter === "rebook" ? "active" : ""}
+              onClick={() => setTelesaleFilter("rebook")}
+            >
+              Cần hẹn lại ({rebook.length})
+            </button>
+          </div>
           <TicketTable
             tickets={displayedPending}
             showActions={true}

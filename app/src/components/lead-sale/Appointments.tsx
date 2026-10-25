@@ -70,7 +70,6 @@ function Reschedule({
             <input
               required
               type="datetime-local"
-              step="any"
               value={at}
               onChange={(e) => setAt(e.target.value)}
             />

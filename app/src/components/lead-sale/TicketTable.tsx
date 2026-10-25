@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import type { Assignment } from "./types";
 import { useWorkspace } from "./context";
-import { Badge, Chip, Empty, formatDate } from "./shared";
+import { Badge, Chip, Empty, formatCompactDate } from "./shared";
 import { isPending, outcomeLabels } from "./domain";
 import { dayVN, needsRebooking, ticketCode } from "./workflow";
 import { serverNow } from "./dates";
@@ -92,9 +92,9 @@ export function TicketTable({
               <th>Người yêu cầu</th>
               <th>Trạng thái Lead</th>
               <th>Trạng thái phiếu</th>
-              <th>Tình trạng nhiệm vụ</th>
+              <th>Tình trạng</th>
               {heading("updatedAt", "Cập nhật")}
-              <th>Kết quả gần nhất</th>
+              <th>Kết quả</th>
               {heading("expiresAt", "Hạn xử lý")}
               {showActions && <th className="text-center">Thao tác</th>}
             </tr>
@@ -175,11 +175,11 @@ export function TicketTable({
                       <Chip tone="open">Đang tư vấn</Chip>
                     )}
                   </td>
-                  <td>{formatDate(t.updatedAt, true)}</td>
+                  <td>{formatCompactDate(t.updatedAt)}</td>
                   <td>
                     {latest ? outcomeLabels[latest.outcome] : "Chưa liên hệ"}
                   </td>
-                  <td>{formatDate(t.expiresAt, true)}</td>
+                  <td>{formatCompactDate(t.expiresAt)}</td>
 
                   {showActions && (
                     <td>

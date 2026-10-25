@@ -102,7 +102,7 @@ export function Dispatch() {
         title="Điều phối"
         
       />
-      <div className="grid-2">
+      <div className="dispatch-grid">
         <section className="panel">
           <div className="panel-head">
             <h2>Chờ phân công</h2>
@@ -156,7 +156,7 @@ export function Dispatch() {
           )}
           {rows.length ? (
             <div className="table-scroll">
-              <table className="data-table">
+              <table className="data-table dispatch-table">
                 <thead>
                   <tr>
                     <th className="narrow">
@@ -212,11 +212,12 @@ export function Dispatch() {
                         </td>
                         <td>
                           <Link
-                            className="record-link"
+                            className="record-link nowrap font-mono text-xs"
                             to={`/leads/${l.id}/show`}
                             onClick={(e) => e.stopPropagation()}
+                            title={l.id}
                           >
-                            {l.id}
+                            {`LEAD-${l.id.replace(/^lead-?/i, "").slice(0, 8).toUpperCase()}`}
                           </Link>
                         </td>
                         <td>{l.name}</td>

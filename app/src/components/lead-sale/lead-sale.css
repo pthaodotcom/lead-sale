@@ -133,6 +133,18 @@ a {
     input:not([type="checkbox"], [type="radio"], [type="file"]),
     textarea
   ),
+[data-slot="dialog-content"]
+  :where(
+    select,
+    input:not([type="checkbox"], [type="radio"], [type="file"]),
+    textarea
+  ),
+.stack-form
+  :where(
+    select,
+    input:not([type="checkbox"], [type="radio"], [type="file"]),
+    textarea
+  ),
 .auth-screen :where(input) {
   width: 100%;
   min-height: 36px;
@@ -147,23 +159,31 @@ a {
     border-color 0.12s,
     box-shadow 0.12s;
 }
-.app :where(textarea) {
+.app :where(textarea),
+[data-slot="dialog-content"] :where(textarea),
+.stack-form :where(textarea) {
   padding: 8px 10px;
   min-height: 72px;
   resize: vertical;
 }
-.app :where(select) {
+.app :where(select),
+[data-slot="dialog-content"] :where(select),
+.stack-form :where(select) {
   appearance: none;
   padding-right: 30px;
   background: #fff
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%235f6a7d' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
     no-repeat right 10px center;
 }
-.app :where(select, input):disabled {
+.app :where(select, input):disabled,
+[data-slot="dialog-content"] :where(select, input):disabled,
+.stack-form :where(select, input):disabled {
   background-color: var(--surface-2);
   color: var(--ink-3);
 }
 .app :where(select, input, textarea):focus,
+[data-slot="dialog-content"] :where(select, input, textarea):focus,
+.stack-form :where(select, input, textarea):focus,
 .auth-screen :where(input):focus {
   outline: none;
   border-color: var(--brand-strong);
@@ -1005,10 +1025,13 @@ details[open] > summary {
 }
 .info-row span {
   color: var(--ink-3);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .info-row strong {
   font-weight: 600;
   text-align: right;
+  word-break: break-all;
 }
 
 /* Tasks workspace */
@@ -1127,25 +1150,35 @@ details[open] > summary {
   padding: 3px;
   border-radius: 9px;
   background: var(--slate-soft);
+  gap: 3px;
 }
 .seg button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 32px;
+  min-height: 36px;
+  padding: 4px 10px;
   border: 0;
   border-radius: 7px;
   background: none;
   color: var(--ink-2);
   font: inherit;
+  font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 .seg button.active {
   background: #fff;
   color: var(--brand-ink);
   box-shadow: 0 1px 2px rgb(20 27 43 / 0.12);
+}
+.stack-form .grid-2,
+.form-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 .sub-box {
   display: grid;
@@ -2213,7 +2246,48 @@ a.mini-item:hover {
   }
 }
 .ticket-table {
-  min-width: 1100px;
+  width: 100%;
+  font-size: 12.5px;
+}
+.ticket-table th,
+.ticket-table td {
+  padding: 8px 6px;
+  white-space: nowrap;
+}
+.ticket-table th:last-child,
+.ticket-table td:last-child {
+  position: sticky;
+  right: 0;
+  background: #fff;
+  z-index: 2;
+}
+.ticket-table tbody tr:hover td:last-child {
+  background: var(--surface-1, #f9fafb);
+}
+.dispatch-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .dispatch-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.dispatch-table th,
+.dispatch-table td {
+  padding: 8px 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.lead-tickets-table {
+  font-size: 12.5px;
+}
+.lead-tickets-table th,
+.lead-tickets-table td {
+  padding: 6px 8px;
+  white-space: nowrap;
 }
 .sort-heading {
   display: inline-flex;

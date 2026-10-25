@@ -229,7 +229,7 @@ function LogForm({ ticketId }: { ticketId: string }) {
           ))}
         </div>
         {form.channel === "call" && (
-          <div className="grid-2">
+          <>
             <Field label="Chiều cuộc gọi">
               <div className="seg" role="group">
                 <button
@@ -258,12 +258,12 @@ function LogForm({ ticketId }: { ticketId: string }) {
                   defaultValue={1}
                   onChange={(e) => {
                     const mins = Math.max(0, parseInt(e.target.value) || 0);
-                    const currentSecs = (form.durationSeconds ?? 0) % 60;
+                    const currentSecs = (form.durationSeconds ?? 90) % 60;
                     set("durationSeconds", mins * 60 + currentSecs);
                   }}
                   style={{ width: "80px" }}
                 />
-                <span>phút</span>
+                <span className="muted" style={{ fontSize: 13 }}>phút</span>
                 <Input
                   type="number"
                   min={0}
@@ -272,26 +272,25 @@ function LogForm({ ticketId }: { ticketId: string }) {
                   defaultValue={30}
                   onChange={(e) => {
                     const secs = Math.max(0, parseInt(e.target.value) || 0);
-                    const currentMins = Math.floor((form.durationSeconds ?? 0) / 60);
+                    const currentMins = Math.floor((form.durationSeconds ?? 90) / 60);
                     set("durationSeconds", currentMins * 60 + secs);
                   }}
                   style={{ width: "80px" }}
                 />
-                <span>giây</span>
+                <span className="muted" style={{ fontSize: 13 }}>giây</span>
               </div>
             </Field>
-          </div>
+          </>
         )}
-        <Field label="Ngày giờ liên hệ (call date)">
+        <Field label="Thời gian liên hệ *">
           <Input
             type="datetime-local"
-            step="any"
             required
             value={form.at}
             onChange={(e) => set("at", e.target.value)}
           />
         </Field>
-        <Field label="Kết quả liên hệ (status)">
+        <Field label="Kết quả liên hệ *">
           <select
             value={form.outcome}
             onChange={(e) => {
@@ -311,7 +310,7 @@ function LogForm({ ticketId }: { ticketId: string }) {
           </select>
         </Field>
         {form.outcome === "called" && (
-          <Field label="Quyết định của tài xế (decision)">
+          <Field label="Quyết định của tài xế *">
             <select
               value={form.decision}
               onChange={(e) => {
@@ -329,7 +328,7 @@ function LogForm({ ticketId }: { ticketId: string }) {
           </Field>
         )}
         {form.decision === "declined" && (
-          <Field label="Lý do không đồng ý (reason) *">
+          <Field label="Lý do từ chối *">
             <select
               required
               value={form.reason === "none" ? "" : form.reason}
@@ -353,17 +352,16 @@ function LogForm({ ticketId }: { ticketId: string }) {
         {form.decision === "agreed" && (
           <div className="sub-box">
             <h3>Hẹn đến đăng ký</h3>
-            <Field label="Ngày giờ hẹn (decision date)">
+            <Field label="Thời gian hẹn *">
               <Input
                 type="datetime-local"
-                step="any"
                 value={form.appointmentAt}
                 onChange={(e) => set("appointmentAt", e.target.value)}
               />
             </Field>
-            <Field label="Nơi hẹn (decision place)">
+            <Field label="Địa điểm hẹn *">
               <select
-                aria-label="Nơi hẹn"
+                aria-label="Địa điểm hẹn"
                 required={!!form.appointmentAt}
                 value={form.place}
                 onChange={(e) => set("place", e.target.value)}
@@ -615,9 +613,13 @@ export function TicketPage() {
           )}
           <Panel title="Tài xế">
             <div className="info-row">
-              <span>Mã hồ sơ</span>
+              <span className="nowrap">Mã hồ sơ</span>
               <strong>
-                <Link className="record-link" to={`/leads/${l.id}/show`}>
+                <Link
+                  className="record-link font-mono text-xs"
+                  to={`/leads/${l.id}/show`}
+                  title={l.id}
+                >
                   {l.id}
                 </Link>
               </strong>

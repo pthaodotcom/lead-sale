@@ -6,6 +6,7 @@
 **/.env.*.local
 **/test-results/
 **/playwright-report/
+**/screenshots/
 .impeccable/
 .sites/
 .claude/launch.json

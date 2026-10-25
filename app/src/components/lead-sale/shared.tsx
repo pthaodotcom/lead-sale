@@ -41,6 +41,16 @@ export const formatTime = (value: string) =>
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+export const formatCompactDate = (value?: string) =>
+  value && Number.isFinite(Date.parse(value))
+    ? new Intl.DateTimeFormat("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value))
+    : "—";
 export const vnDay = (value: string | Date) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
     new Date(value),
@@ -54,7 +64,7 @@ export function relativeDeadline(value: string) {
 export function localDateTime(value = serverNow()) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
     .toISOString()
-    .slice(0, 23);
+    .slice(0, 16);
 }
 export const initials = (name = "") =>
   /^\+?\d/.test(name.trim())

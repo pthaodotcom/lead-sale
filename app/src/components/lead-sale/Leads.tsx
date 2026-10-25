@@ -569,7 +569,6 @@ function LeadStatusForm({ leadId }: { leadId: string }) {
           <Field label="Thời điểm xảy ra">
             <Input
               type="datetime-local"
-              step="any"
               required
               value={at}
               onChange={(e) => setAt(e.target.value)}
@@ -957,7 +956,7 @@ export function LeadShow() {
           {!editor && tickets.length > 0 && (
             <Panel title="Phiếu đã tư vấn" bodyless>
               <div className="table-scroll">
-                <table className="data-table">
+                <table className="data-table lead-tickets-table">
                   <thead>
                     <tr>
                       <th>Mã phiếu</th>
@@ -970,12 +969,12 @@ export function LeadShow() {
                     {tickets.map((t) => (
                       <tr key={t.id}>
                         <td>
-                          <Link className="record-link" to={`/tasks/${t.id}`}>
+                          <Link className="record-link nowrap" to={`/tasks/${t.id}`}>
                             {ticketCode(t)}
                           </Link>
                         </td>
-                        <td>{memberName(db, t.assigneeId)}</td>
-                        <td>{formatDate(t.createdAt, true)}</td>
+                        <td className="nowrap">{memberName(db, t.assigneeId)}</td>
+                        <td className="nowrap">{formatDate(t.createdAt)}</td>
                         <td>
                           <Badge status={t.status} ticket />
                         </td>

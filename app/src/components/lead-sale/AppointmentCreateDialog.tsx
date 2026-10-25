@@ -129,7 +129,7 @@ export function AppointmentCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarDays className="text-primary" size={20} />
@@ -178,7 +178,6 @@ export function AppointmentCreateDialog({
           <Field label="Ngày giờ hẹn *">
             <Input
               type="datetime-local"
-              step="any"
               required
               value={at}
               onChange={(e) => setAt(e.target.value)}

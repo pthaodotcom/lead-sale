@@ -113,7 +113,6 @@ export function LeadCorrections({ lead }: { lead: Lead }) {
             <Field label="Ngày đăng ký đúng">
               <Input
                 type="datetime-local"
-                step="any"
                 required
                 value={activatedAt}
                 onChange={(e) => setActivatedAt(e.target.value)}
@@ -124,7 +123,6 @@ export function LeadCorrections({ lead }: { lead: Lead }) {
             <Field label="Ngày chạy đơn đầu đúng">
               <Input
                 type="datetime-local"
-                step="any"
                 required
                 value={onboardedAt}
                 onChange={(e) => setOnboardedAt(e.target.value)}

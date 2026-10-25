@@ -202,7 +202,7 @@ export function CallLogModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PhoneCall className="text-primary" size={20} />
@@ -260,7 +260,7 @@ export function CallLogModal({
           </div>
 
           {/* Channel & Direction */}
-          <div className="grid-2">
+          <div className={channel === "call" ? "grid-2" : ""}>
             <Field label="Kênh liên hệ">
               <div className="seg" role="group">
                 <button
@@ -271,7 +271,7 @@ export function CallLogModal({
                     setOutcome("called");
                   }}
                 >
-                  <Phone size={14} /> Gọi điện thoại
+                  <Phone size={14} /> Gọi điện
                 </button>
                 <button
                   type="button"
@@ -281,7 +281,7 @@ export function CallLogModal({
                     setOutcome("called");
                   }}
                 >
-                  <MessageCircle size={14} /> Nhắn tin Zalo
+                  <MessageCircle size={14} /> Zalo
                 </button>
               </div>
             </Field>
@@ -313,7 +313,6 @@ export function CallLogModal({
             <Field label="Thời gian liên hệ *">
               <Input
                 type="datetime-local"
-                step="any"
                 required
                 value={at}
                 onChange={(e) => setAt(e.target.value)}
@@ -432,7 +431,6 @@ export function CallLogModal({
                 <Field label="Ngày giờ hẹn *">
                   <Input
                     type="datetime-local"
-                    step="any"
                     required
                     value={appointmentAt}
                     onChange={(e) => setAppointmentAt(e.target.value)}
@@ -465,7 +463,6 @@ export function CallLogModal({
               <Field label="Thời điểm gọi lại (không bắt buộc)">
                 <Input
                   type="datetime-local"
-                  step="any"
                   value={nextCallAt}
                   onChange={(e) => setNextCallAt(e.target.value)}
                 />
