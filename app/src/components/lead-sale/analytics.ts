@@ -126,6 +126,29 @@ export function calculateAnalytics(
         };
       },
     ),
+    conversionDetails: (() => {
+      const groups = new Map<string, Database["leads"][number][]>();
+      for (const l of leads) {
+        const memId = credited(l) ?? "unassigned";
+        const srcId = l.sourceId ?? "unknown";
+        const city = normalizeCity(l.city) || "Chưa rõ";
+        const key = `${memId}|${srcId}|${city}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(l);
+      }
+      return Array.from(groups.entries()).map(([key, ls]) => {
+        const [memberId, sourceId, city] = key.split("|");
+        return {
+          memberId,
+          sourceId,
+          city,
+          total: ls.length,
+          agreed: ls.filter((l) => agreed(l.id)).length,
+          registered: ls.filter(registered).length,
+          onboarded: ls.filter(onboarded).length,
+        };
+      });
+    })(),
     sources: db.sources.map((s) => {
       const ls = leads.filter((l) => l.sourceId === s.id);
       return {

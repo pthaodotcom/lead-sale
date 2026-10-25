@@ -252,6 +252,15 @@ export interface Analytics {
     registered: number;
     onboarded: number;
   }[];
+  conversionDetails: {
+    memberId: string;
+    sourceId: string;
+    city: string;
+    total: number;
+    agreed: number;
+    registered: number;
+    onboarded: number;
+  }[];
   sources: {
     id: string;
     total: number;
