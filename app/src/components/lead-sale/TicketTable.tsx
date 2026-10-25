@@ -167,7 +167,7 @@ export function TicketTable({
                     ) : isCallback ? (
                       <Chip tone="open">Cần gọi lại</Chip>
                     ) : hasTodayAppt ? (
-                      <Chip tone="new">Lịch hẹn hôm nay</Chip>
+                      <Chip tone="new">Lịch hẹn</Chip>
                     ) : t.status === "New" ? (
                       <Chip plain>Phiếu mới</Chip>
                     ) : t.status === "Solved" ? (

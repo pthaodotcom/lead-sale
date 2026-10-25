@@ -143,10 +143,10 @@ export function Dashboard() {
       )
       .map((t) => t.id),
   ]).size;
-  const todayAppointments = db.appointments.filter(
+  const periodAppointments = db.appointments.filter(
     (a) =>
       (!telesale || a.actorId === actor.id) &&
-      dayVN(a.at) === today &&
+      inPeriod(a.at, filters) &&
       a.status === "scheduled",
   ).length;
 
@@ -161,7 +161,7 @@ export function Dashboard() {
       return db.appointments.some(
         (a) =>
           a.assignmentId === t.id &&
-          dayVN(a.at) === today &&
+          inPeriod(a.at, filters) &&
           a.status === "scheduled",
       );
     if (telesaleFilter === "rebook") return needsRebooking(db, t, now);
@@ -352,9 +352,9 @@ export function Dashboard() {
               }
             />
             <Kpi
-              label="Lịch hẹn hôm nay"
-              value={todayAppointments}
-              hint="Đã lên lịch trong hôm nay · Bấm để lọc"
+              label="Lịch hẹn"
+              value={periodAppointments}
+              hint="Đã lên lịch trong kỳ · Bấm để lọc"
               active={telesaleFilter === "today"}
               onClick={() =>
                 setTelesaleFilter(telesaleFilter === "today" ? "all" : "today")
@@ -496,7 +496,7 @@ export function Dashboard() {
               className={telesaleFilter === "today" ? "active" : ""}
               onClick={() => setTelesaleFilter("today")}
             >
-              Lịch hẹn hôm nay ({todayAppointments})
+              Lịch hẹn ({periodAppointments})
             </button>
             <button
               type="button"
