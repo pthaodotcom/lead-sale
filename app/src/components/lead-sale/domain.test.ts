@@ -334,4 +334,43 @@ describe("Ranh giới thời gian và trạng thái", () => {
     expect(next.leads[0].status).toBe("Activated");
     expect(next.assignments[0].status).toBe("Solved");
   });
+  it("nhân viên tiếp nhận đối soát lịch hẹn thất bại khi có dữ liệu Onboarding đến muộn", () => {
+    const db = makeSeed(now);
+    const ap = db.appointments[0];
+    ap.status = "failed";
+    ap.resultCutoff = new Date(Date.parse(ap.at) + 86400000).toISOString();
+    const lead = db.leads.find((l) => l.id === ap.leadId)!;
+    lead.activatedAt = ap.at; // Đăng ký ngày hẹn
+    db.activities.unshift({
+      id: "HEN-RESULT-TEST",
+      assignmentId: ap.assignmentId,
+      leadId: ap.leadId,
+      actorId: "system",
+      at: ap.resultCutoff,
+      channel: "call",
+      outcome: "overdue",
+      decision: "none",
+      reason: "none",
+      note: "Chưa có mốc đăng ký",
+      round: 1,
+      appointmentId: ap.id,
+    });
+
+    const next = applyCommand(
+      db,
+      "intake",
+      {
+        type: "reconcileAppointment",
+        id: ap.id,
+        reason: "Chi nhánh gửi bổ sung biên lai đăng ký trong ngày hẹn",
+      },
+      now,
+    );
+
+    const reconciledAp = next.appointments.find((a) => a.id === ap.id)!;
+    expect(reconciledAp.status).toBe("succeeded");
+    expect(reconciledAp.resultHistory).toHaveLength(1);
+    expect(reconciledAp.resultHistory![0].status).toBe("failed");
+    expect(next.activities.find((a) => a.id === "HEN-RESULT-TEST")?.voidedAt).toBeDefined();
+  });
 });

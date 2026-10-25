@@ -4,6 +4,7 @@ import {
   ExternalLink,
   Phone,
   PhoneCall,
+  RotateCcw,
   UserCheck,
 } from "lucide-react";
 import type { Assignment } from "./types";
@@ -15,6 +16,7 @@ import { serverNow } from "./dates";
 import { Button } from "@/components/ui/button";
 import { CallDialog } from "./CallDialog";
 import { CallLogModal } from "./CallLogModal";
+import { ReopenTicketDialog } from "./ReopenTicketDialog";
 
 export function TicketTable({
   tickets,
@@ -33,6 +35,7 @@ export function TicketTable({
   // Self-contained modal states if no external handler provided
   const [modalCallTicket, setModalCallTicket] = useState<Assignment | null>(null);
   const [modalLogTicket, setModalLogTicket] = useState<Assignment | null>(null);
+  const [modalReopenTicket, setModalReopenTicket] = useState<Assignment | null>(null);
 
   const now = serverNow();
   const today = dayVN(now);
@@ -212,25 +215,41 @@ export function TicketTable({
 
                         {canAct && (
                           <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCall(t)}
-                              title="Bấm gọi khách hàng"
-                              style={{ height: 26, padding: "0 6px" }}
-                            >
-                              <Phone size={13} />
-                            </Button>
+                            {t.status === "Solved" ? (
+                              l?.status === "New" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setModalReopenTicket(t)}
+                                  title="Mở lại phiếu phân công để tiếp tục chăm sóc"
+                                  style={{ height: 26, padding: "0 8px", fontSize: 12 }}
+                                >
+                                  <RotateCcw size={13} /> Mở lại
+                                </Button>
+                              )
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCall(t)}
+                                  title="Bấm gọi khách hàng"
+                                  style={{ height: 26, padding: "0 6px" }}
+                                >
+                                  <Phone size={13} />
+                                </Button>
 
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => handleLog(t)}
-                              title="Ghi nhận cuộc gọi & bằng chứng"
-                              style={{ height: 26, padding: "0 8px", fontSize: 12 }}
-                            >
-                              <PhoneCall size={13} /> Ghi nhận
-                            </Button>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => handleLog(t)}
+                                  title="Ghi nhận cuộc gọi & bằng chứng"
+                                  style={{ height: 26, padding: "0 8px", fontSize: 12 }}
+                                >
+                                  <PhoneCall size={13} /> Ghi nhận
+                                </Button>
+                              </>
+                            )}
                           </>
                         )}
 
@@ -275,6 +294,14 @@ export function TicketTable({
           open={!!modalLogTicket}
           onOpenChange={(v) => !v && setModalLogTicket(null)}
           ticketId={modalLogTicket.id}
+        />
+      )}
+
+      {modalReopenTicket && (
+        <ReopenTicketDialog
+          ticket={modalReopenTicket}
+          open={!!modalReopenTicket}
+          onOpenChange={(v) => !v && setModalReopenTicket(null)}
         />
       )}
     </>

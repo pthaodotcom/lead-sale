@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Phone,
   PhoneCall,
+  RotateCcw,
   Save,
   UserCheck,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import {
   appointmentTone,
 } from "./Appointments";
 import { TicketTable } from "./TicketTable";
+import { ReopenTicketDialog } from "./ReopenTicketDialog";
 import { ticketCode } from "./workflow";
 import { offices } from "./catalog";
 import {
@@ -50,6 +52,7 @@ import {
   canWork,
   counts,
   decisionLabels,
+  isLive,
   isPending,
   outcomeLabels,
   reasonLabels,
@@ -493,6 +496,7 @@ export function TicketPage() {
   const { db, actor, run, busy } = useWorkspace();
   const t = db.assignments.find((t) => t.id === id);
   const [, force] = useState(0);
+  const [reopenOpen, setReopenOpen] = useState(false);
   useEffect(() => {
     const timer = setInterval(() => force((n) => n + 1), 60000);
     return () => clearInterval(timer);
@@ -560,16 +564,47 @@ export function TicketPage() {
             </Button>
           )}
           <Badge status={t.status} ticket />
+          {t.status === "Solved" && permitted && isLive(t) && l.status === "New" && (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setReopenOpen(true)}
+            >
+              <RotateCcw size={14} /> Mở lại phiếu
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm">
             <Link to={`/leads/${l.id}/show`}>Mở hồ sơ</Link>
           </Button>
         </div>
       </div>
       {(c.noAnswer >= 3 || c.overdue >= 3) && t.status === "Solved" && (
-        <p className="callout" style={{ marginBottom: 16 }}>
-          Đã đủ 3 lần {c.noAnswer >= 3 ? "không nghe máy" : "quá hẹn"} — phiếu
-          chuyển sang Đã giải quyết. Có thể mở lại trong hạn để chăm sóc tiếp.
-        </p>
+        <div
+          className="callout"
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <p style={{ margin: 0 }}>
+            Đã đủ 3 lần {c.noAnswer >= 3 ? "không nghe máy" : "quá hẹn"} — phiếu
+            chuyển sang Đã giải quyết. Có thể mở lại trong hạn để chăm sóc tiếp.
+          </p>
+          {permitted && isLive(t) && l.status === "New" && (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setReopenOpen(true)}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              <RotateCcw size={14} /> Mở lại phiếu
+            </Button>
+          )}
+        </div>
       )}
       {t.status === "Closed" && (
         <p className="callout info" style={{ marginBottom: 16 }}>
@@ -601,13 +636,32 @@ export function TicketPage() {
                   </Button>
                 </div>
               ) : (
-                <p className="locked-note">
-                  {t.status === "Solved"
-                    ? "Phiếu đã giải quyết. Mở lại phiếu (cột phải) để ghi nhận thêm."
-                    : t.status === "Closed" || !isPending(t)
-                      ? "Phiếu đã đóng hoặc hết hạn, không ghi nhận thêm."
-                      : "Chỉ chuyên viên được giao mới ghi nhận liên hệ trên phiếu này."}
-                </p>
+                <div
+                  className="locked-note"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <p style={{ margin: 0 }}>
+                    {t.status === "Solved"
+                      ? "Phiếu đã giải quyết. Bấm nút Mở lại phiếu để tiếp tục chăm sóc tài xế."
+                      : t.status === "Closed" || !isPending(t)
+                        ? "Phiếu đã đóng hoặc hết hạn, không ghi nhận thêm."
+                        : "Chỉ chuyên viên được giao mới ghi nhận liên hệ trên phiếu này."}
+                  </p>
+                  {t.status === "Solved" && permitted && isLive(t) && l.status === "New" && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => setReopenOpen(true)}
+                    >
+                      <RotateCcw size={14} /> Mở lại phiếu này
+                    </Button>
+                  )}
+                </div>
               )}
             </section>
           )}
@@ -800,6 +854,11 @@ export function TicketPage() {
           </section>
         </div>
       </div>
+      <ReopenTicketDialog
+        ticket={t}
+        open={reopenOpen}
+        onOpenChange={setReopenOpen}
+      />
     </Guard>
   );
 }
