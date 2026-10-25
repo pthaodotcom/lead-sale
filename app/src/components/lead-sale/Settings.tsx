@@ -1,14 +1,7 @@
-import { Fragment, useId, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router";
 import { toast } from "sonner";
-import {
-  Plus,
-  Pencil,
-  RotateCcw,
-  RotateCw,
-  Save,
-  ShieldCheck,
-} from "lucide-react";
+import { Plus, Pencil, RotateCcw, RotateCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -1146,877 +1139,215 @@ async function resetPassword(email: string) {
   toast.success("Đã gửi liên kết đặt lại mật khẩu.");
 }
 
-interface RoleMeta {
-  id: "admin" | "intake" | "leader" | "telesale";
-  name: string;
-  tag: string;
-  desc: string;
+interface MatrixRow {
+  feature: string;
+  admin: { text: string; defaultChecked: boolean };
+  intake: { text: string; defaultChecked: boolean };
+  leader: { text: string; defaultChecked: boolean };
+  telesale: { text: string; defaultChecked: boolean };
 }
 
-const ROLES_LIST: RoleMeta[] = [
+const DEFAULT_MATRIX: MatrixRow[] = [
   {
-    id: "admin",
-    name: "Quản trị viên",
-    tag: "Admin",
-    desc: "Quản lý tài khoản, vai trò và phân quyền hệ thống. Không tham gia nghiệp vụ Lead.",
+    feature: "Tài khoản & phân quyền",
+    admin: { text: "Quản lý", defaultChecked: true },
+    intake: { text: "—", defaultChecked: false },
+    leader: { text: "—", defaultChecked: false },
+    telesale: { text: "—", defaultChecked: false },
   },
   {
-    id: "intake",
-    name: "Tiếp nhận hồ sơ",
-    tag: "Intake",
-    desc: "Tiếp nhận, kiểm tra trùng, cập nhật Lead, đối soát kết quả và rà soát phiếu Closed.",
+    feature: "Hồ sơ Lead",
+    admin: { text: "—", defaultChecked: false },
+    intake: { text: "Tiếp nhận / cập nhật", defaultChecked: true },
+    leader: { text: "Xem trong nhóm", defaultChecked: true },
+    telesale: { text: "Xem hồ sơ đang phụ trách", defaultChecked: true },
   },
   {
-    id: "leader",
-    name: "Trưởng nhóm",
-    tag: "Leader",
-    desc: "Phân công điều phối, chuyển chuyên viên, giám sát nhóm và xem báo cáo hiệu suất.",
+    feature: "Phân công / chuyển / đóng phiếu",
+    admin: { text: "—", defaultChecked: false },
+    intake: { text: "—", defaultChecked: false },
+    leader: { text: "Trong nhóm", defaultChecked: true },
+    telesale: { text: "—", defaultChecked: false },
   },
   {
-    id: "telesale",
-    name: "Telesale",
-    tag: "Telesale",
-    desc: "Liên hệ tài xế, ghi nhận kết quả tư vấn, upload bằng chứng và đặt lịch hẹn đăng ký.",
+    feature: "Ghi nhận liên hệ & bằng chứng",
+    admin: { text: "—", defaultChecked: false },
+    intake: { text: "—", defaultChecked: false },
+    leader: { text: "Xem trong nhóm", defaultChecked: true },
+    telesale: { text: "Phiếu của mình", defaultChecked: true },
+  },
+  {
+    feature: "Lịch hẹn",
+    admin: { text: "—", defaultChecked: false },
+    intake: { text: "Đối soát kết quả", defaultChecked: true },
+    leader: { text: "Xem nhóm", defaultChecked: true },
+    telesale: { text: "Đặt / đổi / hủy lịch của mình", defaultChecked: true },
+  },
+  {
+    feature: "Bàn giao Closed",
+    admin: { text: "—", defaultChecked: false },
+    intake: { text: "Rà soát, cập nhật hồ sơ", defaultChecked: true },
+    leader: { text: "Giám sát nhóm", defaultChecked: true },
+    telesale: { text: "—", defaultChecked: false },
+  },
+  {
+    feature: "Báo cáo",
+    admin: { text: "—", defaultChecked: false },
+    intake: { text: "Nguồn tiếp nhận", defaultChecked: true },
+    leader: { text: "Hiệu suất / chuyển đổi", defaultChecked: true },
+    telesale: { text: "Chỉ tổng quan cá nhân", defaultChecked: true },
   },
 ];
 
-interface PermItem {
-  id: string;
-  name: string;
-  desc: string;
-  module: string;
-  moduleName: string;
-  defaults: Record<string, { granted: boolean; scope?: string }>;
+type MatrixRole = "admin" | "intake" | "leader" | "telesale";
+type MatrixState = Record<string, boolean>;
+
+function getDefaultMatrixState(): MatrixState {
+  const state: MatrixState = {};
+  DEFAULT_MATRIX.forEach((row, rIdx) => {
+    state[`${rIdx}_admin`] = row.admin.defaultChecked;
+    state[`${rIdx}_intake`] = row.intake.defaultChecked;
+    state[`${rIdx}_leader`] = row.leader.defaultChecked;
+    state[`${rIdx}_telesale`] = row.telesale.defaultChecked;
+  });
+  return state;
 }
 
-const PERMISSIONS_LIST: PermItem[] = [
-  // 1. Hồ sơ Lead
-  {
-    id: "lead_view",
-    name: "Xem danh sách hồ sơ Lead",
-    desc: "Tra cứu, tìm kiếm và xem thông tin chi tiết hồ sơ",
-    module: "leads",
-    moduleName: "1. Quản lý hồ sơ Lead",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Toàn hệ thống" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: true, scope: "Được phân công" },
-    },
-  },
-  {
-    id: "lead_create",
-    name: "Tiếp nhận Lead mới",
-    desc: "Tạo hồ sơ thủ công từ Hotline, Fanpage, Giới thiệu",
-    module: "leads",
-    moduleName: "1. Quản lý hồ sơ Lead",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Tiếp nhận mới" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "lead_edit",
-    name: "Cập nhật thông tin Lead",
-    desc: "Sửa thông tin cá nhân, nơi ở, loại xe, nhãn hồ sơ",
-    module: "leads",
-    moduleName: "1. Quản lý hồ sơ Lead",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Toàn quyền cập nhật" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "lead_import",
-    name: "Nhập danh sách Excel / CSV",
-    desc: "Tải file dữ liệu hồ sơ hàng loạt vào hệ thống",
-    module: "leads",
-    moduleName: "1. Quản lý hồ sơ Lead",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Nhập file" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "lead_export",
-    name: "Xuất dữ liệu hồ sơ Lead",
-    desc: "Tải xuống danh sách Lead dưới dạng file CSV",
-    module: "leads",
-    moduleName: "1. Quản lý hồ sơ Lead",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Toàn hệ thống" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
+const MATRIX_STORAGE_KEY = "lead_sale_matrix_v3";
 
-  // 2. Phân công & Điều phối
-  {
-    id: "dispatch_queue",
-    name: "Xem hàng chờ điều phối Lead",
-    desc: "Danh sách Lead Mới cần phân công chuyên viên",
-    module: "dispatch",
-    moduleName: "2. Phân công & Điều phối",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "dispatch_assign",
-    name: "Tạo phiếu & phân công chuyên viên",
-    desc: "Gán Lead cho nhân viên và phân công hàng loạt",
-    module: "dispatch",
-    moduleName: "2. Phân công & Điều phối",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "ticket_reassign",
-    name: "Chuyển giao hoặc thu hồi phiếu",
-    desc: "Đổi chuyên viên phụ trách hoặc đóng sớm phiếu",
-    module: "dispatch",
-    moduleName: "2. Phân công & Điều phối",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-
-  // 3. Xử lý phiếu tư vấn & Telesale
-  {
-    id: "task_execute",
-    name: "Nhận việc & gọi điện tư vấn",
-    desc: "Xử lý phiếu được phân công và liên hệ tài xế",
-    module: "tasks",
-    moduleName: "3. Xử lý phiếu tư vấn & Telesale",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: true, scope: "Phiếu của mình" },
-    },
-  },
-  {
-    id: "call_log",
-    name: "Ghi nhận kết quả cuộc gọi & liên hệ",
-    desc: "Cập nhật trạng thái Đồng ý, Hẹn lại, KNM, Từ chối",
-    module: "tasks",
-    moduleName: "3. Xử lý phiếu tư vấn & Telesale",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Xem & ghi nhận nhóm" },
-      telesale: { granted: true, scope: "Phiếu của mình" },
-    },
-  },
-  {
-    id: "evidence_upload",
-    name: "Tải lên bằng chứng & ghi âm cuộc gọi",
-    desc: "Đính kèm ảnh cuộc gọi hoặc file âm thanh chứng minh",
-    module: "tasks",
-    moduleName: "3. Xử lý phiếu tư vấn & Telesale",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Xem & bổ sung" },
-      telesale: { granted: true, scope: "Phiếu của mình" },
-    },
-  },
-  {
-    id: "ticket_reopen",
-    name: "Mở lại phiếu Solved đã đóng",
-    desc: "Mở lại phiếu tư vấn trong vòng 14 ngày",
-    module: "tasks",
-    moduleName: "3. Xử lý phiếu tư vấn & Telesale",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: true, scope: "Phiếu của mình" },
-    },
-  },
-
-  // 4. Lịch hẹn đăng ký
-  {
-    id: "appointment_create",
-    name: "Tạo lịch hẹn đăng ký mới",
-    desc: "Đặt lịch khi tài xế đồng ý lên văn phòng",
-    module: "appointments",
-    moduleName: "4. Lịch hẹn đăng ký",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: true, scope: "Phiếu của mình" },
-    },
-  },
-  {
-    id: "appointment_modify",
-    name: "Đổi lịch hoặc hủy lịch hẹn",
-    desc: "Chỉnh ngày giờ, địa điểm hẹn mới khi khách dời lịch",
-    module: "appointments",
-    moduleName: "4. Lịch hẹn đăng ký",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Trong nhóm" },
-      telesale: { granted: true, scope: "Lịch của mình" },
-    },
-  },
-  {
-    id: "appointment_reconcile",
-    name: "Đối soát kết quả lịch hẹn",
-    desc: "Rà soát lịch đến muộn, cập nhật thành công",
-    module: "appointments",
-    moduleName: "4. Lịch hẹn đăng ký",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Đối soát kết quả" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-
-  // 5. Bàn giao phiếu Closed
-  {
-    id: "handover_view",
-    name: "Theo dõi bàn giao phiếu Closed",
-    desc: "Giám sát phiếu đóng do KNM ≥3, từ chối, hết hạn",
-    module: "handover",
-    moduleName: "5. Bàn giao phiếu Closed",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Toàn hệ thống" },
-      leader: { granted: true, scope: "Giám sát nhóm" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "handover_review",
-    name: "Rà soát & quyết định phân công lại / Đóng",
-    desc: "Tiếp nhận thẩm định và phán quyết xử lý hồ sơ",
-    module: "handover",
-    moduleName: "5. Bàn giao phiếu Closed",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Rà soát, cập nhật" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-
-  // 6. Báo cáo & Thống kê
-  {
-    id: "report_source",
-    name: "Báo cáo tỷ trọng nguồn tiếp nhận",
-    desc: "Xem tỷ trọng số hồ sơ theo từng nguồn tiếp nhận",
-    module: "reports",
-    moduleName: "6. Báo cáo & Thống kê",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Nguồn tiếp nhận" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "report_performance",
-    name: "Báo cáo hiệu suất & chuyển đổi",
-    desc: "Thống kê cuộc gọi, tỷ lệ hẹn, kích hoạt tài xế",
-    module: "reports",
-    moduleName: "6. Báo cáo & Thống kê",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: true, scope: "Hiệu suất nhóm" },
-      telesale: { granted: true, scope: "Tổng quan cá nhân" },
-    },
-  },
-  {
-    id: "report_export",
-    name: "In & Xuất file báo cáo (PDF, Excel)",
-    desc: "Tải file biểu mẫu in hoặc Excel báo cáo",
-    module: "reports",
-    moduleName: "6. Báo cáo & Thống kê",
-    defaults: {
-      admin: { granted: false, scope: "—" },
-      intake: { granted: true, scope: "Báo cáo tiếp nhận" },
-      leader: { granted: true, scope: "Báo cáo nhóm" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-
-  // 7. Quản trị hệ thống
-  {
-    id: "admin_users",
-    name: "Quản lý tài khoản người dùng",
-    desc: "Tạo tài khoản, phân vai trò, gán nhóm làm việc",
-    module: "admin",
-    moduleName: "7. Quản trị hệ thống",
-    defaults: {
-      admin: { granted: true, scope: "Toàn quyền quản lý" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "admin_roles",
-    name: "Cấu hình vai trò & phân quyền",
-    desc: "Tùy chỉnh ma trận phân quyền và chính sách RBAC",
-    module: "admin",
-    moduleName: "7. Quản trị hệ thống",
-    defaults: {
-      admin: { granted: true, scope: "Toàn quyền cấu hình" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "admin_security",
-    name: "Bảo mật & Đặt lại mật khẩu",
-    desc: "Khóa/mở tài khoản, gửi link đặt lại mật khẩu",
-    module: "admin",
-    moduleName: "7. Quản trị hệ thống",
-    defaults: {
-      admin: { granted: true, scope: "Toàn quyền" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-  {
-    id: "admin_audit",
-    name: "Xem nhật ký kiểm toán hệ thống",
-    desc: "Theo dõi mọi biến động tài khoản và nhật ký",
-    module: "admin",
-    moduleName: "7. Quản trị hệ thống",
-    defaults: {
-      admin: { granted: true, scope: "Toàn hệ thống" },
-      intake: { granted: false, scope: "—" },
-      leader: { granted: false, scope: "—" },
-      telesale: { granted: false, scope: "—" },
-    },
-  },
-];
-
-const PERMISSIONS_STORAGE_KEY = "lead_sale_permissions_config_v1";
-
-function getInitialPermissions(): Record<
-  string,
-  Record<string, { granted: boolean; scope?: string }>
-> {
+function getInitialMatrixState(): MatrixState {
   try {
-    const raw = localStorage.getItem(PERMISSIONS_STORAGE_KEY);
+    localStorage.removeItem("lead_sale_permissions_config_v1");
+    const raw = localStorage.getItem(MATRIX_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  const res: Record<
-    string,
-    Record<string, { granted: boolean; scope?: string }>
-  > = {};
-  for (const item of PERMISSIONS_LIST) {
-    res[item.id] = { ...item.defaults };
-  }
-  return res;
+  return getDefaultMatrixState();
 }
 
 function Roles() {
-  const { db } = useWorkspace();
-  const [permissions, setPermissions] = useState(getInitialPermissions);
+  const [matrixState, setMatrixState] = useState<MatrixState>(getInitialMatrixState);
   const [isDirty, setIsDirty] = useState(false);
-  const [viewMode, setViewMode] = useState<"matrix" | "by_role">("matrix");
-  const [selectedRole, setSelectedRole] = useState<string>("leader");
-  const [search, setSearch] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("");
 
-  const memberCount = (roleKey: string) =>
-    db.members.filter((m) => m.role === roleKey).length;
-
-  const togglePermission = (permId: string, roleKey: string) => {
-    setPermissions((prev) => {
-      const currentPerm = prev[permId] ?? {};
-      const currentRoleState = currentPerm[roleKey] ?? { granted: false };
-      const nextGranted = !currentRoleState.granted;
-      const defaultDef = PERMISSIONS_LIST.find((p) => p.id === permId)?.defaults[
-        roleKey
-      ];
-      return {
-        ...prev,
-        [permId]: {
-          ...currentPerm,
-          [roleKey]: {
-            granted: nextGranted,
-            scope: nextGranted
-              ? defaultDef?.scope && defaultDef.scope !== "—"
-                ? defaultDef.scope
-                : "Được cấp quyền"
-              : "—",
-          },
-        },
-      };
-    });
-    setIsDirty(true);
-  };
-
-  const toggleModuleForRole = (
-    moduleKey: string,
-    roleKey: string,
-    grant: boolean,
-  ) => {
-    setPermissions((prev) => {
-      const next = { ...prev };
-      for (const p of PERMISSIONS_LIST.filter(
-        (item) => item.module === moduleKey,
-      )) {
-        const defaultDef = p.defaults[roleKey];
-        next[p.id] = {
-          ...(next[p.id] ?? {}),
-          [roleKey]: {
-            granted: grant,
-            scope: grant
-              ? defaultDef?.scope && defaultDef.scope !== "—"
-                ? defaultDef.scope
-                : "Được cấp quyền"
-              : "—",
-          },
-        };
-      }
-      return next;
-    });
+  const toggle = (rIdx: number, roleKey: MatrixRole) => {
+    const key = `${rIdx}_${roleKey}`;
+    setMatrixState((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
     setIsDirty(true);
   };
 
   const handleSave = () => {
     try {
-      localStorage.setItem(
-        PERMISSIONS_STORAGE_KEY,
-        JSON.stringify(permissions),
-      );
+      localStorage.setItem(MATRIX_STORAGE_KEY, JSON.stringify(matrixState));
       setIsDirty(false);
-      toast.success("Đã lưu cấu hình phân quyền vai trò thành công.");
+      toast.success("Đã lưu phân quyền.");
     } catch {
-      toast.error("Không thể lưu cấu hình. Thử lại sau.");
+      toast.error("Không thể lưu phân quyền.");
     }
   };
 
   const handleReset = () => {
     try {
-      localStorage.removeItem(PERMISSIONS_STORAGE_KEY);
-      const res: Record<
-        string,
-        Record<string, { granted: boolean; scope?: string }>
-      > = {};
-      for (const item of PERMISSIONS_LIST) {
-        res[item.id] = { ...item.defaults };
-      }
-      setPermissions(res);
-      setIsDirty(false);
-      toast.info("Đã khôi phục ma trận phân quyền về chuẩn mặc định ban đầu.");
+      localStorage.removeItem(MATRIX_STORAGE_KEY);
+      localStorage.removeItem("lead_sale_permissions_config_v1");
     } catch {}
+    setMatrixState(getDefaultMatrixState());
+    setIsDirty(false);
+    toast.info("Đã khôi phục phân quyền theo đúng đặc tả ban đầu.");
   };
 
-  const modules = Array.from(new Set(PERMISSIONS_LIST.map((p) => p.module)));
-  const filteredPermissions = PERMISSIONS_LIST.filter((p) => {
-    const matchSearch =
-      !search || textMatches(search, p.name, p.desc, p.moduleName);
-    const matchModule = !moduleFilter || p.module === moduleFilter;
-    return matchSearch && matchModule;
-  });
-
-  const groupedFiltered = modules
-    .map((mod) => ({
-      module: mod,
-      moduleName:
-        PERMISSIONS_LIST.find((p) => p.module === mod)?.moduleName ?? mod,
-      items: filteredPermissions.filter((p) => p.module === mod),
-    }))
-    .filter((g) => g.items.length > 0);
+  const roles: MatrixRole[] = ["admin", "intake", "leader", "telesale"];
 
   return (
     <>
       <SectionHead
         title="Vai trò & phân quyền"
         action={
-          <div
-            className="page-actions"
-            style={{ display: "flex", gap: 8, alignItems: "center" }}
-          >
+          <div className="page-actions" style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {isDirty && (
               <span
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
                   fontSize: 12,
                   color: "#d97706",
-                  fontWeight: 600,
-                  padding: "4px 8px",
+                  fontWeight: 500,
+                  padding: "3px 8px",
                   borderRadius: 4,
                   background: "#fef3c7",
                 }}
               >
-                ● Có thay đổi chưa lưu
+                Chưa lưu thay đổi
               </span>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleReset}
-              title="Khôi phục phân quyền về giá trị mặc định của hệ thống"
-            >
+            <Button variant="outline" size="sm" onClick={handleReset}>
               <RotateCcw size={14} /> Khôi phục mặc định
             </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!isDirty}
-              title="Lưu các thay đổi phân quyền"
-            >
-              <Save size={14} /> Lưu thay đổi
+            <Button size="sm" onClick={handleSave} disabled={!isDirty}>
+              <Save size={14} /> Lưu
             </Button>
           </div>
         }
       />
-
-      <section className="panel" style={{ padding: 16 }}>
-        {/* Notice alert */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 12,
-            padding: "12px 14px",
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            borderRadius: 8,
-            marginBottom: 16,
-            fontSize: 13,
-            color: "#166534",
-          }}
-        >
-          <ShieldCheck
-            size={18}
-            style={{ flexShrink: 0, marginTop: 1, color: "#16a34a" }}
-          />
-          <div>
-            <strong>Bảng điều khiển phân quyền Quản trị viên (RBAC):</strong>
-            <div style={{ marginTop: 2, color: "#15803d" }}>
-              Bạn đang ở chế độ toàn quyền quản trị. Bấm trực tiếp vào các ô
-              quyền hạn để bật/tắt (hoặc chọn tab{" "}
-              <strong>Cấu hình theo vai trò</strong> để tinh chỉnh). Sau khi
-              chỉnh sửa xong, nhấn <strong>Lưu thay đổi</strong> để áp dụng.
-            </div>
-          </div>
-        </div>
-
-        {/* View Mode Tabs */}
-        <div className="tabs" style={{ marginBottom: 14 }}>
-          <button
-            type="button"
-            className={viewMode === "matrix" ? "active" : ""}
-            onClick={() => setViewMode("matrix")}
-          >
-            Ma trận phân quyền (Tổng quan)
-          </button>
-          <button
-            type="button"
-            className={viewMode === "by_role" ? "active" : ""}
-            onClick={() => setViewMode("by_role")}
-          >
-            Cấu hình theo vai trò
-          </button>
-        </div>
-
-        {viewMode === "matrix" ? (
-          <>
-            <div className="toolbar" style={{ marginBottom: 12 }}>
-              <SearchBox
-                className="grow"
-                value={search}
-                onChange={setSearch}
-                placeholder="Tìm kiếm quyền hạn, chức năng…"
-              />
-              <select
-                aria-label="Lọc theo phân hệ"
-                value={moduleFilter}
-                onChange={(e) => setModuleFilter(e.target.value)}
-              >
-                <option value="">
-                  Tất cả phân hệ ({PERMISSIONS_LIST.length} quyền)
-                </option>
-                {modules.map((m) => (
-                  <option key={m} value={m}>
-                    {PERMISSIONS_LIST.find((p) => p.module === m)?.moduleName}
-                  </option>
-                ))}
-              </select>
-              {(search || moduleFilter) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSearch("");
-                    setModuleFilter("");
-                  }}
-                >
-                  Xóa bộ lọc
-                </Button>
-              )}
-            </div>
-
-            <div className="table-scroll">
-              <table className="data-table role-matrix-table">
-                <thead>
-                  <tr>
-                    <th>Chức năng & Phân hệ</th>
-                    {ROLES_LIST.map((r) => (
-                      <th key={r.id}>
-                        <div>{r.name}</div>
-                        <small
-                          className="muted"
-                          style={{ fontWeight: "normal", fontSize: 11 }}
-                        >
-                          {memberCount(r.id)} tài khoản
-                        </small>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {groupedFiltered.map((group) => (
-                    <Fragment key={group.module}>
-                      <tr className="role-matrix-module-row">
-                        <td colSpan={5}>
-                          <strong>{group.moduleName}</strong>
-                        </td>
-                      </tr>
-                      {group.items.map((perm) => (
-                        <tr key={perm.id}>
-                          <td>
-                            <div>
-                              <strong>{perm.name}</strong>
-                              <small
-                                className="block muted"
-                                style={{ fontSize: 11, marginTop: 2 }}
-                              >
-                                {perm.desc}
-                              </small>
-                            </div>
-                          </td>
-                          {ROLES_LIST.map((role) => {
-                            const state = permissions[perm.id]?.[role.id] ?? {
-                              granted: false,
-                            };
-                            const isGranted = !!state.granted;
-                            return (
-                              <td
-                                key={role.id}
-                                className="permission-toggle-cell"
-                              >
-                                <button
-                                  type="button"
-                                  className={`permission-toggle-btn ${isGranted ? "granted" : "denied"}`}
-                                  onClick={() =>
-                                    togglePermission(perm.id, role.id)
-                                  }
-                                  title={`Bấm để ${isGranted ? "tắt" : "bật"} quyền ${perm.name} cho vai trò ${role.name}`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isGranted}
-                                    readOnly
-                                    tabIndex={-1}
-                                    style={{
-                                      pointerEvents: "none",
-                                      margin: 0,
-                                    }}
-                                  />
-                                  <span>
-                                    {isGranted
-                                      ? state.scope ?? "Có quyền"
-                                      : "—"}
-                                  </span>
-                                </button>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {!groupedFiltered.length && (
-              <Empty
-                title="Không tìm thấy quyền hạn phù hợp"
-                description="Thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc."
-              />
-            )}
-          </>
-        ) : (
-          <div>
-            {/* Role selection summary cards */}
-            <div className="role-card-grid">
-              {ROLES_LIST.map((r) => {
-                const count = memberCount(r.id);
-                const isSelected = selectedRole === r.id;
-                return (
-                  <div
-                    key={r.id}
-                    className={`role-summary-card ${isSelected ? "selected" : ""}`}
-                    onClick={() => setSelectedRole(r.id)}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 6,
-                      }}
-                    >
-                      <strong style={{ fontSize: 14 }}>{r.name}</strong>
-                      <span className="count" style={{ fontSize: 11 }}>
-                        {count} người
-                      </span>
-                    </div>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 12,
-                        color: "var(--ink-3, #64748b)",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {r.desc}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Permissions list for selected role */}
-            <div style={{ marginTop: 16 }}>
-              {modules.map((mod) => {
-                const modPerms = PERMISSIONS_LIST.filter(
-                  (p) => p.module === mod,
-                );
-                return (
-                  <div key={mod} className="perm-module-card">
-                    <div className="perm-module-head">
-                      <div>
-                        <strong>{modPerms[0]?.moduleName}</strong>
-                        <span
-                          className="muted"
-                          style={{ fontSize: 12, marginLeft: 8 }}
-                        >
-                          (
-                          {
-                            modPerms.filter(
-                              (p) =>
-                                permissions[p.id]?.[selectedRole]?.granted,
-                            ).length
-                          }
-                          /{modPerms.length} quyền)
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+      <section className="panel">
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Chức năng</th>
+                <th>Quản trị viên</th>
+                <th>Tiếp nhận</th>
+                <th>Trưởng nhóm</th>
+                <th>Telesale</th>
+              </tr>
+            </thead>
+            <tbody>
+              {DEFAULT_MATRIX.map((row, rIdx) => (
+                <tr key={row.feature}>
+                  <td>
+                    <strong>{row.feature}</strong>
+                  </td>
+                  {roles.map((roleKey) => {
+                    const cell = row[roleKey];
+                    const key = `${rIdx}_${roleKey}`;
+                    const isChecked = !!matrixState[key];
+                    return (
+                      <td key={roleKey}>
+                        <label
                           style={{
-                            height: 24,
-                            fontSize: 11,
-                            padding: "0 6px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                            cursor: "pointer",
+                            userSelect: "none",
                           }}
-                          onClick={() =>
-                            toggleModuleForRole(mod, selectedRole, true)
-                          }
                         >
-                          Cấp toàn bộ
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          style={{
-                            height: 24,
-                            fontSize: 11,
-                            padding: "0 6px",
-                          }}
-                          onClick={() =>
-                            toggleModuleForRole(mod, selectedRole, false)
-                          }
-                        >
-                          Bỏ toàn bộ
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      {modPerms.map((perm) => {
-                        const st = permissions[perm.id]?.[selectedRole] ?? {
-                          granted: false,
-                        };
-                        const isGranted = !!st.granted;
-                        return (
-                          <div key={perm.id} className="perm-item-row">
-                            <div>
-                              <div style={{ fontWeight: 500, fontSize: 13 }}>
-                                {perm.name}
-                              </div>
-                              <div className="muted" style={{ fontSize: 12 }}>
-                                {perm.desc}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className={`permission-toggle-btn ${isGranted ? "granted" : "denied"}`}
-                              onClick={() =>
-                                togglePermission(perm.id, selectedRole)
-                              }
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isGranted}
-                                readOnly
-                                tabIndex={-1}
-                                style={{
-                                  pointerEvents: "none",
-                                  margin: 0,
-                                }}
-                              />
-                              <span>
-                                {isGranted
-                                  ? st.scope ?? "Có quyền"
-                                  : "Chưa cấp"}
-                              </span>
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggle(rIdx, roleKey)}
+                          />
+                          <span
+                            style={{
+                              color: isChecked
+                                ? "inherit"
+                                : "var(--ink-4, #94a3b8)",
+                              fontWeight:
+                                isChecked && cell.text !== "—"
+                                  ? 500
+                                  : "normal",
+                            }}
+                          >
+                            {cell.text}
+                          </span>
+                        </label>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </>
   );
