@@ -16,7 +16,6 @@ const testRoleNames: Record<string, string> = {
   leader: "Trưởng nhóm",
   telesale: "Telesale",
   telesale2: "Telesale 2",
-  viewer: "Xem báo cáo",
 };
 
 const defaultTestAccounts: TestAccount[] = [
@@ -25,7 +24,6 @@ const defaultTestAccounts: TestAccount[] = [
   { role: "leader", email: "truongnhom@lead-sale.local", password: "123456" },
   { role: "telesale", email: "telesale1@lead-sale.local", password: "123456" },
   { role: "telesale2", email: "telesale2@lead-sale.local", password: "123456" },
-  { role: "viewer", email: "baocao@lead-sale.local", password: "123456" },
 ];
 
 export function AuthScreen({

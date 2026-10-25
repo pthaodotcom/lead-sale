@@ -34,7 +34,6 @@ const LegacyTicket = () => <Navigate replace to={`/tasks/${useParams().id}`} />;
 const RootLanding = () => {
   const { actor } = useWorkspace();
   if (actor.role === "admin") return <Navigate replace to="/admin/users" />;
-  if (actor.role === "viewer") return <Navigate replace to="/reports" />;
   return <Dashboard />;
 };
 

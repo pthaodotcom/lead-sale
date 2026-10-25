@@ -27,9 +27,9 @@ export function makeSeed(now = new Date()): Database {
   ];
   const sources = [
     { id: "web", name: "Form website", active: true },
-    { id: "facebook", name: "Chat mạng xã hội", active: true },
+    { id: "facebook", name: "Facebook", active: true },
     { id: "hotline", name: "Hotline", active: true },
-    { id: "referral", name: "Tài xế giới thiệu", active: true },
+    { id: "referral", name: "Tài xế cũ giới thiệu", active: true },
   ];
   const leads = names.map((name, i) => ({
     id: `LEAD-${String(i + 1).padStart(4, "0")}`,
@@ -131,7 +131,6 @@ export function makeSeed(now = new Date()): Database {
       { id: "leader", name: "Trần Minh Trang", role: "leader", active: true },
       { id: "sale-1", name: "Nguyễn Hà Linh", role: "telesale", active: true },
       { id: "sale-2", name: "Phạm Tuấn Anh", role: "telesale", active: true },
-      { id: "viewer", name: "Võ Thanh Mai", role: "viewer", active: true },
     ],
     audit: [
       {

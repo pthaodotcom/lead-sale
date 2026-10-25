@@ -54,14 +54,6 @@ function navigation(db: Database, actor: Member): Group[] {
       },
     ];
   }
-  if (actor.role === "viewer") {
-    return [
-      {
-        label: "Phân tích",
-        items: [{ to: "/reports", label: "Báo cáo", icon: BarChart3 }],
-      },
-    ];
-  }
   const tickets = visibleTickets(db, actor);
   const myPending = tickets.filter(
     (t) =>
@@ -126,7 +118,7 @@ function navigation(db: Database, actor: Member): Group[] {
           : []),
       ],
     },
-    ...(is("leader", "intake", "viewer")
+    ...(is("leader", "intake")
       ? [
           {
             label: "Phân tích",
@@ -325,7 +317,7 @@ export function Layout({ children }: { children: ReactNode }) {
           >
             <Menu size={20} />
           </button>
-          {actor.role !== "viewer" && (
+          {actor.role !== "admin" && (
             <form
               className="global-search"
               role="search"
@@ -346,7 +338,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </form>
           )}
           <div className="topbar-end">
-            {actor.role !== "viewer" && <NoticeBell />}
+            <NoticeBell />
             <UserMenu />
           </div>
         </header>

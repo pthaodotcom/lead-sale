@@ -25,7 +25,6 @@ import { serverNow } from "./dates";
 import { cities } from "./catalog";
 import { latestActivity } from "./tasks";
 import { TicketTable } from "./TicketTable";
-import { Reports } from "./Reports";
 import { Settings } from "./Settings";
 import { CallDialog } from "./CallDialog";
 import { CallLogModal } from "./CallLogModal";
@@ -122,7 +121,6 @@ export function Dashboard() {
   const [activeTicketId, setActiveTicketId] = useState<string | undefined>();
 
   if (actor.role === "admin") return <Settings />;
-  if (actor.role === "viewer") return <Reports />;
   const now = serverNow();
   const today = dayVN(now);
   const telesale = actor.role === "telesale";
@@ -378,14 +376,16 @@ export function Dashboard() {
       {intake ? (
         <div className="grid-2">
           <Panel title="Lead theo nguồn tiếp nhận">
-            {(analytics?.sources ?? []).map((s) => (
-              <Bar
-                key={s.id}
-                label={db.sources.find((x) => x.id === s.id)?.name ?? s.id}
-                value={s.total}
-                total={totals?.total ?? 0}
-              />
-            ))}
+            {(analytics?.sources ?? [])
+              .filter((s) => ["web", "facebook", "hotline", "referral"].includes(s.id))
+              .map((s) => (
+                <Bar
+                  key={s.id}
+                  label={db.sources.find((x) => x.id === s.id)?.name ?? s.id}
+                  value={s.total}
+                  total={totals?.total ?? 0}
+                />
+              ))}
           </Panel>
           <Panel title="Đang được tư vấn">
             <strong style={{ fontSize: 28 }}>
@@ -428,11 +428,13 @@ export function Dashboard() {
           </Panel>
           <Panel title="Tỷ lệ chuyển đổi thành công theo nguồn">
             <Rates
-              rows={(analytics?.sources ?? []).map((s) => ({
-                label: db.sources.find((x) => x.id === s.id)?.name ?? s.id,
-                n: s.Onboarded,
-                d: s.total,
-              }))}
+              rows={(analytics?.sources ?? [])
+                .filter((s) => ["web", "facebook", "hotline", "referral"].includes(s.id))
+                .map((s) => ({
+                  label: db.sources.find((x) => x.id === s.id)?.name ?? s.id,
+                  n: s.Onboarded,
+                  d: s.total,
+                }))}
             />
           </Panel>
           <Panel title="Tỷ lệ chuyển đổi thành công theo thành phố">

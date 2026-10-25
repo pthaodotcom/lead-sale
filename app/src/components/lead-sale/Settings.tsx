@@ -878,9 +878,7 @@ function Roles() {
           </table>
         </div>
         <p className="muted report-note">
-          Vai trò Xem báo cáo cũ được giữ cho tài khoản đang có; chỉ xem báo
-          cáo, không sửa nghiệp vụ. Không khóa được tài khoản quản trị của chính
-          mình.
+          Không khóa được tài khoản quản trị của chính mình.
         </p>
       </section>
     </>

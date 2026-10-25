@@ -95,7 +95,7 @@ describe("Reviewed boundaries", () => {
     expect(routeAllowed("telesale", "/reports")).toBe(false);
     expect(routeAllowed("leader", "/reports")).toBe(true);
     expect(routeAllowed("intake", "/reports")).toBe(true);
-    expect(routeAllowed("viewer", "/reports")).toBe(true);
+    expect(routeAllowed("viewer", "/reports")).toBe(false);
     expect(routeAllowed("intake", "/tasks")).toBe(false);
     expect(routeAllowed("intake", "/appointments")).toBe(true);
   });

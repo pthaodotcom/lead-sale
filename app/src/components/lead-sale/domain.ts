@@ -7,18 +7,16 @@ import type {
   Database,
   LeadInput,
   Member,
-  Role,
   ReportData,
   ReportFilters,
 } from "./types";
 import { serverNow } from "./dates";
 
-export const roleLabels: Record<Role, string> = {
+export const roleLabels: Record<string, string> = {
   admin: "Quản trị viên",
   intake: "Tiếp nhận hồ sơ",
   leader: "Trưởng nhóm",
   telesale: "Telesale",
-  viewer: "Xem báo cáo",
 };
 export const leadLabels = {
   New: "Mới",

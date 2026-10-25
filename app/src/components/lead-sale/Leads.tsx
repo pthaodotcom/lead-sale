@@ -459,7 +459,10 @@ export function LeadForm() {
                 <option value="Van">Xe Van</option>
               </select>
             </Field>
-            <Field label="Nguồn Lead *">
+            <Field
+              label="Nguồn Lead *"
+              hint={!existing ? "Tiếp nhận thủ công: Facebook, Hotline hoặc Tài xế cũ giới thiệu" : undefined}
+            >
               <select
                 required
                 value={form.sourceId}
@@ -467,7 +470,11 @@ export function LeadForm() {
               >
                 <option value="">Chọn nguồn</option>
                 {db.sources
-                  .filter((s) => s.active || s.id === existing?.sourceId)
+                  .filter(
+                    (s) =>
+                      s.active &&
+                      (s.id !== "web" || s.id === existing?.sourceId),
+                  )
                   .map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}

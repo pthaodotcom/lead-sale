@@ -415,7 +415,7 @@ export function Reports() {
   const [dayStr, monthStr, yearStr] = todayVN.split("/");
 
   return (
-    <Guard allowed={["leader", "intake", "viewer", "admin"].includes(actor.role)}>
+    <Guard allowed={["leader", "intake", "admin"].includes(actor.role)}>
       <div className="report-page-container">
         <PageHeading title="Biểu mẫu báo cáo nghiệp vụ" />
 

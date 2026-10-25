@@ -58,8 +58,8 @@ describe("Hồ sơ và phân quyền", () => {
     ).toThrow("đã có");
     expect(db.leads).toHaveLength(original.leads.length);
   });
-  it("Telesale và người xem báo cáo không được sửa hồ sơ hoặc phân công", () => {
-    for (const actor of ["sale-1", "viewer"]) {
+  it("Telesale không được sửa hồ sơ hoặc phân công", () => {
+    for (const actor of ["sale-1"]) {
       expect(() =>
         applyCommand(makeSeed(now), actor, { type: "saveLead", input }, now),
       ).toThrow("không có quyền");
