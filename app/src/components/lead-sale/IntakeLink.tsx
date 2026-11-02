@@ -1,21 +1,27 @@
 import { useState } from "react";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { publicIntakeUrl } from "./public-intake";
 
 export function IntakeLink() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [showLink, setShowLink] = useState(false);
   const url = publicIntakeUrl();
   return (
     <div className="intake-share">
-      <div>
-        <strong>Form tài xế tự đăng ký</strong>
+      <div className="intake-share-title">
+        <Link2 size={20} aria-hidden />
+        <span>
+          <strong>Form tài xế tự đăng ký</strong>
+          <small>Chia sẻ để tài xế gửi hồ sơ</small>
+        </span>
       </div>
       <div className="intake-share-actions">
         <Button
           variant="outline"
           size="sm"
+          aria-label={copied ? "Đã sao chép link form" : "Sao chép link form"}
           onClick={() => {
             if (!navigator.clipboard) {
               setError("Bạn có thể chọn và sao chép đường link bên dưới.");
@@ -35,7 +41,9 @@ export function IntakeLink() {
           }}
         >
           {copied ? <Check /> : <Copy />}
-          {copied ? "Đã sao chép" : "Sao chép link form"}
+          <span className="share-copy-label">
+            {copied ? "Đã sao chép" : "Sao chép link form"}
+          </span>
         </Button>
         <Button asChild variant="ghost" size="sm">
           <a href={url} target="_blank" rel="noopener noreferrer">
@@ -43,8 +51,19 @@ export function IntakeLink() {
             Mở form
           </a>
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={showLink || !!error}
+          aria-controls="intake-share-url"
+          onClick={() => setShowLink(!showLink)}
+        >
+          Xem link <ChevronDown size={14} />
+        </Button>
       </div>
       <input
+        id="intake-share-url"
+        hidden={!showLink && !error}
         aria-label="Đường link form tài xế"
         value={url}
         readOnly

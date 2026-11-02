@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import {
   ExternalLink,
@@ -33,15 +33,20 @@ export function TicketTable({
   const { db, actor, run, busy } = useWorkspace();
   const [sort, setSort] = useState({ key: "updatedAt", direction: -1 });
   const [page, setPage] = useState(1);
+  const sortId = useId();
 
   useEffect(() => {
     setPage(1);
   }, [tickets]);
 
   // Self-contained modal states if no external handler provided
-  const [modalCallTicket, setModalCallTicket] = useState<Assignment | null>(null);
+  const [modalCallTicket, setModalCallTicket] = useState<Assignment | null>(
+    null,
+  );
   const [modalLogTicket, setModalLogTicket] = useState<Assignment | null>(null);
-  const [modalReopenTicket, setModalReopenTicket] = useState<Assignment | null>(null);
+  const [modalReopenTicket, setModalReopenTicket] = useState<Assignment | null>(
+    null,
+  );
 
   const heading = (key: string, label: string) => (
     <th
@@ -74,7 +79,10 @@ export function TicketTable({
 
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const current = Math.min(page, pages);
-  const paginatedRows = rows.slice((current - 1) * pageSize, current * pageSize);
+  const paginatedRows = rows.slice(
+    (current - 1) * pageSize,
+    current * pageSize,
+  );
 
   const handleCall = (t: Assignment) => {
     if (customOpenCall) {
@@ -94,13 +102,39 @@ export function TicketTable({
 
   return (
     <>
-      <div className="table-scroll">
-        <table className="data-table ticket-table">
+      <div className="ticket-sort-mobile">
+        <label htmlFor={sortId}>Sắp xếp phiếu</label>
+        <select
+          id={sortId}
+          value={`${sort.key}:${sort.direction}`}
+          onChange={(event) => {
+            const [key, direction] = event.target.value.split(":");
+            setSort({ key, direction: Number(direction) });
+            setPage(1);
+          }}
+        >
+          <option value="updatedAt:-1">Cập nhật mới nhất</option>
+          <option value="updatedAt:1">Cập nhật cũ nhất</option>
+          <option value="expiresAt:1">Hạn xử lý gần nhất</option>
+          <option value="expiresAt:-1">Hạn xử lý xa nhất</option>
+        </select>
+      </div>
+      <p className="ticket-scroll-note">
+        Cuộn ngang để xem đầy đủ phiếu và thao tác.
+      </p>
+      <div
+        className="table-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Danh sách phiếu tư vấn"
+      >
+        <table
+          className={`data-table ticket-table mobile-records ${showActions ? "has-actions" : ""}`}
+        >
           <thead>
             <tr>
               <th>Mã phiếu</th>
-              <th>Số điện thoại</th>
-              <th>Người yêu cầu</th>
+              <th>Tài xế</th>
               <th>Trạng thái Lead</th>
               <th>Trạng thái phiếu</th>
               {heading("updatedAt", "Cập nhật")}
@@ -124,57 +158,52 @@ export function TicketTable({
                 t.status !== "Closed";
 
               const needsAccept =
-                t.assigneeId === actor.id && !t.acceptedAt && t.status !== "Closed";
+                t.assigneeId === actor.id &&
+                !t.acceptedAt &&
+                t.status !== "Closed";
 
               return (
                 <tr key={t.id}>
-                  <td>
+                  <td data-label="Mã phiếu">
                     <Link className="record-link nowrap" to={`/tasks/${t.id}`}>
                       {ticketCode(t)}
                     </Link>
                   </td>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span>{l?.phone ?? "—"}</span>
+                  <td className="ticket-driver" data-label="Tài xế">
+                    <strong>{l?.name ?? "Hồ sơ đã chuyển quyền"}</strong>
+                    <div className="ticket-contact">
                       {l?.phone && (
                         <a
                           href={`tel:${l.phone}`}
-                          title="Bấm để gọi"
+                          title={`Gọi ${l.name}`}
                           className="muted"
-                          style={{ display: "inline-flex", padding: 2 }}
                         >
                           <Phone size={12} />
+                          {l.phone}
                         </a>
                       )}
+                      {l?.city && <small>{l.city}</small>}
                     </div>
                   </td>
-                  <td>
-                    <div>
-                      <strong>{l?.name ?? "Hồ sơ đã chuyển quyền"}</strong>
-                      {l?.city && <small className="block muted">{l.city}</small>}
-                    </div>
+                  <td data-label="Trạng thái Lead">
+                    {l?.status ? <Badge status={l.status} /> : "—"}
                   </td>
-                  <td>{l?.status ? <Badge status={l.status} /> : "—"}</td>
-                  <td>
+                  <td data-label="Trạng thái phiếu">
                     <Badge status={t.status} ticket />
                   </td>
-                  <td>{formatCompactDate(t.updatedAt)}</td>
-                  <td>
+                  <td data-label="Cập nhật">
+                    {formatCompactDate(t.updatedAt)}
+                  </td>
+                  <td data-label="Kết quả">
                     {latest ? outcomeLabels[latest.outcome] : "Chưa liên hệ"}
                   </td>
-                  <td>{formatCompactDate(t.expiresAt)}</td>
+                  <td data-label="Hạn xử lý">
+                    {formatCompactDate(t.expiresAt)}
+                  </td>
 
                   {showActions && (
-                    <td>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 4,
-                          alignItems: "center",
-                          justifyContent: "center",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
+                    <td className="ticket-actions" data-label="Thao tác">
+                      <div className="ticket-actions-inner">
                         {needsAccept && (
                           <Button
                             size="sm"
@@ -187,7 +216,11 @@ export function TicketTable({
                               )
                             }
                             title="Nhận việc để bắt đầu xử lý phiếu này"
-                            style={{ height: 26, padding: "0 8px", fontSize: 12 }}
+                            style={{
+                              height: 26,
+                              padding: "0 8px",
+                              fontSize: 12,
+                            }}
                           >
                             <UserCheck size={13} /> Nhận việc
                           </Button>
@@ -202,7 +235,11 @@ export function TicketTable({
                                   variant="outline"
                                   onClick={() => setModalReopenTicket(t)}
                                   title="Mở lại phiếu phân công để tiếp tục chăm sóc"
-                                  style={{ height: 26, padding: "0 8px", fontSize: 12 }}
+                                  style={{
+                                    height: 26,
+                                    padding: "0 8px",
+                                    fontSize: 12,
+                                  }}
                                 >
                                   <RotateCcw size={13} /> Mở lại
                                 </Button>
@@ -214,9 +251,11 @@ export function TicketTable({
                                   variant="outline"
                                   onClick={() => handleCall(t)}
                                   title="Bấm gọi khách hàng"
+                                  aria-label={`Gọi ${l?.name ?? "tài xế"}`}
                                   style={{ height: 26, padding: "0 6px" }}
                                 >
                                   <Phone size={13} />
+                                  <span className="ticket-call-label">Gọi</span>
                                 </Button>
 
                                 <Button
@@ -224,7 +263,11 @@ export function TicketTable({
                                   variant="secondary"
                                   onClick={() => handleLog(t)}
                                   title="Ghi nhận cuộc gọi & bằng chứng"
-                                  style={{ height: 26, padding: "0 8px", fontSize: 12 }}
+                                  style={{
+                                    height: 26,
+                                    padding: "0 8px",
+                                    fontSize: 12,
+                                  }}
                                 >
                                   <PhoneCall size={13} /> Ghi nhận
                                 </Button>

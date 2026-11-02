@@ -11,9 +11,9 @@
 .report-toolbar-card {
   background: var(--card, #ffffff);
   border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
-  padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -61,6 +61,7 @@
 .report-filter-row .period-filter select,
 .report-filter-row .period-filter input {
   height: 36px;
+  min-height: 36px;
   width: 100%;
   min-width: 0;
   padding: 0 10px;
@@ -112,8 +113,6 @@
   width: 100%;
   max-width: 1040px;
   box-sizing: border-box;
-  transition: transform 0.15s ease-out;
-  transform-origin: top center;
 }
 
 .report-sheet.landscape {
@@ -330,6 +329,7 @@
     max-width: 100% !important;
     width: 100% !important;
     transform: none !important;
+    zoom: 1 !important;
   }
 
   .report-data-table {

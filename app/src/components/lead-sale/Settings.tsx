@@ -74,10 +74,17 @@ function FormDialog({
         if (!saving) onOpenChange(value);
       }}
     >
-      <DialogContent className="sm:max-w-md" aria-describedby={description ? descriptionId : undefined}>
+      <DialogContent
+        className="sm:max-w-md"
+        aria-describedby={description ? descriptionId : undefined}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
+          {description && (
+            <DialogDescription id={descriptionId}>
+              {description}
+            </DialogDescription>
+          )}
         </DialogHeader>
         <form
           className="stack-form"
@@ -121,11 +128,20 @@ function FormDialog({
   );
 }
 
-function SectionHead({ title, action }: { title: string; action?: ReactNode }) {
+function SectionHead({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
   return (
     <header className="settings-head">
       <div>
         <h1>{title}</h1>
+        {description && <p>{description}</p>}
       </div>
       {action}
     </header>
@@ -418,6 +434,7 @@ function Users() {
     <>
       <SectionHead
         title="Người dùng"
+        description="Quản lý tài khoản và trạng thái truy cập của đội ngũ."
         action={
           <div className="page-actions">
             <Button
@@ -480,36 +497,42 @@ function Users() {
             }}
             placeholder="Tìm tên hoặc email…"
           />
-          <select
-            aria-label="Lọc vai trò"
-            value={role}
-            onChange={(e) => {
-              setRole(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả vai trò</option>
-            {Object.entries(roleLabels).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Lọc nhóm"
-            value={team}
-            onChange={(e) => {
-              setTeam(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả nhóm</option>
-            {teamsOf(db).map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+          <label className="filter-field">
+            <span>Vai trò</span>
+            <select
+              aria-label="Lọc vai trò"
+              value={role}
+              onChange={(e) => {
+                setRole(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Tất cả vai trò</option>
+              {Object.entries(roleLabels).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
+            <span>Nhóm làm việc</span>
+            <select
+              aria-label="Lọc nhóm"
+              value={team}
+              onChange={(e) => {
+                setTeam(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Tất cả nhóm</option>
+              {teamsOf(db).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
           {(q || role || state || team) && (
             <Button
               variant="ghost"
@@ -526,7 +549,7 @@ function Users() {
           )}
         </div>
         <div className="table-scroll">
-          <table className="data-table admin-users-table">
+          <table className="data-table admin-users-table mobile-records">
             <thead>
               <tr>
                 <th>Người dùng</th>
@@ -539,7 +562,7 @@ function Users() {
             <tbody>
               {paginatedRows.map((m) => (
                 <tr key={m.id}>
-                  <td>
+                  <td data-label="Người dùng">
                     <span className="person">
                       <Avatar name={m.name} size="sm" />
                       <span>
@@ -551,9 +574,11 @@ function Users() {
                       </span>
                     </span>
                   </td>
-                  <td>{accountRoleLabel(m)}</td>
-                  <td>{needsTeam(m.role) ? teamName(m.teamId) : "—"}</td>
-                  <td>
+                  <td data-label="Vai trò">{accountRoleLabel(m)}</td>
+                  <td data-label="Nhóm làm việc">
+                    {needsTeam(m.role) ? teamName(m.teamId) : "—"}
+                  </td>
+                  <td data-label="Trạng thái">
                     <Chip
                       tone={
                         accountState(m) === "active"
@@ -570,7 +595,7 @@ function Users() {
                           : "Tạm ngưng"}
                     </Chip>
                   </td>
-                  <td className="end">
+                  <td className="end" data-label="Thao tác">
                     {m.id === actor.id ? (
                       <span className="muted admin-own-account">
                         Tài khoản đang sử dụng
@@ -1232,7 +1257,9 @@ function getInitialMatrixState(): MatrixState {
 }
 
 function Roles() {
-  const [matrixState, setMatrixState] = useState<MatrixState>(getInitialMatrixState);
+  const [matrixState, setMatrixState] = useState<MatrixState>(
+    getInitialMatrixState,
+  );
   const [isDirty, setIsDirty] = useState(false);
 
   const toggle = (rIdx: number, roleKey: MatrixRole) => {
@@ -1273,7 +1300,10 @@ function Roles() {
       <SectionHead
         title="Vai trò & phân quyền"
         action={
-          <div className="page-actions" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div
+            className="page-actions"
+            style={{ display: "flex", gap: 8, alignItems: "center" }}
+          >
             {isDirty && (
               <span
                 style={{
@@ -1341,9 +1371,7 @@ function Roles() {
                                 ? "inherit"
                                 : "var(--ink-4, #94a3b8)",
                               fontWeight:
-                                isChecked && cell.text !== "—"
-                                  ? 500
-                                  : "normal",
+                                isChecked && cell.text !== "—" ? 500 : "normal",
                             }}
                           >
                             {cell.text}

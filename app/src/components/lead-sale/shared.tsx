@@ -213,20 +213,19 @@ export function Kpi({
     return (
       <button
         type="button"
-        className={`kpi ${active ? "active ring-2 ring-primary" : ""}`}
+        className={`kpi ${active ? "active" : ""}`}
         onClick={onClick}
-        style={{ textAlign: "left", cursor: "pointer", width: "100%", background: active ? "var(--bg-subtle, #f0fdf4)" : undefined }}
       >
         {body}
       </button>
     );
   }
   return to ? (
-    <Link className={`kpi ${active ? "active ring-2 ring-primary" : ""}`} to={to}>
+    <Link className={`kpi ${active ? "active" : ""}`} to={to}>
       {body}
     </Link>
   ) : (
-    <div className={`kpi ${active ? "active ring-2 ring-primary" : ""}`}>{body}</div>
+    <div className={`kpi ${active ? "active" : ""}`}>{body}</div>
   );
 }
 export function Bar({
@@ -343,16 +342,23 @@ export function SearchBox({
   placeholder?: string;
   className?: string;
 }) {
+  const id = useId();
   return (
     <div className={`search-box ${className}`}>
-      <Search size={16} />
-      <input
-        aria-label="Tìm kiếm"
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
+      <label className="filter-label" htmlFor={id}>
+        Tìm kiếm
+      </label>
+      <div className="search-input">
+        <Search size={16} aria-hidden />
+        <input
+          id={id}
+          aria-label="Tìm kiếm"
+          type="search"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      </div>
     </div>
   );
 }
@@ -443,9 +449,7 @@ export function TablePagination({
     <div className="table-foot">
       {extraLeft ? <div>{extraLeft}</div> : <div />}
       <span>
-        {total > 0
-          ? `${start}–${end} trên ${total} ${unit}`
-          : `0 ${unit}`}
+        {total > 0 ? `${start}–${end} trên ${total} ${unit}` : `0 ${unit}`}
       </span>
       <div>
         <Button
@@ -462,7 +466,7 @@ export function TablePagination({
             alignItems: "center",
             padding: "0 6px",
             fontSize: "12px",
-            color: "var(--muted, #64748b)",
+            color: "var(--ink-3)",
             fontWeight: 500,
           }}
         >
@@ -559,8 +563,7 @@ function extractLeadFields(data: any, db: Database): Record<string, string> {
     res["Nguồn tiếp nhận"] = sourceName(db, data.sourceId);
   }
   const status = data.status || "New";
-  res["Trạng thái"] =
-    (leadLabels as Record<string, string>)[status] ?? status;
+  res["Trạng thái"] = (leadLabels as Record<string, string>)[status] ?? status;
 
   if (data.tags !== undefined) {
     const tagsArr = Array.isArray(data.tags)
@@ -681,7 +684,10 @@ export function parseAuditDetail(
         const olderFields = extractLeadFields(olderLeadData, db);
         if (Object.keys(olderFields).length > 0) {
           const allKeys = Array.from(
-            new Set([...Object.keys(olderFields), ...Object.keys(currentFields)]),
+            new Set([
+              ...Object.keys(olderFields),
+              ...Object.keys(currentFields),
+            ]),
           );
           const diffs: AuditDiff[] = [];
           for (const k of allKeys) {
@@ -695,7 +701,9 @@ export function parseAuditDetail(
           if (diffs.length > 0) {
             return {
               diffs,
-              summary: diffs.map((d) => `${d.label}: ${d.from} → ${d.to}`).join("; "),
+              summary: diffs
+                .map((d) => `${d.label}: ${d.from} → ${d.to}`)
+                .join("; "),
             };
           }
           return {
@@ -713,7 +721,8 @@ export function parseAuditDetail(
         if (label === "Trạng thái" && value === "Mới") return false;
         if (label === "Lưu trữ" && value === "Đang hoạt động") return false;
         if (label === "Báo sai SĐT" && value === "Số hợp lệ") return false;
-        if (label === "Ngày tiếp nhận" || label === "Thời gian tiếp nhận") return false;
+        if (label === "Ngày tiếp nhận" || label === "Thời gian tiếp nhận")
+          return false;
         return true;
       })
       .map(([label, value]) => ({ label, value }));
@@ -739,7 +748,8 @@ export function parseAuditDetail(
       fields.push({
         label: "Trạng thái mới",
         value:
-          (leadLabels as Record<string, string>)[parsed.status] ?? parsed.status,
+          (leadLabels as Record<string, string>)[parsed.status] ??
+          parsed.status,
       });
     }
     if (parsed.reason) fields.push({ label: "Lý do", value: parsed.reason });
@@ -826,8 +836,7 @@ export function parseAuditDetail(
       fields.push({
         label: "Kết quả",
         value:
-          (outcomeLabels as Record<string, string>)[act.outcome] ??
-          act.outcome,
+          (outcomeLabels as Record<string, string>)[act.outcome] ?? act.outcome,
       });
     }
     if (act.decision && act.decision !== "none") {
@@ -860,9 +869,13 @@ export function parseAuditDetail(
   ) {
     const fields: AuditField[] = [];
     if (parsed.at)
-      fields.push({ label: "Thời gian hẹn", value: formatDate(parsed.at, true) });
+      fields.push({
+        label: "Thời gian hẹn",
+        value: formatDate(parsed.at, true),
+      });
     if (parsed.place) fields.push({ label: "Địa điểm", value: parsed.place });
-    if (parsed.status) fields.push({ label: "Trạng thái", value: parsed.status });
+    if (parsed.status)
+      fields.push({ label: "Trạng thái", value: parsed.status });
     if (parsed.reason) fields.push({ label: "Lý do", value: parsed.reason });
     return {
       fields,
@@ -877,7 +890,8 @@ export function parseAuditDetail(
       fields.push({
         label: "Trạng thái",
         value:
-          (leadLabels as Record<string, string>)[parsed.status] ?? parsed.status,
+          (leadLabels as Record<string, string>)[parsed.status] ??
+          parsed.status,
       });
     }
     if (parsed.reason) fields.push({ label: "Lý do", value: parsed.reason });
@@ -968,5 +982,3 @@ export function AuditDetailView({
 
   return null;
 }
-
-

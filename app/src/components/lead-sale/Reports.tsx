@@ -658,8 +658,7 @@ export function Reports() {
           <div
             className={`report-sheet ${currentReportMeta.landscape ? "landscape" : ""}`}
             style={{
-              transform:
-                zoomLevel !== 100 ? `scale(${zoomLevel / 100})` : undefined,
+              zoom: zoomLevel / 100,
             }}
           >
             {/* Header: Company Info */}

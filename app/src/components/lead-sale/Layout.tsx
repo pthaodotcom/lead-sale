@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, Link, useLocation, useNavigate } from "react-router";
 import {
   BarChart3,
@@ -6,6 +6,8 @@ import {
   BookUser,
   CalendarDays,
   ClipboardList,
+  ChevronDown,
+  ChevronRight,
   Inbox,
   KeyRound,
   History,
@@ -15,6 +17,7 @@ import {
   Search,
   Send,
   Settings2,
+  X,
   ArrowLeftRight,
   type LucideIcon,
 } from "lucide-react";
@@ -201,6 +204,7 @@ function UserMenu() {
             <strong>{actor.name}</strong>
             <small>{roleLabels[actor.role]}</small>
           </span>
+          <ChevronDown size={14} className="user-chevron" aria-hidden />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
@@ -254,12 +258,74 @@ function UserMenu() {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { db, actor, run } = useWorkspace();
+  const { db, actor, run, cloud } = useWorkspace();
   const [open, setOpen] = useState(false);
+  const [compact, setCompact] = useState(
+    () => window.matchMedia("(max-width: 900px)").matches,
+  );
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
   const [q, setQ] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
   const groups = navigation(db, actor);
+  const currentItem = groups
+    .flatMap((group) => group.items)
+    .filter((item) => item.to !== "/")
+    .sort((a, b) => b.to.length - a.to.length)
+    .find((item) => location.pathname.startsWith(item.to));
+  const sectionTitle = location.pathname.startsWith("/account")
+    ? "Tài khoản"
+    : location.pathname.startsWith("/notifications")
+      ? "Thông báo"
+      : (currentItem?.label ?? "Tổng quan");
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const change = () => {
+      setCompact(media.matches);
+      if (!media.matches) setOpen(false);
+    };
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
+  useEffect(() => {
+    if (!open || !compact) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const sidebar = sidebarRef.current;
+    sidebar?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+      }
+      if (event.key !== "Tab" || !sidebar) return;
+      const controls = sidebar.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled])",
+      );
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === sidebar)
+      ) {
+        event.preventDefault();
+        last?.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || document.activeElement === sidebar)
+      ) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      if (menuRef.current?.offsetParent) menuRef.current.focus();
+    };
+  }, [open, compact]);
   const banner = db.notices
     .filter((n) => n.recipientId === actor.id && !n.readAt)
     .sort((a, b) => b.at.localeCompare(a.at))[0];
@@ -271,11 +337,28 @@ export function Layout({ children }: { children: ReactNode }) {
       {open && (
         <button
           className="scrim"
-          aria-label="Đóng menu"
+          aria-label="Đóng menu điều hướng"
           onClick={() => setOpen(false)}
         />
       )}
-      <aside className={`side ${open ? "open" : ""}`}>
+      <aside
+        id="main-navigation"
+        ref={sidebarRef}
+        className={`side ${open ? "open" : ""}`}
+        tabIndex={-1}
+        inert={compact && !open}
+        role={compact && open ? "dialog" : undefined}
+        aria-hidden={compact && !open ? true : undefined}
+        aria-modal={compact && open ? true : undefined}
+        aria-label="Điều hướng"
+      >
+        <button
+          className="icon-btn side-close"
+          aria-label="Đóng menu"
+          onClick={() => setOpen(false)}
+        >
+          <X size={18} />
+        </button>
         <Link to="/" className="brand" onClick={() => setOpen(false)}>
           <img
             className="brand-mark"
@@ -308,16 +391,37 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
+        <div className="side-foot">
+          <div className="workspace-context">
+            <BookUser size={20} aria-hidden />
+            <span>
+              <strong>{roleLabels[actor.role]}</strong>
+              <small>
+                {cloud ? "Không gian làm việc" : "Đang xem dữ liệu mẫu"}
+              </small>
+            </span>
+          </div>
+        </div>
       </aside>
       <div className="main">
         <header className="topbar">
           <button
+            ref={menuRef}
             className="icon-btn menu-toggle"
             aria-label="Mở menu"
+            aria-expanded={open}
+            aria-controls="main-navigation"
             onClick={() => setOpen(true)}
           >
             <Menu size={20} />
           </button>
+          <div className="workspace-path" aria-label="Vị trí hiện tại">
+            <span>
+              {actor.role === "admin" ? "Quản trị" : "Không gian làm việc"}
+            </span>
+            <ChevronRight size={14} aria-hidden />
+            <strong>{sectionTitle}</strong>
+          </div>
           {actor.role !== "admin" && (
             <form
               className="global-search"

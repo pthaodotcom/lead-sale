@@ -49,6 +49,12 @@ Kiểm thử trình duyệt: cài Chromium bằng `npx playwright install chromi
 - Quản trị viên: bỏ mục **Tài khoản của tôi** ở thanh điều hướng. Vẫn vào trang tài khoản bằng **Tài khoản → Đổi mật khẩu**.
 - Tiếp nhận hồ sơ: bỏ mục **Lịch hẹn** khỏi thanh điều hướng. Trưởng nhóm và Telesale vẫn có mục này.
 
+## Giao diện cập nhật ngày 02/11/2026
+
+Điều hướng, bảng, bộ lọc và form đã được chỉnh đồng bộ. Trên điện thoại, hồ sơ/tài khoản/nhiệm vụ hiển thị thành từng bản ghi; thao tác không che tên và số điện thoại. Xem [thay đổi và kết quả kiểm tra UI/UX](docs/19-cap-nhat-ui-ux-2026-11-02.md) cùng [quy tắc thiết kế](DESIGN.md).
+
+![Màn nhiệm vụ Lead Sale](docs/ui-20261102/desktop-tasks.png)
+
 ## Tài liệu
 
 - [Hướng dẫn nhận source và chạy trên máy mới](docs/18-huong-dan-nhan-source.md)

@@ -90,8 +90,24 @@ export function TasksPage() {
     <Guard allowed={["telesale", "leader"].includes(actor.role)}>
       <PageHeading
         title="Nhiệm vụ"
+        description="Theo dõi tiến độ tư vấn và các phiếu cần xử lý."
         action={leader && <AssignmentDialog />}
       />
+      <label className="queue-select">
+        <span>Nhóm phiếu</span>
+        <select
+          aria-label="Chọn nhóm phiếu"
+          value={selected.id}
+          onChange={(event) => setParams({ group: event.target.value })}
+        >
+          {taskGroups.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} (
+              {scoped.filter((ticket) => inGroup(db, ticket, item.id)).length})
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="tasks-layout">
         <nav className="panel queue-nav" aria-label="Nhóm phiếu">
           {taskGroups.map((g) => {
@@ -124,34 +140,40 @@ export function TasksPage() {
               placeholder="Tìm mã phiếu, tên hoặc SĐT…"
             />
             {leader && (
-              <select
-                aria-label="Lọc nhân viên"
-                value={member}
-                onChange={(e) => setMember(e.target.value)}
-              >
-                <option value="">Tất cả nhân viên</option>
-                {db.members
-                  .filter(
-                    (m) =>
-                      m.role === "telesale" &&
-                      (actor.role === "admin" ||
-                        (m.teamId ?? "default") ===
-                          (actor.teamId ?? "default")),
-                  )
-                  .map((m) => (
-                    <option value={m.id} key={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-              </select>
+              <label className="filter-field">
+                <span>Nhân viên</span>
+                <select
+                  aria-label="Lọc nhân viên"
+                  value={member}
+                  onChange={(e) => setMember(e.target.value)}
+                >
+                  <option value="">Tất cả nhân viên</option>
+                  {db.members
+                    .filter(
+                      (m) =>
+                        m.role === "telesale" &&
+                        (actor.role === "admin" ||
+                          (m.teamId ?? "default") ===
+                            (actor.teamId ?? "default")),
+                    )
+                    .map((m) => (
+                      <option value={m.id} key={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
             )}
-            <input
-              type="date"
-              aria-label="Hạn xử lý đến ngày"
-              title="Hạn xử lý đến ngày"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-            />
+            <label className="filter-field">
+              <span>Hạn xử lý đến ngày</span>
+              <input
+                type="date"
+                aria-label="Hạn xử lý đến ngày"
+                title="Hạn xử lý đến ngày"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </label>
           </div>
           <TicketTable tickets={rows} />
         </section>
@@ -270,7 +292,9 @@ function LogForm({ ticketId }: { ticketId: string }) {
                   }}
                   style={{ width: "80px" }}
                 />
-                <span className="muted" style={{ fontSize: 13 }}>phút</span>
+                <span className="muted" style={{ fontSize: 13 }}>
+                  phút
+                </span>
                 <Input
                   type="number"
                   min={0}
@@ -279,12 +303,16 @@ function LogForm({ ticketId }: { ticketId: string }) {
                   defaultValue={30}
                   onChange={(e) => {
                     const secs = Math.max(0, parseInt(e.target.value) || 0);
-                    const currentMins = Math.floor((form.durationSeconds ?? 90) / 60);
+                    const currentMins = Math.floor(
+                      (form.durationSeconds ?? 90) / 60,
+                    );
                     set("durationSeconds", currentMins * 60 + secs);
                   }}
                   style={{ width: "80px" }}
                 />
-                <span className="muted" style={{ fontSize: 13 }}>giây</span>
+                <span className="muted" style={{ fontSize: 13 }}>
+                  giây
+                </span>
               </div>
             </Field>
           </>
@@ -578,15 +606,18 @@ export function TicketPage() {
             </Button>
           )}
           <Badge status={t.status} ticket />
-          {t.status === "Solved" && permitted && isLive(t) && l.status === "New" && (
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => setReopenOpen(true)}
-            >
-              <RotateCcw size={14} /> Mở lại phiếu
-            </Button>
-          )}
+          {t.status === "Solved" &&
+            permitted &&
+            isLive(t) &&
+            l.status === "New" && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => setReopenOpen(true)}
+              >
+                <RotateCcw size={14} /> Mở lại phiếu
+              </Button>
+            )}
           <Button asChild variant="outline" size="sm">
             <Link to={`/leads/${l.id}/show`}>Mở hồ sơ</Link>
           </Button>
@@ -651,15 +682,18 @@ export function TicketPage() {
                       ? "Phiếu đã đóng hoặc hết hạn, không ghi nhận thêm."
                       : "Chỉ chuyên viên được giao mới ghi nhận liên hệ trên phiếu này."}
                 </p>
-                {t.status === "Solved" && permitted && isLive(t) && l.status === "New" && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => setReopenOpen(true)}
-                  >
-                    <RotateCcw size={14} /> Mở lại phiếu này
-                  </Button>
-                )}
+                {t.status === "Solved" &&
+                  permitted &&
+                  isLive(t) &&
+                  l.status === "New" && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => setReopenOpen(true)}
+                    >
+                      <RotateCcw size={14} /> Mở lại phiếu này
+                    </Button>
+                  )}
               </div>
             </section>
           )}

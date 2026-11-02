@@ -99,6 +99,7 @@ export function LeadsList() {
     <Guard allowed={actor.role !== "viewer"}>
       <PageHeading
         title="Hồ sơ Lead"
+        description="Tra cứu và theo dõi hồ sơ tài xế."
         action={
           canEditLead(actor) && (
             <>
@@ -146,46 +147,55 @@ export function LeadsList() {
               reset();
             }}
           />
-          <select
-            aria-label="Lọc theo nguồn"
-            value={source}
-            onChange={(e) => {
-              setSource(e.target.value);
-              reset();
-            }}
-          >
-            <option value="">Mọi nguồn</option>
-            {db.sources.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Lọc theo thành phố"
-            value={city}
-            onChange={(e) => {
-              setCity(e.target.value);
-              reset();
-            }}
-          >
-            <option value="">Mọi thành phố</option>
-            {cities.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            aria-label="Lọc theo phương tiện"
-            value={vehicle}
-            onChange={(e) => {
-              setVehicle(e.target.value);
-              reset();
-            }}
-          >
-            <option value="">Mọi loại xe</option>
-            <option value="Motorbike">Xe máy</option>
-            <option value="Van">Xe Van</option>
-          </select>
+          <label className="filter-field">
+            <span>Nguồn tiếp nhận</span>
+            <select
+              aria-label="Lọc theo nguồn"
+              value={source}
+              onChange={(e) => {
+                setSource(e.target.value);
+                reset();
+              }}
+            >
+              <option value="">Mọi nguồn</option>
+              {db.sources.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
+            <span>Thành phố</span>
+            <select
+              aria-label="Lọc theo thành phố"
+              value={city}
+              onChange={(e) => {
+                setCity(e.target.value);
+                reset();
+              }}
+            >
+              <option value="">Mọi thành phố</option>
+              {cities.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
+            <span>Phương tiện</span>
+            <select
+              aria-label="Lọc theo phương tiện"
+              value={vehicle}
+              onChange={(e) => {
+                setVehicle(e.target.value);
+                reset();
+              }}
+            >
+              <option value="">Mọi loại xe</option>
+              <option value="Motorbike">Xe máy</option>
+              <option value="Van">Xe Van</option>
+            </select>
+          </label>
           {["admin", "intake", "leader"].includes(actor.role) && (
             <Button
               variant="outline"
@@ -223,7 +233,7 @@ export function LeadsList() {
         </div>
         {items.length ? (
           <div className="table-scroll">
-            <table className="data-table">
+            <table className="data-table mobile-records lead-records-table">
               <thead>
                 <tr>
                   <th>Tài xế</th>
@@ -245,7 +255,7 @@ export function LeadsList() {
                       className="clickable"
                       onClick={() => navigate(`/leads/${l.id}/show`)}
                     >
-                      <td>
+                      <td data-label="Tài xế">
                         <Link
                           className="person"
                           to={`/leads/${l.id}/show`}
@@ -260,20 +270,20 @@ export function LeadsList() {
                           </span>
                         </Link>
                       </td>
-                      <td>
+                      <td data-label="Thành phố / Xe">
                         {l.city}
                         <small>{vehicleLabel(l.vehicle)}</small>
                       </td>
-                      <td>
+                      <td data-label="Nguồn">
                         {sourceName(db, l.sourceId)}
                         {!!l.tags.length && <small>{l.tags.join(", ")}</small>}
                       </td>
-                      <td>
+                      <td data-label="Phụ trách">
                         {live ? memberName(db, live.assigneeId) : "—"}
                         {live && <small>Phiếu {live.id}</small>}
                       </td>
-                      <td>{formatDate(l.receivedAt)}</td>
-                      <td>
+                      <td data-label="Tiếp nhận">{formatDate(l.receivedAt)}</td>
+                      <td data-label="Trạng thái">
                         <Badge status={l.status} />
                       </td>
                     </tr>
@@ -446,9 +456,7 @@ export function LeadForm() {
                 <option value="Van">Xe Van</option>
               </select>
             </Field>
-            <Field
-              label="Nguồn Lead *"
-            >
+            <Field label="Nguồn Lead *">
               <select
                 required
                 value={form.sourceId}
@@ -681,7 +689,9 @@ export function LeadShow() {
             background: "var(--bg-subtle, #f9fafb)",
           }}
         >
-          <span style={{ fontSize: 13, fontWeight: 700 }}>Thao tác Telesale:</span>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>
+            Thao tác Telesale:
+          </span>
           {myTicket.assigneeId === actor.id && !myTicket.acceptedAt && (
             <Button
               size="sm"
@@ -755,7 +765,9 @@ export function LeadShow() {
                         ap.id === a.appointmentId || ap.activityId === a.id,
                     );
                     const callDirection =
-                      a.direction === "inbound" ? "Cuộc gọi đến" : "Cuộc gọi đi";
+                      a.direction === "inbound"
+                        ? "Cuộc gọi đến"
+                        : "Cuộc gọi đi";
                     return (
                       <article
                         key={a.id}
@@ -808,9 +820,8 @@ export function LeadShow() {
                             </small>
                             {a.durationSeconds ? (
                               <Chip plain>
-                                Thời lượng:{" "}
-                                {Math.floor(a.durationSeconds / 60)}p{" "}
-                                {a.durationSeconds % 60}s
+                                Thời lượng: {Math.floor(a.durationSeconds / 60)}
+                                p {a.durationSeconds % 60}s
                               </Chip>
                             ) : null}
                           </div>
@@ -933,11 +944,16 @@ export function LeadShow() {
                     {tickets.map((t) => (
                       <tr key={t.id}>
                         <td>
-                          <Link className="record-link nowrap" to={`/tasks/${t.id}`}>
+                          <Link
+                            className="record-link nowrap"
+                            to={`/tasks/${t.id}`}
+                          >
                             {ticketCode(t)}
                           </Link>
                         </td>
-                        <td className="nowrap">{memberName(db, t.assigneeId)}</td>
+                        <td className="nowrap">
+                          {memberName(db, t.assigneeId)}
+                        </td>
                         <td className="nowrap">{formatDate(t.createdAt)}</td>
                         <td>
                           <Badge status={t.status} ticket />

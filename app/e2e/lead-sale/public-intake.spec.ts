@@ -73,7 +73,7 @@ test("form có thể điền trên điện thoại và có link chia sẻ trong 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Tài khoản" }).click();
+  await page.getByRole("button", { name: "Tài khoản", exact: true }).click();
   await page
     .getByRole("menuitemradio", { name: /Lê Ngọc Anh · Tiếp nhận/ })
     .click();
