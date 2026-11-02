@@ -103,11 +103,10 @@ export function Reports() {
     db.sources.find((s) => s.id === id)?.name ?? id;
 
   const sourcesData = useMemo(() => {
-    return (a?.sources ?? []).map((s) => ({
-      ...s,
-      name: sourceName(s.id),
-    }));
-  }, [a?.sources, db.sources]);
+    return (a?.sources ?? [])
+      .filter((s) => !filters.source || s.id === filters.source)
+      .map((s) => ({ ...s, name: sourceName(s.id) }));
+  }, [a?.sources, db.sources, filters.source]);
 
   // Date range formatted label
   const periodText = useMemo(() => {
@@ -124,10 +123,8 @@ export function Reports() {
   // Applied filter textual summary
   const appliedFiltersText = useMemo(() => {
     const parts: string[] = [];
-    if (filters.member)
-      parts.push(`Chuyên viên: ${member(filters.member)}`);
-    if (filters.source)
-      parts.push(`Nguồn: ${sourceName(filters.source)}`);
+    if (filters.member) parts.push(`Chuyên viên: ${member(filters.member)}`);
+    if (filters.source) parts.push(`Nguồn: ${sourceName(filters.source)}`);
     if (filters.city) parts.push(`Thành phố: ${filters.city}`);
     return parts.join(" | ");
   }, [filters.member, filters.source, filters.city, db.members, db.sources]);
@@ -149,7 +146,14 @@ export function Reports() {
         Closed: acc.Closed + s.Closed,
         wrongPhone: acc.wrongPhone + s.wrongPhone,
       }),
-      { total: 0, New: 0, Activated: 0, Onboarded: 0, Closed: 0, wrongPhone: 0 },
+      {
+        total: 0,
+        New: 0,
+        Activated: 0,
+        Onboarded: 0,
+        Closed: 0,
+        wrongPhone: 0,
+      },
     );
   }, [sourcesData]);
 
@@ -422,9 +426,10 @@ export function Reports() {
         {/* 1. Filter & Actions Toolbar */}
         <section className="report-toolbar-card">
           <div className="report-filter-row">
-            <div className="report-filter-group" style={{ minWidth: 320 }}>
-              <label>Loại báo cáo</label>
+            <div className="report-filter-group report-type-filter">
+              <label htmlFor="report-type">Loại báo cáo</label>
               <select
+                id="report-type"
                 value={reportType}
                 onChange={(e) => setReportType(e.target.value as ReportTypeId)}
               >
@@ -473,8 +478,9 @@ export function Reports() {
               reportType === "telesale_contact_result" ||
               reportType === "telesale_lead_conversion") && (
               <div className="report-filter-group">
-                <label>Chuyên viên</label>
+                <label htmlFor="report-member">Chuyên viên</label>
                 <select
+                  id="report-member"
                   value={filters.member ?? ""}
                   onChange={(e) =>
                     setFilters({ ...filters, member: e.target.value })
@@ -502,8 +508,9 @@ export function Reports() {
               reportType === "intake_source_share" ||
               reportType === "intake_source_status") && (
               <div className="report-filter-group">
-                <label>Nguồn Lead</label>
+                <label htmlFor="report-source">Nguồn Lead</label>
                 <select
+                  id="report-source"
                   value={filters.source ?? ""}
                   onChange={(e) =>
                     setFilters({ ...filters, source: e.target.value })
@@ -521,8 +528,9 @@ export function Reports() {
 
             {reportType === "telesale_lead_conversion" && (
               <div className="report-filter-group">
-                <label>Thành phố</label>
+                <label htmlFor="report-city">Thành phố</label>
                 <select
+                  id="report-city"
                   value={filters.city ?? ""}
                   onChange={(e) =>
                     setFilters({ ...filters, city: e.target.value })
@@ -619,7 +627,10 @@ export function Reports() {
                 disabled={!a || loading}
                 onClick={handleExportExcel}
               >
-                <FileSpreadsheet size={14} className="mr-1.5 text-emerald-600" />
+                <FileSpreadsheet
+                  size={14}
+                  className="mr-1.5 text-emerald-600"
+                />
                 Xuất Excel
               </Button>
 
@@ -647,7 +658,8 @@ export function Reports() {
           <div
             className={`report-sheet ${currentReportMeta.landscape ? "landscape" : ""}`}
             style={{
-              transform: zoomLevel !== 100 ? `scale(${zoomLevel / 100})` : undefined,
+              transform:
+                zoomLevel !== 100 ? `scale(${zoomLevel / 100})` : undefined,
             }}
           >
             {/* Header: Company Info */}
@@ -658,9 +670,6 @@ export function Reports() {
               <div className="report-company-sub">
                 Hệ thống CRM Tuyển dụng & Vận hành Đối tác Tài xế
               </div>
-              <div className="report-company-address">
-                Địa chỉ: Tầng 9, Tòa nhà Mipec, 229 Tây Sơn, Ngã Tư Sở, Đống Đa, Hà Nội
-              </div>
             </div>
 
             {/* Title Section */}
@@ -668,12 +677,18 @@ export function Reports() {
               <h1>{currentReportMeta.title}</h1>
               <p className="report-subtitle">Thời gian: {periodText}</p>
               {appliedFiltersText && (
-                <p className="report-filter-applied">Áp dụng: {appliedFiltersText}</p>
+                <p className="report-filter-applied">
+                  Áp dụng: {appliedFiltersText}
+                </p>
               )}
             </div>
 
             {/* Table Area */}
-            {loading && <p className="text-center py-8 muted">Đang tổng hợp số liệu báo cáo…</p>}
+            {loading && (
+              <p className="text-center py-8 muted">
+                Đang tổng hợp số liệu báo cáo…
+              </p>
+            )}
 
             {!loading && (
               <>
@@ -701,7 +716,9 @@ export function Reports() {
                             <strong>{s.name}</strong>
                           </td>
                           <td className="right">{s.total.toLocaleString()}</td>
-                          <td className="right">{percent(s.total, totalLeadsReport1)}</td>
+                          <td className="right">
+                            {percent(s.total, totalLeadsReport1)}
+                          </td>
                         </tr>
                       ))}
                       {!sourcesData.length && (
@@ -714,7 +731,9 @@ export function Reports() {
                       <tr className="total-row">
                         <td className="center">TỔNG CỘNG</td>
                         <td>—</td>
-                        <td className="right">{totalLeadsReport1.toLocaleString()}</td>
+                        <td className="right">
+                          {totalLeadsReport1.toLocaleString()}
+                        </td>
                         <td className="right">
                           {totalLeadsReport1 > 0 ? "100.0%" : "0%"}
                         </td>
@@ -760,10 +779,16 @@ export function Reports() {
                           </td>
                           <td className="right">{s.total.toLocaleString()}</td>
                           <td className="right">{s.New.toLocaleString()}</td>
-                          <td className="right">{s.Activated.toLocaleString()}</td>
-                          <td className="right">{s.Onboarded.toLocaleString()}</td>
+                          <td className="right">
+                            {s.Activated.toLocaleString()}
+                          </td>
+                          <td className="right">
+                            {s.Onboarded.toLocaleString()}
+                          </td>
                           <td className="right">{s.Closed.toLocaleString()}</td>
-                          <td className="right">{s.wrongPhone.toLocaleString()}</td>
+                          <td className="right">
+                            {s.wrongPhone.toLocaleString()}
+                          </td>
                         </tr>
                       ))}
                       {!sourcesData.length && (
@@ -776,15 +801,21 @@ export function Reports() {
                       <tr className="total-row">
                         <td className="center">TỔNG CỘNG</td>
                         <td>—</td>
-                        <td className="right">{totalsReport2.total.toLocaleString()}</td>
-                        <td className="right">{totalsReport2.New.toLocaleString()}</td>
+                        <td className="right">
+                          {totalsReport2.total.toLocaleString()}
+                        </td>
+                        <td className="right">
+                          {totalsReport2.New.toLocaleString()}
+                        </td>
                         <td className="right">
                           {totalsReport2.Activated.toLocaleString()}
                         </td>
                         <td className="right">
                           {totalsReport2.Onboarded.toLocaleString()}
                         </td>
-                        <td className="right">{totalsReport2.Closed.toLocaleString()}</td>
+                        <td className="right">
+                          {totalsReport2.Closed.toLocaleString()}
+                        </td>
                         <td className="right">
                           {totalsReport2.wrongPhone.toLocaleString()}
                         </td>
@@ -836,10 +867,11 @@ export function Reports() {
                           <td className="right">{p.Closed.toLocaleString()}</td>
                         </tr>
                       ))}
-                      {!(a?.performance?.length) && (
+                      {!a?.performance?.length && (
                         <tr>
                           <td colSpan={8} className="center text-muted py-6">
-                            Không có phiếu công việc trong khoảng thời gian đã chọn.
+                            Không có phiếu công việc trong khoảng thời gian đã
+                            chọn.
                           </td>
                         </tr>
                       )}
@@ -847,11 +879,21 @@ export function Reports() {
                         <td className="center">TỔNG CỘNG</td>
                         <td>—</td>
                         <td>{a?.performance?.length ?? 0} chuyên viên</td>
-                        <td className="right">{totalsReport3.total.toLocaleString()}</td>
-                        <td className="right">{totalsReport3.New.toLocaleString()}</td>
-                        <td className="right">{totalsReport3.Open.toLocaleString()}</td>
-                        <td className="right">{totalsReport3.Solved.toLocaleString()}</td>
-                        <td className="right">{totalsReport3.Closed.toLocaleString()}</td>
+                        <td className="right">
+                          {totalsReport3.total.toLocaleString()}
+                        </td>
+                        <td className="right">
+                          {totalsReport3.New.toLocaleString()}
+                        </td>
+                        <td className="right">
+                          {totalsReport3.Open.toLocaleString()}
+                        </td>
+                        <td className="right">
+                          {totalsReport3.Solved.toLocaleString()}
+                        </td>
+                        <td className="right">
+                          {totalsReport3.Closed.toLocaleString()}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -896,28 +938,45 @@ export function Reports() {
                           <td>
                             <strong>{member(p.id)}</strong>
                           </td>
-                          <td className="right">{percent(p.called, p.total)}</td>
-                          <td className="right">{percent(p.no_answer, p.total)}</td>
-                          <td className="right">{percent(p.wrong_phone, p.total)}</td>
-                          <td className="right">{percent(p.agreed, p.total)}</td>
-                          <td className="right">{percent(p.declined, p.total)}</td>
-                          <td className="right">{percent(p.hungup, p.total)}</td>
+                          <td className="right">
+                            {percent(p.called, p.total)}
+                          </td>
+                          <td className="right">
+                            {percent(p.no_answer, p.total)}
+                          </td>
+                          <td className="right">
+                            {percent(p.wrong_phone, p.total)}
+                          </td>
+                          <td className="right">
+                            {percent(p.agreed, p.total)}
+                          </td>
+                          <td className="right">
+                            {percent(p.declined, p.total)}
+                          </td>
+                          <td className="right">
+                            {percent(p.hungup, p.total)}
+                          </td>
                         </tr>
                       ))}
-                      {!(a?.performance?.length) && (
+                      {!a?.performance?.length && (
                         <tr>
                           <td colSpan={9} className="center text-muted py-6">
-                            Không có kết quả tư vấn trong khoảng thời gian đã chọn.
+                            Không có kết quả tư vấn trong khoảng thời gian đã
+                            chọn.
                           </td>
                         </tr>
                       )}
                       <tr className="total-row">
                         <td className="center">TỔNG CỘNG</td>
                         <td>—</td>
-                        <td>TOÀN ĐỘI ({a?.performance?.length ?? 0} chuyên viên)</td>
+                        <td>
+                          TOÀN ĐỘI ({a?.performance?.length ?? 0} chuyên viên)
+                        </td>
                         <td className="right">{totalsReport4.calledRate}</td>
                         <td className="right">{totalsReport4.noAnswerRate}</td>
-                        <td className="right">{totalsReport4.wrongPhoneRate}</td>
+                        <td className="right">
+                          {totalsReport4.wrongPhoneRate}
+                        </td>
                         <td className="right">{totalsReport4.agreedRate}</td>
                         <td className="right">{totalsReport4.declinedRate}</td>
                         <td className="right">{totalsReport4.hungupRate}</td>
@@ -964,15 +1023,22 @@ export function Reports() {
                           <td>{r.city}</td>
                           <td className="right">{r.total.toLocaleString()}</td>
                           <td className="right">{r.agreed.toLocaleString()}</td>
-                          <td className="right">{r.registered.toLocaleString()}</td>
-                          <td className="right">{r.onboarded.toLocaleString()}</td>
-                          <td className="right">{percent(r.onboarded, r.total)}</td>
+                          <td className="right">
+                            {r.registered.toLocaleString()}
+                          </td>
+                          <td className="right">
+                            {r.onboarded.toLocaleString()}
+                          </td>
+                          <td className="right">
+                            {percent(r.onboarded, r.total)}
+                          </td>
                         </tr>
                       ))}
                       {!conversionDetails.length && (
                         <tr>
                           <td colSpan={9} className="center text-muted py-6">
-                            Không có hồ sơ chuyển đổi trong khoảng thời gian đã chọn.
+                            Không có hồ sơ chuyển đổi trong khoảng thời gian đã
+                            chọn.
                           </td>
                         </tr>
                       )}
@@ -981,15 +1047,21 @@ export function Reports() {
                         <td>—</td>
                         <td>—</td>
                         <td>—</td>
-                        <td className="right">{totalsReport5.total.toLocaleString()}</td>
-                        <td className="right">{totalsReport5.agreed.toLocaleString()}</td>
+                        <td className="right">
+                          {totalsReport5.total.toLocaleString()}
+                        </td>
+                        <td className="right">
+                          {totalsReport5.agreed.toLocaleString()}
+                        </td>
                         <td className="right">
                           {totalsReport5.registered.toLocaleString()}
                         </td>
                         <td className="right">
                           {totalsReport5.onboarded.toLocaleString()}
                         </td>
-                        <td className="right">{totalsReport5.conversionRate}</td>
+                        <td className="right">
+                          {totalsReport5.conversionRate}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -999,12 +1071,6 @@ export function Reports() {
 
             {/* Footer: Notes & Signatures */}
             <div className="report-footer-section">
-              <div className="report-notes">
-                Ghi chú: Báo cáo được trích xuất tự động từ Cơ sở Dữ liệu Vận hành CRM
-                AhaMove. Dữ liệu tỷ lệ tổng hợp được tính trực tiếp từ số liệu phát
-                sinh thực tế trong kỳ đối soát.
-              </div>
-
               <div
                 style={{
                   display: "flex",
@@ -1029,7 +1095,9 @@ export function Reports() {
                   <strong>NGƯỜI DUYỆT</strong>
                   <span>(Ký, ghi rõ họ tên, chức vụ quản lý)</span>
                   <div className="report-signature-spacer" />
-                  <div className="report-signature-name">Trưởng bộ phận Vận hành</div>
+                  <div className="report-signature-name">
+                    Trưởng bộ phận Vận hành
+                  </div>
                 </div>
               </div>
             </div>

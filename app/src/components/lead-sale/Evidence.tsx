@@ -69,7 +69,7 @@ export function EvidenceUpload({
   onChange: (v: Attachment[]) => void;
   onBusy: (b: boolean) => void;
 }) {
-  const { actor } = useWorkspace();
+  const { actor, cloud } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const image =
@@ -125,10 +125,7 @@ export function EvidenceUpload({
           </Button>
         </div>
       ))}
-      <small>
-        Bằng chứng được lưu cùng lần liên hệ. Tối đa 20 MB/tệp trên máy chủ; bản
-        demo tối đa 3 MB.
-      </small>
+      <small>Tối đa {cloud ? 20 : 3} MB/tệp.</small>
     </div>
   );
 }

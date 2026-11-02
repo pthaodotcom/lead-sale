@@ -58,7 +58,7 @@ export function CallLogModal({
   const [selectedTicketId, setSelectedTicketId] = useState<string>("");
   const [channel, setChannel] = useState<"call" | "zalo">("call");
   const [direction, setDirection] = useState<"outbound" | "inbound">("outbound");
-  const [at, setAt] = useState<string>(localDateTime());
+  const [at, setAt] = useState<string>(localDateTime(undefined, true));
   const [durationMinutes, setDurationMinutes] = useState<number>(1);
   const [durationSeconds, setDurationSeconds] = useState<number>(30);
   const [outcome, setOutcome] = useState<ActivityInput["outcome"]>("called");
@@ -94,7 +94,7 @@ export function CallLogModal({
     setSelectedTicketId(initial ?? "");
     setChannel("call");
     setDirection("outbound");
-    setAt(localDateTime());
+    setAt(localDateTime(undefined, true));
     setDurationMinutes(1);
     setDurationSeconds(30);
     setOutcome("called");
@@ -205,7 +205,7 @@ export function CallLogModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PhoneCall className="text-primary" size={20} />
-            Ghi nhận cuộc gọi thủ công & Bằng chứng
+            Ghi nhận liên hệ
           </DialogTitle>
           <DialogDescription>
             Ghi nhận kết quả liên hệ thực tế, thời lượng, lịch hẹn tiếp theo và
@@ -303,6 +303,7 @@ export function CallLogModal({
                 type="datetime-local"
                 required
                 value={at}
+                step="any"
                 onChange={(e) => setAt(e.target.value)}
               />
             </Field>
@@ -503,7 +504,7 @@ export function CallLogModal({
 
             {uploading && (
               <p role="status" className="muted" style={{ marginTop: 8 }}>
-                Đang tải tệp lên lưu trữ Supabase Storage…
+                Đang tải tệp…
               </p>
             )}
 
@@ -570,11 +571,6 @@ export function CallLogModal({
               </div>
             )}
           </div>
-
-          <p className="muted" style={{ fontSize: 12, margin: "4px 0" }}>
-            * Lưu ý: Ghi nhận cuộc gọi thủ công do nhân viên khai báo kèm bằng
-            chứng; hệ thống chưa tích hợp tổng đài VoIP tự động.
-          </p>
 
           <div
             style={{

@@ -1,5 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Command, Database, ReportData, ReportFilters } from "./types";
+import type {
+  Command,
+  Database,
+  Member,
+  ReportData,
+  ReportFilters,
+} from "./types";
 import { leadLabels } from "./domain";
 import { serializeCommandDates, syncServerClock } from "./dates";
 export const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
@@ -35,6 +41,14 @@ export async function registerMember(
   if (!supabase) throw new Error("Cần kết nối Supabase để tạo tài khoản.");
   const gate = await supabase.rpc("lead_admin_check");
   if (gate.error) throw new Error(gate.error.message);
+  const existing = await supabase.rpc("lead_people");
+  if (existing.error) throw new Error(existing.error.message);
+  if (
+    (existing.data as Member[]).some(
+      (m) => m.email?.toLowerCase() === email.trim().toLowerCase(),
+    )
+  )
+    throw new Error("Email đã được sử dụng. Chọn Sửa ở tài khoản hiện có.");
   const separate = createClient(
     import.meta.env.VITE_SUPABASE_URL,
     import.meta.env.VITE_SB_PUBLISHABLE_KEY,
@@ -54,6 +68,19 @@ export async function registerMember(
     });
     if (error) throw error;
     if (!data.user) throw new Error("Không tạo được tài khoản.");
+    const people = await supabase.rpc("lead_people");
+    if (people.error)
+      throw new Error(
+        "Đã tạo tài khoản nhưng chưa tải được danh sách. Tải lại trang để tiếp tục phân quyền.",
+      );
+    const member = (people.data as Member[]).find(
+      (m) => m.email?.toLowerCase() === email.trim().toLowerCase(),
+    );
+    if (!member)
+      throw new Error(
+        "Chưa xác nhận được tài khoản mới. Tải lại danh sách trước khi thử lại.",
+      );
+    return member;
   } finally {
     separate.auth.stopAutoRefresh();
   }
@@ -132,9 +159,7 @@ export async function uploadEvidence(
   if (!supabase) {
     if (!demoMode) throw new Error("Chưa kết nối Supabase.");
     if (!file.size || file.size > 20 * 1024 * 1024)
-      throw new Error(
-        "Tệp cần có dữ liệu và không quá 20 MB.",
-      );
+      throw new Error("Tệp cần có dữ liệu và không quá 20 MB.");
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));

@@ -11,10 +11,6 @@ export function IntakeLink() {
     <div className="intake-share">
       <div>
         <strong>Form tài xế tự đăng ký</strong>
-        <p>
-          Gửi đường link này để tài xế điền thông tin. Hồ sơ được tiếp nhận từ
-          nguồn Form website.
-        </p>
       </div>
       <div className="intake-share-actions">
         <Button

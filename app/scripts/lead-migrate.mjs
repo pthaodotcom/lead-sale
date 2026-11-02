@@ -8,24 +8,71 @@ try {
   await client.query(
     "select pg_advisory_xact_lock(179826222),pg_advisory_xact_lock(179826221)",
   );
-  const before = (
-    await client.query(
-      "select (select count(*) from public.leads)::int leads,(select count(*) from public.lead_assignments)::int tickets,(select count(*) from public.lead_activities)::int activities",
-    )
-  ).rows[0];
+  const moved = new Set([
+    "leads",
+    "lead_assignments",
+    "lead_activities",
+    "lead_appointments",
+    "lead_closure_reviews",
+    "lead_notifications",
+    "lead_audit_logs",
+    "lead_receptions",
+    "lead_attachments",
+    "lead_care_rounds",
+  ]);
+  const wasNormalized = Boolean(
+    (await client.query("select to_regclass('private.compat_leads') present"))
+      .rows[0].present,
+  );
+  const counts = async () => {
+    const normalized = Boolean(
+      (await client.query("select to_regclass('private.compat_leads') present"))
+        .rows[0].present,
+    );
+    const schema = normalized ? "private" : "public";
+    const prefix = normalized ? "compat_" : "";
+    return (
+      await client.query(
+        `select (select count(*) from ${schema}.${prefix}leads)::int leads,(select count(*) from ${schema}.${prefix}lead_assignments)::int tickets,(select count(*) from ${schema}.${prefix}lead_activities)::int activities`,
+      )
+    ).rows[0];
+  };
+  const before = await counts();
   const tables = (
     await client.query(
-      "select tablename from pg_tables where schemaname='public' and (tablename like 'lead_%' or tablename in ('leads','sales')) order by tablename",
+      "select schemaname,tablename from pg_tables where (schemaname='public' and (tablename like 'lead_%' or tablename like 'leads_%' or tablename in ('leads','sales','groups','users','vehicles','cities','notifications','appointment_registration_history'))) or (schemaname='private' and tablename like 'compat_%') order by schemaname,tablename",
     )
-  ).rows.map((r) => r.tablename);
+  ).rows;
+  await client.query(
+    "lock table " +
+      tables
+        .map(
+          (t) => pgIdentifier(t.schemaname) + "." + pgIdentifier(t.tablename),
+        )
+        .join(",") +
+      " in share row exclusive mode",
+  );
   const resources = async () => {
     const data = {};
-    for (const t of tables)
-      data[t] = (
+    const normalized = Boolean(
+      (await client.query("select to_regclass('private.compat_leads') present"))
+        .rows[0].present,
+    );
+    for (const t of tables) {
+      const relocated =
+        !wasNormalized &&
+        normalized &&
+        t.schemaname === "public" &&
+        moved.has(t.tablename);
+      const location = relocated
+        ? "private." + pgIdentifier("compat_" + t.tablename)
+        : pgIdentifier(t.schemaname) + "." + pgIdentifier(t.tablename);
+      data[t.schemaname + "." + t.tablename] = (
         await client.query(
-          `select coalesce(jsonb_agg(to_jsonb(x) order by to_jsonb(x)::text),'[]') rows from public.${pgIdentifier(t)} x`,
+          `select coalesce(jsonb_agg(to_jsonb(x) order by to_jsonb(x)::text),'[]') rows from ${location} x`,
         )
       ).rows[0].rows;
+    }
     return data;
   };
   const backup = await resources();
@@ -67,11 +114,7 @@ try {
     );
     process.stdout.write("Applied " + file + "\n");
   }
-  const after = (
-    await client.query(
-      "select (select count(*) from public.leads)::int leads,(select count(*) from public.lead_assignments)::int tickets,(select count(*) from public.lead_activities)::int activities",
-    )
-  ).rows[0];
+  const after = await counts();
   if (JSON.stringify(before) !== JSON.stringify(after))
     throw new Error("Preservation check failed.");
   if (JSON.stringify(backup) !== JSON.stringify(await resources()))

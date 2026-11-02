@@ -235,10 +235,6 @@ export function VoicePanel({
                   controls
                   aria-label="Âm thanh cuộc gọi"
                 />
-                <p className="voice-help">
-                  Lần đầu nên thử hai máy cùng Wi-Fi. Mạng 4G hoặc mạng chặn kết
-                  nối ngang hàng có thể cần máy chủ TURN.
-                </p>
               </>
             )}
             {error && (

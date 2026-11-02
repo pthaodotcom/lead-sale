@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Inbox,
   KeyRound,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -50,6 +51,7 @@ function navigation(db: Database, actor: Member): Group[] {
         items: [
           { to: "/admin/users", label: "Quản lý người dùng", icon: Settings2 },
           { to: "/admin/roles", label: "Vai trò & phân quyền", icon: KeyRound },
+          { to: "/admin/audit", label: "Lịch sử tài khoản", icon: History },
         ],
       },
     ];
@@ -97,7 +99,7 @@ function navigation(db: Database, actor: Member): Group[] {
               },
             ]
           : []),
-        ...(is("telesale", "leader", "intake")
+        ...(is("telesale", "leader")
           ? [{ to: "/appointments", label: "Lịch hẹn", icon: CalendarDays }]
           : []),
       ],
@@ -306,7 +308,6 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        
       </aside>
       <div className="main">
         <header className="topbar">
@@ -338,7 +339,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </form>
           )}
           <div className="topbar-end">
-            <NoticeBell />
+            {actor.role !== "admin" && <NoticeBell />}
             <UserMenu />
           </div>
         </header>

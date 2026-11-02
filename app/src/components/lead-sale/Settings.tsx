@@ -1225,7 +1225,9 @@ function getInitialMatrixState(): MatrixState {
     localStorage.removeItem("lead_sale_permissions_config_v1");
     const raw = localStorage.getItem(MATRIX_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch {
+    // Use the default matrix if browser storage is unavailable or invalid.
+  }
   return getDefaultMatrixState();
 }
 
@@ -1256,7 +1258,9 @@ function Roles() {
     try {
       localStorage.removeItem(MATRIX_STORAGE_KEY);
       localStorage.removeItem("lead_sale_permissions_config_v1");
-    } catch {}
+    } catch {
+      // Reset the visible matrix even when browser storage is unavailable.
+    }
     setMatrixState(getDefaultMatrixState());
     setIsDirty(false);
     toast.info("Đã khôi phục phân quyền theo đúng đặc tả ban đầu.");

@@ -330,5 +330,13 @@ export type Command =
   | { type: "source"; name: string; id?: string; active?: boolean }
   | { type: "team"; name: string }
   | { type: "statusLabel"; code: LeadStatus; label: string }
-  | { type: "member"; id: string; role: Role; active: boolean; teamId?: string }
+  | {
+      type: "member";
+      id: string;
+      role: Role;
+      active: boolean;
+      teamId?: string;
+      name?: string;
+      expected?: Pick<Member, "name" | "role" | "active" | "teamId">;
+    }
   | { type: "expire" };

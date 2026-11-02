@@ -3,7 +3,7 @@ const client = databaseClient();
 try {
   await client.connect();
   const { rows } = await client.query(
-    "select tablename from pg_tables where schemaname='public' and (tablename like 'lead_%' or tablename in ('leads','sales')) order by tablename",
+    "select tablename from pg_tables where schemaname='public' and (tablename like 'lead_%' or tablename like 'leads_%' or tablename in ('leads','sales','groups','users','vehicles','cities','notifications','appointment_registration_history')) order by tablename",
   );
   process.stdout.write(
     JSON.stringify({ tables: rows.map((r) => r.tablename) }, null, 2) + "\n",

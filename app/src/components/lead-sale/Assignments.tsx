@@ -162,7 +162,7 @@ export function TasksPage() {
 
 const blankForm = (): ActivityInput => ({
   channel: "call",
-  at: localDateTime(),
+  at: localDateTime(undefined, true),
   outcome: "called",
   decision: "none",
   reason: "none",
@@ -292,6 +292,7 @@ function LogForm({ ticketId }: { ticketId: string }) {
         <Field label="Thời gian liên hệ *">
           <Input
             type="datetime-local"
+            step="any"
             required
             value={form.at}
             onChange={(e) => set("at", e.target.value)}

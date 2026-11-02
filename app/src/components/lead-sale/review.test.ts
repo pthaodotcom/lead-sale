@@ -91,6 +91,7 @@ describe("Reviewed boundaries", () => {
       expect(routeAllowed("admin", path)).toBe(false);
     }
     expect(routeAllowed("admin", "/admin/users")).toBe(true);
+    expect(routeAllowed("admin", "/")).toBe(true);
     expect(routeAllowed("admin", "/reports")).toBe(false);
     expect(routeAllowed("telesale", "/reports")).toBe(false);
     expect(routeAllowed("leader", "/reports")).toBe(true);
@@ -125,3 +126,52 @@ describe("Reviewed boundaries", () => {
     expect(a.conversion.reduce((n, r) => n + r.onboarded, 0)).toBe(1);
   });
 });
+
+for (const status of ["Activated", "Onboarded"] as const) {
+  it("review closes " + status + " without deleting milestone data", () => {
+    const db = fixture();
+    const lead = db.leads[0];
+    lead.status = status;
+    lead.activatedAt = "2026-10-23T05:00:00Z";
+    if (status === "Onboarded") {
+      lead.onboardedAt = "2026-10-24T05:00:00Z";
+      lead.firstOrderId = "ORDER-1";
+    }
+    for (const t of db.assignments.filter((t) => t.leadId === lead.id))
+      t.status = "Closed";
+    db.reviews.push({
+      id: "R-CLOSE",
+      leadId: lead.id,
+      assignmentId: db.assignments[0].id,
+    } as (typeof db.reviews)[number]);
+    const payload = {
+      type: "review",
+      id: "R-CLOSE",
+      note: "Hoàn tất hồ sơ",
+      result: "closed",
+    } as const;
+    expect(() =>
+      applyCommand(
+        db,
+        "intake",
+        { ...payload, result: "eligible" },
+        new Date("2026-10-25T02:00:00Z"),
+      ),
+    ).toThrow(/không thể đưa về/);
+    const next = applyCommand(
+      db,
+      "intake",
+      payload,
+      new Date("2026-10-25T02:00:00Z"),
+    );
+    expect(next.leads[0]).toMatchObject({
+      ...lead,
+      status: "Closed",
+      updatedAt: "2026-10-25T02:00:00.000Z",
+    });
+    expect(next.reviews.find((r) => r.id === "R-CLOSE")).toMatchObject({
+      result: "closed",
+      reviewedBy: "intake",
+    });
+  });
+}

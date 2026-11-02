@@ -84,7 +84,17 @@ for (const [schema, version] of [
   ["23_lead_sale_voice.sql", "20261022030000_voice.sql"],
   ["24_lead_sale_review.sql", "20261024000000_note_review.sql"],
   ["25_lead_sale_review_reports.sql", "20261024010000_note_reports.sql"],
-  ["26_lead_sale_reports_all_roles.sql", "20261025000000_reports_all_roles.sql"],
+  [
+    "26_lead_sale_reports_all_roles.sql",
+    "20261025000000_reports_all_roles.sql",
+  ],
+  [
+    "26_lead_sale_telesale_workflow.sql",
+    "20261025014000_ac07_leadnote_permission.sql",
+  ],
+  ["27_lead_sale_admin.sql", "20261025020000_admin_accounts.sql"],
+  ["28_lead_sale_close_success.sql", "20261026000000_close_success.sql"],
+  ["29_lead_sale_relational.sql", "20261026010000_relational_tables.sql"],
 ]) {
   const next = await readFile(root + "/schemas/" + schema, "utf8");
   const file = root + "/migrations/" + version;

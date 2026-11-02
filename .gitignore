@@ -10,3 +10,9 @@
 .impeccable/
 .sites/
 .claude/launch.json
+
+# Machine-specific files and delivery archives
+.local/
+handoff/
+**/*.log
+**/coverage/

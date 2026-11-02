@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 
 // Demo starts as Admin, who no longer handles Leads (NOTE SỬA AD-01).
 async function as(page: Page, name: RegExp) {
-  await page.getByRole("button", { name: "Tài khoản" }).click();
+  await page.getByRole("button", { name: "Tài khoản", exact: true }).click();
   await page.getByRole("menuitemradio", { name }).click();
 }
 const INTAKE = /Lê Ngọc Anh · Tiếp nhận/;
@@ -39,7 +39,7 @@ test("tiếp nhận → phân công → ghi nhận kèm ghi âm và lịch hẹn
   await page.getByLabel("Họ và tên").fill("Tài Xế E2E");
   await page.getByLabel("Số điện thoại").fill("+84912345678");
   await page.getByLabel("Thành phố đăng ký").fill("Hà Nội");
-  await page.getByLabel("Nguồn Lead").selectOption("web");
+  await page.getByLabel("Nguồn Lead").selectOption("hotline");
   await page.getByRole("button", { name: "Tạo hồ sơ", exact: true }).click();
   await page
     .getByRole("link", { name: /Tài Xế E2E/ })
@@ -64,8 +64,10 @@ test("tiếp nhận → phân công → ghi nhận kèm ghi âm và lịch hẹn
   const local = new Date(date.getTime() + 7 * 3600000)
     .toISOString()
     .slice(0, 16);
-  await page.getByLabel("Ngày giờ hẹn").fill(local);
-  await page.getByLabel("Nơi hẹn").selectOption("văn phòng HN1");
+  await page.getByLabel("Thời gian hẹn", { exact: false }).fill(local);
+  await page
+    .getByLabel("Địa điểm hẹn", { exact: false })
+    .selectOption("văn phòng HN1");
   await page.getByLabel("Trạng thái phiếu sau liên hệ").selectOption("Open");
   const save = page.getByRole("button", { name: "Lưu lần liên hệ" });
   await expect(save).toBeDisabled();
@@ -104,7 +106,7 @@ test("cảnh báo SĐT trùng và không tạo thêm hồ sơ", async ({ page })
   await page.getByLabel("Họ và tên").fill("Tài Xế Trùng");
   await page.getByLabel("Số điện thoại").fill("+84901000000");
   await page.getByLabel("Thành phố đăng ký").fill("Hà Nội");
-  await page.getByLabel("Nguồn Lead").selectOption("web");
+  await page.getByLabel("Nguồn Lead").selectOption("hotline");
   await expect(page.locator(".callout")).toContainText(
     "Số này đã có hồ sơ Nguyễn Văn Minh",
   );
@@ -155,18 +157,25 @@ test("Admin chỉ quản trị tài khoản", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("báo cáo nguồn khớp số hồ sơ và xuất CSV", async ({ page }) => {
+test("báo cáo nguồn khớp số hồ sơ và xuất Excel", async ({ page }) => {
   await page.goto("/");
   await as(page, INTAKE);
   await page.goto("/#/reports");
   await page.getByLabel("Kỳ xem", { exact: true }).selectOption("all");
-  await page.getByLabel("Lọc nguồn báo cáo").selectOption("web");
-  await expect(page.locator(".report-note").last()).toContainText(
-    "Tổng: 5 hồ sơ",
-  );
+  await page.getByLabel("Nguồn Lead", { exact: true }).selectOption("web");
+  await expect(page.locator(".report-data-table tbody tr")).toHaveCount(2);
+  await expect(
+    page.locator(".report-data-table .total-row td").nth(2),
+  ).toHaveText("5");
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Xuất CSV" }).click();
-  expect((await download).suggestedFilename()).toBe("bao-cao-lead-sale.csv");
+  await page.getByRole("button", { name: "Xuất Excel" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/\.xlsx$/);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile((await file.path())!);
+  const values = JSON.stringify(workbook.worksheets[0].getSheetValues());
+  expect(values).toContain("Form website");
+  expect(values).not.toContain("Facebook");
 });
 
 test("điện thoại mở menu và màn hình chính không tràn ngang", async ({

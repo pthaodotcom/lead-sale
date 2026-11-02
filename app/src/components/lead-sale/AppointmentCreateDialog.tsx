@@ -101,7 +101,7 @@ export function AppointmentCreateDialog({
     const input: ActivityInput = {
       channel: "call",
       direction: "outbound",
-      at: localDateTime(),
+      at: localDateTime(undefined, true),
       outcome: "called",
       decision: "agreed",
       reason: "none",

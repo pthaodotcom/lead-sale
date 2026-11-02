@@ -43,7 +43,9 @@ export function AuthScreen({
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [sent, setSent] = useState(false);
-  const [testAccounts, setTestAccounts] = useState<TestAccount[]>(defaultTestAccounts);
+  const [testAccounts, setTestAccounts] = useState<TestAccount[]>(
+    import.meta.env.DEV ? defaultTestAccounts : [],
+  );
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const controller = new AbortController();
@@ -76,11 +78,9 @@ export function AuthScreen({
                 ? "Khôi phục mật khẩu"
                 : "Đăng nhập"}
         </h1>
-        <p>Quản lý tiếp nhận và tư vấn tuyển tài xế.</p>
         {!configured ? (
           <p>
-            Thiết lập VITE_SUPABASE_URL và VITE_SB_PUBLISHABLE_KEY theo hướng
-            dẫn chạy. Chế độ xem thử được mở riêng bằng npm run dev:demo.
+            Không thể kết nối hệ thống. Vui lòng liên hệ quản trị viên.
           </p>
         ) : signedIn ? (
           <>

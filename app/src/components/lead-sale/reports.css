@@ -30,7 +30,24 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 150px;
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.report-filter-group.report-type-filter {
+  flex: 2 1 340px;
+}
+
+.report-filter-row > .period-filter {
+  display: contents;
+}
+
+.report-filter-row > .period-filter > label {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
 }
 
 .report-filter-group label {
@@ -40,8 +57,12 @@
 }
 
 .report-filter-group select,
-.report-filter-group input {
+.report-filter-group input,
+.report-filter-row .period-filter select,
+.report-filter-row .period-filter input {
   height: 36px;
+  width: 100%;
+  min-width: 0;
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid var(--border, #cbd5e1);
@@ -75,7 +96,7 @@
   padding: 32px 16px;
   overflow-x: auto;
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
   min-height: 600px;
 }
 
@@ -84,7 +105,9 @@
   color: #0f172a;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
   padding: 48px 56px;
   width: 100%;
   max-width: 1040px;
@@ -95,6 +118,29 @@
 
 .report-sheet.landscape {
   max-width: 1200px;
+}
+
+@media screen and (max-width: 760px) {
+  .report-toolbar-card {
+    padding: 16px;
+  }
+  .report-filter-group.report-type-filter {
+    flex-basis: 100%;
+  }
+  .report-tools-right {
+    width: 100%;
+  }
+  .report-canvas-viewport {
+    justify-content: flex-start;
+    padding: 16px;
+    min-width: 0;
+  }
+  .report-sheet {
+    flex: 0 0 900px;
+  }
+  .report-sheet.landscape {
+    flex-basis: 1200px;
+  }
 }
 
 .report-company-header {
@@ -114,13 +160,6 @@
 .report-company-sub {
   font-size: 12px;
   color: #475569;
-  margin-top: 2px;
-}
-
-.report-company-address {
-  font-size: 11.5px;
-  color: #64748b;
-  font-style: italic;
   margin-top: 2px;
 }
 
@@ -216,13 +255,6 @@
   gap: 20px;
 }
 
-.report-notes {
-  font-size: 12px;
-  color: #64748b;
-  border-top: 1px dashed #cbd5e1;
-  padding-top: 8px;
-}
-
 .report-signature-block {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -266,7 +298,7 @@
     background: #ffffff !important;
     color: #000000 !important;
   }
-  
+
   nav,
   header,
   aside,

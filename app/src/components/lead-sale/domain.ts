@@ -682,7 +682,9 @@ export function applyCommand(
         note: input.note.trim(),
         attachments: input.attachments,
         round: ticket.round ?? 1,
-        direction: input.direction ?? (input.channel === "call" ? "outbound" : undefined),
+        direction:
+          input.direction ??
+          (input.channel === "call" ? "outbound" : undefined),
         durationSeconds: input.durationSeconds,
       };
       db.activities.unshift(activity);
@@ -869,10 +871,11 @@ export function applyCommand(
         "Hồ sơ đang có phiếu hiệu lực; không thể đổi kết quả rà soát.",
       );
       ensure(
-        !reviewedLead.activatedAt &&
-          !reviewedLead.onboardedAt &&
-          !["Activated", "Onboarded"].includes(reviewedLead.status),
-        "Hồ sơ đã thành công; không được xóa mốc bằng rà soát Closed.",
+        command.result === "closed" ||
+          (!reviewedLead.activatedAt &&
+            !reviewedLead.onboardedAt &&
+            !["Activated", "Onboarded"].includes(reviewedLead.status)),
+        "Hồ sơ đã thành công; không thể đưa về Đủ điều kiện phân công lại.",
       );
       reviewedLead.status = command.result === "eligible" ? "New" : "Closed";
       reviewedLead.updatedAt = stamp;
@@ -1190,6 +1193,28 @@ export function applyCommand(
         db.members.find((m) => m.id === command.id) ??
         fail("Không tìm thấy tài khoản.");
       ensure(command.role in roleLabels, "Vai trò không hợp lệ.");
+      if (command.expected) {
+        const expected = command.expected;
+        ensure(
+          expected.name === member.name &&
+            expected.role === member.role &&
+            expected.active === member.active &&
+            (expected.teamId ?? "default") === (member.teamId ?? "default"),
+          "Tài khoản đã thay đổi. Đóng form và tải lại danh sách trước khi sửa.",
+        );
+      }
+      if (command.name !== undefined)
+        ensure(
+          command.name.trim().length >= 2 && command.name.trim().length <= 120,
+          "Họ tên từ 2–120 ký tự.",
+        );
+      if (command.teamId)
+        ensure(
+          (db.teams ?? [{ id: "default" }]).some(
+            (t) => t.id === command.teamId,
+          ),
+          "Nhóm không tồn tại.",
+        );
       ensure(
         !db.assignments.some((t) => t.assigneeId === member.id && isLive(t)) ||
           (command.active && command.role === "telesale"),
@@ -1207,6 +1232,7 @@ export function applyCommand(
         );
       member.role = command.role;
       member.active = command.active;
+      if (command.name !== undefined) member.name = command.name.trim();
       if (command.teamId) member.teamId = command.teamId;
       break;
     }
