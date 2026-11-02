@@ -1,5 +1,18 @@
 # AhaMove Lead trên Vercel
 
+
+## Cập nhật production 02/11/2026
+
+- Đã redeploy giao diện ở commit `9edca04f376c82a9ea08601efc107459d573a412` lên project **ahamove-lead** trong team `phuongthao2005daodao-3053s-projects`.
+- Deployment: `dpl_DhrEkFw7LjLmxJB9Y6FomKwYXNKX`, trạng thái **READY**, target **production**; alias chính [ahamove-lead.vercel.app](https://ahamove-lead.vercel.app).
+- Phiên bản: [ahamove-lead-d7lhtjbbg-phuongthao2005daodao-3053s-projects.vercel.app](https://ahamove-lead-d7lhtjbbg-phuongthao2005daodao-3053s-projects.vercel.app).
+- Dựng bằng `node scripts/lead-build-vercel.mjs`; triển khai prebuilt từ `.vercel-deploy/ahamove-lead`. Cấu hình `.vercel/` ở gốc `app/` trỏ project khác, không dùng cho lần phát hành này.
+- Chỉ đưa 60 file frontend đã biên dịch lên Vercel. Kiểm tra output không chứa `.env`, phiên CLI, log, endpoint tài khoản development hoặc literal email/mật khẩu dùng thử; build có đúng cấu hình backend hiện có và CSS giao diện mới.
+- Xác minh alias chính HTTP 200; 7 file JavaScript/CSS public, gồm gói ứng dụng tải sau, khớp byte và SHA-256 với bản build local.
+- Browser public ở 1440 px và 390 px: trang đăng nhập và form đăng ký tài xế tải thành công, không tràn ngang toàn trang, không có pageerror; không hiện danh sách tài khoản dùng thử. Không gửi biểu mẫu.
+- Không chạy migration, tạo hồ sơ hay sửa dữ liệu nghiệp vụ. Kiểm tra đăng nhập bốn vai trò sau deploy chưa thực hiện: auto-review chặn vì cần quyền riêng cho việc dùng tài khoản production và đọc dữ liệu theo vai trò. Kết quả public trên không thay thế nghiệm thu nghiệp vụ có đăng nhập.
+- Kết quả kỹ thuật lưu cục bộ trong `.vercel-deploy/production-ui-20261102/` (gitignore). Bản deployment trước là `dpl_5hVq9bGGFqXyPt5rvZcy1ZuJsg8f`.
+
 ## Cập nhật production 26/10/2026
 
 - Vercel deployment `dpl_5hVq9bGGFqXyPt5rvZcy1ZuJsg8f`, READY, production; tên miền chính https://ahamove-lead.vercel.app.
