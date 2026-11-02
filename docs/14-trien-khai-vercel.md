@@ -10,7 +10,9 @@
 - Chỉ đưa 60 file frontend đã biên dịch lên Vercel. Kiểm tra output không chứa `.env`, phiên CLI, log, endpoint tài khoản development hoặc literal email/mật khẩu dùng thử; build có đúng cấu hình backend hiện có và CSS giao diện mới.
 - Xác minh alias chính HTTP 200; 7 file JavaScript/CSS public, gồm gói ứng dụng tải sau, khớp byte và SHA-256 với bản build local.
 - Browser public ở 1440 px và 390 px: trang đăng nhập và form đăng ký tài xế tải thành công, không tràn ngang toàn trang, không có pageerror; không hiện danh sách tài khoản dùng thử. Không gửi biểu mẫu.
-- Không chạy migration, tạo hồ sơ hay sửa dữ liệu nghiệp vụ. Kiểm tra đăng nhập bốn vai trò sau deploy chưa thực hiện: auto-review chặn vì cần quyền riêng cho việc dùng tài khoản production và đọc dữ liệu theo vai trò. Kết quả public trên không thay thế nghiệm thu nghiệp vụ có đăng nhập.
+- Sau khi người dùng cho phép kiểm tra chỉ đọc trên production: đăng nhập **Admin, Tiếp nhận, Trưởng nhóm, Telesale** đều đạt. Xác nhận UI mới, menu đúng vai trò, không tràn ngang toàn trang ở 1440/390 px, mở/đóng menu bằng Escape và trả focus đúng; không có pageerror. Admin vẫn vào được form Đổi mật khẩu từ menu tài khoản; không nhập hay đổi mật khẩu.
+- Tiếp nhận không có Lịch hẹn trong menu; Trưởng nhóm/Telesale giữ mục này và có bộ chọn nhóm/sắp xếp phiếu trên điện thoại. Kiểm tra các trang tài khoản, hồ sơ hoặc nhiệm vụ theo vai trò; không coi đây là nghiệm thu toàn bộ workflow production.
+- Không chạy migration hoặc gửi form nghiệp vụ. Kiểm tra browser chặn các RPC ghi nghiệp vụ; không ghi nhận yêu cầu ghi nào từ phiên kiểm tra. Ảnh và báo cáo theo vai trò chỉ lưu cục bộ trong thư mục ignored `authenticated/`, không đưa dữ liệu riêng lên GitHub.
 - Kết quả kỹ thuật lưu cục bộ trong `.vercel-deploy/production-ui-20261102/` (gitignore). Bản deployment trước là `dpl_5hVq9bGGFqXyPt5rvZcy1ZuJsg8f`.
 
 ## Cập nhật production 26/10/2026
